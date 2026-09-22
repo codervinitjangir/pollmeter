@@ -1,11 +1,12 @@
 {
-  "name": "menti-style",
+  "name": "pollmeter",
   "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "concurrently -k -n SERVER,CLIENT -c cyan,magenta \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
-    "install:all": "npm install && npm install --prefix server && npm install --prefix client",
-    "build": "npm run build --prefix client && npm run build --prefix server",
+    "postinstall": "npm install --include=dev --prefix server && npm install --include=dev --prefix client",
+    "install:all": "npm install --include=dev --prefix server && npm install --include=dev --prefix client",
+    "build": "npm run install:all && npm run build --prefix client && npm run build --prefix server",
     "start": "npm run start --prefix server"
   },
   "devDependencies": {
