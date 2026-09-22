@@ -1,8 +1,8 @@
 import { io, Socket } from 'socket.io-client';
 
-// Dev: Vite proxies /socket.io to the Express server.
-// Production: client and server are the same origin.
-const URL = import.meta.env.MODE === 'production' ? window.location.origin : '/';
+// Dev: Vite proxies /socket.io to Express server.
+// Production: same-origin by default, or VITE_SERVER_URL if deployed separately.
+const URL = import.meta.env.VITE_SERVER_URL || (import.meta.env.MODE === 'production' ? window.location.origin : '/');
 
 /**
  * Classroom wifi drops. Retry forever with backoff rather than giving up after
