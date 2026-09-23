@@ -4249,3 +4249,197 @@ fieldset.field {
   transform: scale(0.98);
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   LIVE PRESENTATION STAGE LEADERBOARD (HostPage phase === 'leaderboard')
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.stage-lb-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  overflow: hidden;
+  animation: wrap-fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.stage-lb-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface, #FFFFFF);
+  border: 1px solid var(--border, #E2E8F0);
+  border-radius: var(--r-xl, 20px);
+  padding: 1.25rem 1.75rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+/* Projector header layout with left/right groups */
+.menti-race-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.menti-race-subtitle {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted, #64748B);
+}
+
+.menti-race-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* View toggle (Race Track vs 3D Olympic Podium) */
+.menti-race-view-toggle {
+  display: flex;
+  background: #F1F5F9;
+  padding: 3px;
+  border-radius: 11px;
+  border: 1px solid #E2E8F0;
+  gap: 3px;
+}
+
+.menti-race-toggle-btn {
+  padding: 0.35rem 0.8rem;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748B;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--font);
+}
+
+.menti-race-toggle-btn:hover {
+  color: #0F172A;
+}
+
+.menti-race-toggle-btn.is-active {
+  background: #FFFFFF;
+  color: #0F172A;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* Live participant count pill with pulsing dot */
+.menti-race-live-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: #ECFDF5;
+  border: 1px solid #A7F3D0;
+  color: #065F46;
+  font-size: 0.825rem;
+  font-weight: 700;
+  padding: 0.35rem 0.85rem;
+  border-radius: 9999px;
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.1);
+}
+
+/* Projector scaling for leaderboard rows */
+.menti-race-shell--projector .menti-race-row {
+  padding: 0.4rem 0;
+  gap: 1.25rem;
+}
+
+.menti-race-shell--projector .menti-race-track-wrap {
+  height: 46px;
+}
+
+.menti-race-shell--projector .menti-race-bar {
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+}
+
+.menti-race-shell--projector .menti-race-avatar {
+  width: 40px;
+  height: 40px;
+  font-size: 1.45rem;
+  border-width: 3px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+.menti-race-shell--projector .menti-race-score {
+  font-size: 1.55rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.menti-race-shell--projector .menti-race-unit {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.menti-race-shell--projector .menti-race-score-col {
+  flex: 0 0 115px;
+}
+
+.menti-race-shell--projector .menti-race-name {
+  font-size: 1.15rem;
+  font-weight: 800;
+  max-width: 240px;
+}
+
+.menti-race-shell--projector .menti-race-delta {
+  font-size: 0.85rem;
+  padding: 0.18rem 0.65rem;
+  font-weight: 800;
+  border-radius: 9999px;
+}
+
+.menti-race-shell--projector .menti-race-medal {
+  font-size: 1.4rem;
+}
+
+/* Leader spotlight banner when participant count is small */
+.menti-race-spotlight {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 1.5rem;
+  padding: 1.1rem 1.5rem;
+  margin-top: auto;
+  background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+  border: 1.5px solid #E2E8F0;
+  border-radius: 18px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  flex-wrap: wrap;
+}
+
+.menti-race-spotlight-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.menti-race-spotlight-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.menti-race-spotlight-text {
+  font-size: 0.95rem;
+  color: #334155;
+  font-weight: 600;
+}
+
+.menti-race-spotlight-pts {
+  display: inline-block;
+  font-weight: 800;
+  color: #B45309;
+  background: #FEF3C7;
+  padding: 0.15rem 0.55rem;
+  border-radius: 9999px;
+  border: 1px solid #FDE68A;
+  margin-left: 0.25rem;
+}
+

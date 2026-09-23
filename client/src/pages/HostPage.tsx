@@ -1261,13 +1261,16 @@ export default function HostPage() {
               </div>
             )}
             {/* Racing leaderboard */}
-            <div className="card card--lg stage-lb-card">
+            <div className="menti-stage-card stage-lb-card">
               <Leaderboard
                 entries={leaderboard}
                 prevEntries={prevLeaderboard}
                 variant="projector"
                 limit={10}
-                title="Leaderboard"
+                allowViewToggle
+                showPodium={leaderboard.length <= 3}
+                title={`⚡ Standings · Question ${currentIndex + 1} of ${questionCount}`}
+                subtitle="Top 10 Leaders · Faster responses score higher"
                 celebrateKey={currentIndex}
               />
             </div>
