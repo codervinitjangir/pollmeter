@@ -98,6 +98,7 @@ export default function JoinPage() {
   const pendingName = useRef('');
   const joinedRef = useRef(false);
   const submittingRef = useRef(false);
+  const joinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const persist = useCallback((next: StoredSession) => {
     identity.current = next;
@@ -109,6 +110,15 @@ export default function JoinPage() {
     pendingName.current = name;
     setJoining(true);
     setJoinError('');
+
+    if (joinTimeoutRef.current) clearTimeout(joinTimeoutRef.current);
+    joinTimeoutRef.current = setTimeout(() => {
+      if (!joinedRef.current) {
+        setJoining(false);
+        setJoinError('Connection timed out. Check if you are on the same Wi-Fi / Hotspot as the host.');
+      }
+    }, 8000);
+
     if (!socket.connected) socket.connect();
     socket.emit('join_session', {
       code: code.trim(),
@@ -159,6 +169,10 @@ export default function JoinPage() {
     }
 
     function onSessionState(p: SessionStatePayload) {
+      if (joinTimeoutRef.current) {
+        clearTimeout(joinTimeoutRef.current);
+        joinTimeoutRef.current = null;
+      }
       persist({
         code: p.code,
         participantId: p.participantId,
@@ -260,7 +274,23 @@ export default function JoinPage() {
       joinedRef.current = false;
     }
 
+    function onConnectError() {
+      setConnected(false);
+      if (!joinedRef.current) {
+        if (joinTimeoutRef.current) {
+          clearTimeout(joinTimeoutRef.current);
+          joinTimeoutRef.current = null;
+        }
+        setJoining(false);
+        setJoinError('Cannot connect to quiz server. Please check your Wi-Fi or network.');
+      }
+    }
+
     function onError(p: { message: string }) {
+      if (joinTimeoutRef.current) {
+        clearTimeout(joinTimeoutRef.current);
+        joinTimeoutRef.current = null;
+      }
       if (!joinedRef.current) {
         setJoinError(p.message);
         setJoining(false);
@@ -279,6 +309,7 @@ export default function JoinPage() {
     }
 
     socket.on('connect', onConnect);
+    socket.on('connect_error', onConnectError);
     socket.on('disconnect', onDisconnect);
     socket.on('session_state', onSessionState);
     socket.on('question_started', onQuestionStarted);
@@ -294,6 +325,7 @@ export default function JoinPage() {
 
     return () => {
       socket.off('connect', onConnect);
+      socket.off('connect_error', onConnectError);
       socket.off('disconnect', onDisconnect);
       socket.off('session_state', onSessionState);
       socket.off('question_started', onQuestionStarted);

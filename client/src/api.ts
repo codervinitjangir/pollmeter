@@ -9,8 +9,16 @@ export function getApiBaseUrl(): string {
   if (import.meta.env.VITE_SERVER_URL) {
     return import.meta.env.VITE_SERVER_URL.replace(/\/+$/, '');
   }
-  if (typeof window !== 'undefined' && window.location.hostname.includes('pages.dev')) {
-    return 'https://pollmeter.onrender.com';
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (
+      host.includes('pages.dev') ||
+      host.includes('vercel.app') ||
+      host.includes('netlify.app') ||
+      host.includes('github.io')
+    ) {
+      return 'https://pollmeter.onrender.com';
+    }
   }
   return '';
 }
