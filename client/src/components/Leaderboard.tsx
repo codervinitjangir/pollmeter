@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, useState } from 'react';
 import confetti from 'canvas-confetti';
 import { LeaderboardEntry } from '../types';
 
@@ -10,263 +10,245 @@ interface Props {
   showPodium?: boolean;
   isPodium?: boolean;
   showAll?: boolean;
-  /** How many rows below the podium to show. */
   limit?: number;
-  /** Changes when a new leaderboard is revealed, so confetti fires once per reveal. */
   celebrateKey?: string | number;
 }
 
-const MEDALS: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
+/** Stable vibrant palette — one color per participant, cycling if > 10. */
+const PARTICIPANT_COLORS = [
+  '#38BDF8', // aqua
+  '#F43F5E', // coral
+  '#34D399', // mint
+  '#FBBF24', // gold
+  '#A78BFA', // violet
+  '#FB923C', // tangerine
+  '#60A5FA', // blue
+  '#F472B6', // pink
+  '#4ADE80', // green
+  '#FCA5A5', // salmon
+];
 
+/** Deterministic avatar per name. */
+const AVATARS = ['🛸', '👽', '🔥', '🦀', '🥸', '🍌', '🍉', '🍄', '😍', '📎', '🦁', '🐯', '🚀', '🌟', '🍕'];
+
+function getAvatar(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash += name.charCodeAt(i);
+  return AVATARS[Math.abs(hash) % AVATARS.length];
+}
+
+function getColor(idx: number): string {
+  return PARTICIPANT_COLORS[idx % PARTICIPANT_COLORS.length];
+}
+
+/**
+ * Counts a number up from `from` to `to` over `durationMs` milliseconds.
+ * Returns the current animated value.
+ */
+function useCountUp(to: number, from: number, durationMs = 2200): number {
+  const [value, setValue] = useState(from);
+  const fromRef = useRef(from);
+  const startRef = useRef<number | null>(null);
+  const rafRef = useRef<number>(0);
+
+  useEffect(() => {
+    // If target changed, start fresh from where we currently are.
+    fromRef.current = value;
+    startRef.current = null;
+
+    function tick(ts: number) {
+      if (startRef.current === null) startRef.current = ts;
+      const elapsed = ts - startRef.current;
+      const progress = Math.min(1, elapsed / durationMs);
+      // Ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.round(fromRef.current + (to - fromRef.current) * eased));
+      if (progress < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [to]);
+
+  return value;
+}
+
+/** Individual leaderboard row with animated score and bar. */
+function LbRow({
+  entry,
+  idx,
+  maxScore,
+  isMe,
+  prevScore,
+  isProjector,
+}: {
+  entry: LeaderboardEntry;
+  idx: number;
+  maxScore: number;
+  isMe: boolean;
+  prevScore: number;
+  isProjector: boolean;
+}) {
+  const animatedScore = useCountUp(entry.totalScore, prevScore);
+  const barPct = maxScore > 0 ? (animatedScore / maxScore) * 100 : 0;
+  const delta = entry.totalScore - prevScore;
+  const color = getColor(idx);
+  const avatar = getAvatar(entry.name);
+
+  return (
+    <div
+      className={`menti-lb-row${isMe ? ' menti-lb-row--me' : ''}${idx < 3 ? ` menti-lb-row--top${idx + 1}` : ''}`}
+      style={{ '--lb-color': color } as React.CSSProperties}
+    >
+      {/* Rank */}
+      <span className="menti-lb-rank">
+        {idx === 0 ? '👑' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
+      </span>
+
+      {/* Avatar */}
+      <span className="menti-lb-avatar" aria-hidden="true">
+        {avatar}
+      </span>
+
+      {/* Name + bar */}
+      <div className="menti-lb-body">
+        <div className="menti-lb-name-row">
+          <span className="menti-lb-name" title={entry.name}>
+            {entry.name}
+            {isMe && <span className="menti-lb-you-badge">You</span>}
+          </span>
+          <div className="menti-lb-score-wrap">
+            <span className="menti-lb-score" style={{ color }}>
+              {animatedScore.toLocaleString()}
+            </span>
+            {delta > 0 && (
+              <span className="menti-lb-delta" aria-label={`+${delta} points this round`}>
+                +{delta}
+              </span>
+            )}
+          </div>
+        </div>
+        {/* Bar expanding as score counts up */}
+        <div className="menti-lb-track" aria-hidden="true">
+          <div
+            className="menti-lb-bar"
+            style={{
+              width: `${barPct}%`,
+              background: `linear-gradient(90deg, ${color} 0%, ${color}bb 100%)`,
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Racing leaderboard — Mentimeter style.
+ *
+ * Each participant has:
+ *  - A stable vibrant color
+ *  - An emoji avatar derived from their name
+ *  - An animated score that counts up from the previous value
+ *  - A horizontal bar that expands in sync with the count-up
+ *  - A +XYZ delta chip showing points gained this round
+ */
 export default function Leaderboard({
   entries,
   myParticipantId,
   title = 'Leaderboard',
   variant = 'compact',
-  showPodium = false,
-  isPodium = false,
   showAll = false,
   limit,
   celebrateKey,
 }: Props) {
-  const hasPodium = showPodium || isPodium;
-  const isProjector = variant === 'projector' || hasPodium;
+  const isProjector = variant === 'projector';
   const celebrated = useRef<string | number | undefined>(undefined);
 
-  // Store previous ranks across question reveals to animate delta and rank cross-outs (Rule 8)
-  const prevRanksRef = useRef<Map<string, number>>(new Map());
+  // Track previous totals for delta calculation and count-up animation origin.
+  const prevTotalsRef = useRef<Map<string, number>>(new Map());
 
-  const ranked = entries;
-  const me = myParticipantId
-    ? ranked.find((e) => e.participantId === myParticipantId)
-    : undefined;
-
-  // Compute rank changes: e.g. was 3, now 1 -> delta = +2 (climbed!)
-  const rankDeltas = useMemo(() => {
-    const map = new Map<string, { prevRank?: number; delta: number }>();
-    for (const e of entries) {
-      const prev = prevRanksRef.current.get(e.participantId);
-      if (prev !== undefined) {
-        map.set(e.participantId, { prevRank: prev, delta: prev - e.rank });
-      } else {
-        map.set(e.participantId, { delta: 0 });
-      }
-    }
-    return map;
+  // Capture prev scores BEFORE entries update so count-up starts from the right place.
+  const prevTotalsSnapshot = useMemo(() => {
+    return new Map(prevTotalsRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries]);
 
-  // Keep rank deltas visible during the question transition before updating ref
+  // Update the ref AFTER snapshot is captured.
   useEffect(() => {
-    if (entries.length > 0) {
-      const timer = setTimeout(() => {
-        prevRanksRef.current = new Map(entries.map((e) => [e.participantId, e.rank]));
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
+    const timer = setTimeout(() => {
+      prevTotalsRef.current = new Map(entries.map((e) => [e.participantId, e.totalScore]));
+    }, 3000); // keep animation visible for 3s before snapshotting new baseline
+    return () => clearTimeout(timer);
   }, [entries]);
 
+  // Confetti on reveal.
   useEffect(() => {
-    if (!hasPodium || ranked.length === 0) return;
+    if (entries.length === 0) return;
     if (celebrated.current === celebrateKey) return;
     celebrated.current = celebrateKey;
 
     confetti({
-      particleCount: 70,
-      spread: 70,
-      origin: { y: 0.55 },
-      colors: ['#1F69FF', '#10B981', '#F59E0B', '#F43F5E'],
+      particleCount: 80,
+      spread: 80,
+      origin: { y: 0.5 },
+      colors: ['#38BDF8', '#F43F5E', '#34D399', '#FBBF24', '#A78BFA', '#FB923C'],
       disableForReducedMotion: true,
     });
-  }, [hasPodium, celebrateKey, ranked.length]);
+  }, [celebrateKey, entries.length]);
 
-  const top1 = ranked.find((e) => e.rank === 1);
-  const top2 = ranked.find((e) => e.rank === 2);
-  const top3 = ranked.find((e) => e.rank === 3);
+  const visible = showAll
+    ? entries
+    : limit != null
+    ? entries.slice(0, limit)
+    : entries;
 
-  const podiumIds = new Set(
-    [top1?.participantId, top2?.participantId, top3?.participantId].filter(Boolean)
-  );
+  const maxScore = Math.max(1, ...entries.map((e) => e.totalScore));
 
-  const rest = hasPodium ? ranked.filter((e) => !podiumIds.has(e.participantId)) : ranked;
-  const visible = showAll ? (hasPodium ? rest : ranked) : limit != null ? rest.slice(0, limit) : rest;
-  const hiddenMe = me && !podiumIds.has(me.participantId) && !visible.some((e) => e.participantId === me.participantId);
-
-  function renderRankBadge(participantId: string, currentRank: number) {
-    const info = rankDeltas.get(participantId);
-    if (!info || info.prevRank === undefined) {
-      return <span className="lb-rank">{MEDALS[currentRank] ?? `#${currentRank}`}</span>;
-    }
-
-    if (info.prevRank !== currentRank) {
-      return (
-        <div className="rank-cut-box" title={`Moved from #${info.prevRank} to #${currentRank}`}>
-          <span className="rank-prev-cut">#{info.prevRank}</span>
-          <span className="rank-arrow">➔</span>
-          <span className="rank-curr">{MEDALS[currentRank] ?? `#${currentRank}`}</span>
-        </div>
-      );
-    }
-
-    return <span className="lb-rank">{MEDALS[currentRank] ?? `#${currentRank}`}</span>;
-  }
-
-  function renderDeltaPill(participantId: string) {
-    const info = rankDeltas.get(participantId);
-    if (!info || info.prevRank === undefined) {
-      return <span className="rank-delta rank-delta--new">NEW</span>;
-    }
-    if (info.delta > 0) {
-      return (
-        <span className="rank-delta rank-delta--up" title={`Climbed ${info.delta} places!`}>
-          ▲ +{info.delta}
-        </span>
-      );
-    }
-    if (info.delta < 0) {
-      return (
-        <span className="rank-delta rank-delta--down" title={`Dropped ${Math.abs(info.delta)} places`}>
-          ▼ {info.delta}
-        </span>
-      );
-    }
-    return <span className="rank-delta rank-delta--same">—</span>;
+  if (entries.length === 0) {
+    return (
+      <p className="text-secondary text-center" style={{ padding: '2rem 0' }}>
+        No scores yet. Responses will show up live!
+      </p>
+    );
   }
 
   return (
-    <div className={`stack stack-5 ${isProjector ? 'projector-leaderboard' : ''}`}>
-      <div className="row row-2" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 className="t-headline" style={{ fontSize: isProjector ? '1.75rem' : '1.35rem' }}>
-          {title}
-        </h2>
-        {me && (
-          <span className="badge badge-primary">
-            You&rsquo;re #{me.rank} of {ranked.length}
-          </span>
-        )}
+    <div className={`menti-lb-shell${isProjector ? ' menti-lb-shell--projector' : ''}`}>
+      {/* Title */}
+      <div className="menti-lb-header">
+        <h2 className="menti-lb-title">{title}</h2>
+        {myParticipantId && (() => {
+          const me = entries.find((e) => e.participantId === myParticipantId);
+          return me ? (
+            <span className="menti-lb-my-rank">
+              You&apos;re #{me.rank} of {entries.length}
+            </span>
+          ) : null;
+        })()}
       </div>
 
-      {/* 3-Step Podium for Top 3 */}
-      {hasPodium && (top1 || top2 || top3) && (
-        <div className="podium-wrap">
-          <div className="podium-stage">
-            {/* 2nd place (Left) */}
-            {top2 ? (
-              <div className={`podium-col second ${top2.participantId === myParticipantId ? 'is-me' : ''}`}>
-                <div className="podium-avatar">🥈</div>
-                <p className="podium-name" title={top2.name}>{top2.name}</p>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', margin: '2px 0' }}>
-                  {renderDeltaPill(top2.participantId)}
-                </div>
-                <div className="podium-block block-2">
-                  <span className="podium-rank-num">2</span>
-                  <span className="podium-score-num">{top2.totalScore.toLocaleString()} pts</span>
-                </div>
-              </div>
-            ) : (
-              <div className="podium-col second" style={{ opacity: 0.2 }}>
-                <div className="podium-block block-2" style={{ height: '70px' }} />
-              </div>
-            )}
+      {/* Rows */}
+      <div className="menti-lb-list">
+        {visible.map((entry, idx) => (
+          <LbRow
+            key={entry.participantId}
+            entry={entry}
+            idx={idx}
+            maxScore={maxScore}
+            isMe={entry.participantId === myParticipantId}
+            prevScore={prevTotalsSnapshot.get(entry.participantId) ?? 0}
+            isProjector={isProjector}
+          />
+        ))}
+      </div>
 
-            {/* 1st place (Center, Tallest) */}
-            {top1 ? (
-              <div className={`podium-col first ${top1.participantId === myParticipantId ? 'is-me' : ''}`}>
-                <span className="podium-crown" aria-hidden="true">👑</span>
-                <div className="podium-avatar first-avatar">🥇</div>
-                <p className="podium-name" title={top1.name} style={{ fontWeight: 800, fontSize: '1.05rem' }}>
-                  {top1.name}
-                </p>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', margin: '2px 0' }}>
-                  {renderDeltaPill(top1.participantId)}
-                </div>
-                <div className="podium-block block-1">
-                  <span className="podium-rank-num">1</span>
-                  <span className="podium-score-num">{top1.totalScore.toLocaleString()} pts</span>
-                </div>
-              </div>
-            ) : (
-              <div className="podium-col first" style={{ opacity: 0.2 }}>
-                <div className="podium-block block-1" style={{ height: '90px' }} />
-              </div>
-            )}
-
-            {/* 3rd place (Right) */}
-            {top3 ? (
-              <div className={`podium-col third ${top3.participantId === myParticipantId ? 'is-me' : ''}`}>
-                <div className="podium-avatar">🥉</div>
-                <p className="podium-name" title={top3.name}>{top3.name}</p>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', margin: '2px 0' }}>
-                  {renderDeltaPill(top3.participantId)}
-                </div>
-                <div className="podium-block block-3">
-                  <span className="podium-rank-num">3</span>
-                  <span className="podium-score-num">{top3.totalScore.toLocaleString()} pts</span>
-                </div>
-              </div>
-            ) : (
-              <div className="podium-col third" style={{ opacity: 0.2 }}>
-                <div className="podium-block block-3" style={{ height: '50px' }} />
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Participant List (All or Ranks 4+) */}
-      {visible.length > 0 && (
-        <div className="leaderboard">
-          {visible.map((entry) => (
-            <div
-              key={entry.participantId}
-              className={`lb-row ${
-                entry.rank === 1 ? 'top-1' : entry.rank === 2 ? 'top-2' : entry.rank === 3 ? 'top-3' : ''
-              } ${entry.participantId === myParticipantId ? 'is-me' : ''}`}
-            >
-              {renderRankBadge(entry.participantId, entry.rank)}
-              <span className="lb-name">
-                {entry.name}
-                {entry.participantId === myParticipantId && (
-                  <span className="badge badge-neutral" style={{ marginLeft: '0.4rem', fontSize: '0.7rem' }}>
-                    You
-                  </span>
-                )}
-              </span>
-              {renderDeltaPill(entry.participantId)}
-              <span className="lb-meta">{entry.correctAnswers} correct</span>
-              <span className="lb-score">{entry.totalScore.toLocaleString()} pts</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Detached personal row if current participant is hidden below fold */}
-      {hiddenMe && me && (
-        <div className="stack stack-2">
-          <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>⋯</div>
-          <div className="lb-row is-me">
-            {renderRankBadge(me.participantId, me.rank)}
-            <span className="lb-name">
-              {me.name}
-              <span className="badge badge-primary" style={{ marginLeft: '0.4rem', fontSize: '0.7rem' }}>
-                You
-              </span>
-            </span>
-            {renderDeltaPill(me.participantId)}
-            <span className="lb-meta">{me.correctAnswers} correct</span>
-            <span className="lb-score">{me.totalScore.toLocaleString()} pts</span>
-          </div>
-        </div>
-      )}
-
-      {ranked.length === 0 && (
-        <p className="text-secondary text-center" style={{ padding: '2rem 0' }}>
-          No scores yet. Responses will show up live!
-        </p>
-      )}
-
-      {!showAll && limit != null && rest.length > visible.length && !hiddenMe && (
-        <p className="text-muted text-center" style={{ fontSize: '0.85rem' }}>
-          +{rest.length - visible.length} more participants in classroom
+      {!showAll && limit != null && entries.length > visible.length && (
+        <p className="text-muted text-center" style={{ fontSize: '0.85rem', marginTop: '0.75rem' }}>
+          +{entries.length - visible.length} more participants
         </p>
       )}
     </div>

@@ -436,43 +436,71 @@ export default function HostPage() {
   const everyoneAnswered = connectedCount > 0 && answeredCount >= connectedCount;
 
   const sessionNav = (
-    <nav className="nav">
-      <span className="nav-logo">
-        <svg width="24" height="24" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M6 9H11V27H6V9Z" fill="#191C21" />
+    <nav className="menti-stage-nav">
+      {/* Brand */}
+      <span className="menti-stage-nav-brand">
+        <svg width="22" height="22" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M6 9H11V27H6V9Z" fill="#fff" />
           <rect x="14" y="14" width="5" height="13" rx="1" fill="#F43F5E" />
-          <rect x="22" y="7" width="5" height="20" rx="1" fill="#3B82F6" />
+          <rect x="22" y="7" width="5" height="20" rx="1" fill="#38BDF8" />
         </svg>
-        <span style={{ fontWeight: 800, color: '#191C21' }}>PollMeter</span>
+        <span>PollMeter</span>
       </span>
-      <div className="row row-3">
-        {phase !== 'ended' && <span className="badge badge-live">Live</span>}
-        <span className="chip">🔑 {code}</span>
-        <span className="chip">👥 {connectedCount}</span>
-        {questionCount > 0 && phase !== 'lobby' && (
-          <span className="chip">Q{currentIndex + 1}/{questionCount}</span>
+
+      {/* Centre join hint */}
+      <div className="menti-stage-nav-join">
+        <span>Go to </span>
+        <strong>{joinHost}/join</strong>
+        <span> and use code </span>
+        <strong className="menti-stage-nav-code">{code}</strong>
+      </div>
+
+      {/* Right controls */}
+      <div className="menti-stage-nav-right">
+        {phase !== 'ended' && (
+          <span className="menti-stage-live-dot" aria-label="Live session">
+            <span className="menti-stage-live-pulse" />
+            Live
+          </span>
         )}
-        <button className="btn btn-ghost btn--sm" onClick={toggleFullscreen} id="fullscreen-btn">
+        <span className="menti-stage-chip">👥 {connectedCount}</span>
+        {questionCount > 0 && phase !== 'lobby' && (
+          <span className="menti-stage-chip">Q {currentIndex + 1}/{questionCount}</span>
+        )}
+        <button
+          className="menti-stage-btn-ghost"
+          onClick={toggleFullscreen}
+          id="fullscreen-btn"
+          title={isFullscreen ? 'Exit fullscreen' : 'Enter projector mode'}
+        >
           {isFullscreen ? '✕ Exit' : '⛶ Projector'}
         </button>
       </div>
     </nav>
   );
 
-  /** Kept on screen during questions so latecomers can still join. */
+  /** Live answer tally strip — shown during active questions. */
   const joinStrip = (
-    <div className="stage-join">
-      <div className="row row-2">
-        <span className="badge badge-primary">📱 Join</span>
-        <span className="t-body-sm text-secondary">
-          {joinHost}/join · code <span className="stage-join-code">{code}</span>
+    <div className={`menti-tally-strip${everyoneAnswered ? ' menti-tally-strip--complete' : ''}`}>
+      <div className="menti-tally-left">
+        <span className="menti-tally-icon" aria-hidden="true">📱</span>
+        <span className="menti-tally-url">
+          <strong>{joinHost}/join</strong>
+          {' · code '}
+          <strong className="menti-tally-code">{code}</strong>
         </span>
       </div>
-      <div className={`answer-tally${everyoneAnswered ? ' is-complete' : ''}`}>
-        <span className="answer-tally-num">{answeredCount}</span>
-        <span className="answer-tally-label">
-          of {connectedCount || '—'} answered
-        </span>
+      <div className="menti-tally-right">
+        {everyoneAnswered ? (
+          <span className="menti-tally-complete">✔ Everyone answered!</span>
+        ) : (
+          <>
+            <span className="menti-tally-num">{answeredCount}</span>
+            <span className="menti-tally-sep">/</span>
+            <span className="menti-tally-total">{connectedCount || '—'}</span>
+            <span className="menti-tally-label">answered</span>
+          </>
+        )}
       </div>
     </div>
   );
@@ -889,7 +917,6 @@ export default function HostPage() {
               <Leaderboard
                 entries={leaderboard}
                 variant="projector"
-                showPodium
                 showAll
                 title="🏆 Champions"
                 celebrateKey="final"
@@ -961,16 +988,18 @@ export default function HostPage() {
 
             {phase === 'leaderboard' ? (
               <>
+                {/* Correct answer reveal banner */}
                 {correctAnswer && (
-                  <div className="alert alert-success" style={{ justifyContent: 'center', fontSize: '1.05rem', padding: '0.9rem' }}>
-                    ✓ Correct answer: <strong>{correctAnswer}</strong>
+                  <div className="menti-correct-banner">
+                    <span className="menti-correct-icon" aria-hidden="true">✔</span>
+                    <span>Correct answer: <strong>{correctAnswer}</strong></span>
                   </div>
                 )}
-                <div className="card card--lg">
+                {/* Racing leaderboard */}
+                <div className="card card--lg" style={{ background: 'var(--surface)', borderRadius: 'var(--r-xl)', padding: '1.75rem' }}>
                   <Leaderboard
                     entries={leaderboard}
                     variant="projector"
-                    showPodium
                     showAll
                     title="🏆 Standings"
                     celebrateKey={currentIndex}
@@ -979,39 +1008,72 @@ export default function HostPage() {
               </>
             ) : (
               currentQuestion && (
-                <div className="card card--lg stack stack-5">
-                  <div className="row row-3" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <h1 className="stage-question flex-1">{currentQuestion.text}</h1>
+                <div className="menti-stage-card">
+                  {/* ─── Question header ─── */}
+                  <div className="menti-stage-q-header">
+                    <div className="menti-stage-q-body">
+                      <span className="menti-stage-q-num">
+                        Question {currentIndex + 1} of {questionCount}
+                      </span>
+                      <h1 className="menti-stage-question">{currentQuestion.text}</h1>
+                    </div>
+                    {/* Countdown timer */}
                     {phase === 'question' && timer && (
-                      <CountdownTimer
-                        endsAt={timer.endsAt}
-                        durationSeconds={timer.durationSeconds}
-                        size={120}
-                      />
+                      <div className="menti-stage-timer-wrap">
+                        <CountdownTimer
+                          endsAt={timer.endsAt}
+                          durationSeconds={timer.durationSeconds}
+                          size={130}
+                        />
+                      </div>
+                    )}
+                    {/* Results phase — no timer, show answered count */}
+                    {phase === 'results' && (
+                      <div className="menti-stage-reveal-badge">
+                        <span aria-hidden="true">👁</span> Results revealed
+                      </div>
                     )}
                   </div>
 
-                  <hr className="divider" />
+                  <div className="menti-stage-divider" />
 
+                  {/* ─── Content area ─── */}
                   {currentQuestion.type === 'mcq' ? (
                     gradedAndOpen && results == null ? (
-                      // A scored question stays hidden while it is open, or the
-                      // back of the room simply copies whichever bar is winning.
-                      <div className="stage-withheld">
-                        <span className="stage-withheld-icon" aria-hidden="true">🔒</span>
-                        <p className="t-title">{answeredCount} answered</p>
-                        <p className="t-body-sm text-muted">
-                          Results stay hidden until you close the question.
-                        </p>
-                        <div className="row row-2 row-wrap" style={{ justifyContent: 'center', marginTop: '0.5rem' }}>
-                          {(currentQuestion.options ?? []).map((opt, idx) => (
-                            <span key={opt} className="badge badge-neutral" style={{ padding: '0.35rem 0.7rem' }}>
-                              {['A', 'B', 'C', 'D', 'E', 'F'][idx] ?? idx + 1}. {opt}
-                            </span>
-                          ))}
+                      /* Scored question: show colorful option cards while hidden */
+                      <div className="menti-stage-options">
+                        {(currentQuestion.options ?? []).map((opt, idx) => {
+                          const COLORS = ['#38BDF8','#F43F5E','#34D399','#FBBF24','#A78BFA','#FB923C'];
+                          const color = COLORS[idx % COLORS.length];
+                          const LETTERS = ['A','B','C','D','E','F'];
+                          return (
+                            <div
+                              key={opt}
+                              className="menti-stage-opt-card"
+                              style={{
+                                background: `${color}18`,
+                                borderColor: `${color}60`,
+                                '--opt-color': color,
+                              } as React.CSSProperties}
+                            >
+                              <span
+                                className="menti-stage-opt-letter"
+                                style={{ background: color }}
+                              >
+                                {LETTERS[idx] ?? idx + 1}
+                              </span>
+                              <span className="menti-stage-opt-text">{opt}</span>
+                            </div>
+                          );
+                        })}
+                        {/* Hidden tally */}
+                        <div className="menti-stage-hidden-tally">
+                          <span className="menti-stage-hidden-icon" aria-hidden="true">🔒</span>
+                          <span>{answeredCount} student{answeredCount === 1 ? '' : 's'} answered — results hidden until closed</span>
                         </div>
                       </div>
                     ) : (
+                      /* Poll open OR results revealed — show column chart */
                       <LiveBarChart
                         aggregated={(results ?? {}) as McqAggregated}
                         correctAnswer={phase === 'results' ? correctAnswer : undefined}
