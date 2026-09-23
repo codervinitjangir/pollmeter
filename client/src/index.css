@@ -1187,13 +1187,16 @@ hr, .divider { border: none; border-top: 1px solid var(--border); }
 .menti-app-shell {
   display: grid;
   grid-template-columns: 240px 1fr;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: var(--canvas);
 }
 
 @media (max-width: 900px) {
   .menti-app-shell {
     grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
   }
   .menti-sidebar {
     display: none !important;
@@ -1208,9 +1211,17 @@ hr, .divider { border: none; border-top: 1px solid var(--border); }
   flex-direction: column;
   justify-content: space-between;
   height: 100vh;
-  position: sticky;
-  top: 0;
   overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.menti-main-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
 }
 
 .menti-sidebar-brand {

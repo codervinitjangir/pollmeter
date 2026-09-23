@@ -55,6 +55,8 @@ export default function HostPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [editing, setEditing] = useState<Question | null>(null);
   const builderRef = useRef<HTMLDivElement>(null);
+  const mainPanelRef = useRef<HTMLDivElement>(null);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
 
   // Live session state — all server-authoritative.
   const [phase, setPhase] = useState<SessionPhase>('lobby');
@@ -625,7 +627,10 @@ export default function HostPage() {
           <nav className="menti-nav-group">
             <button
               className={`menti-nav-link ${activeNav === 'home' ? 'active' : ''}`}
-              onClick={() => setActiveNav('home')}
+              onClick={() => {
+                setActiveNav('home');
+                mainPanelRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
             >
               <span>🏠</span> Home
             </button>
@@ -654,11 +659,11 @@ export default function HostPage() {
         </div>
 
         <div className="menti-sidebar-footer">
-          <button className="menti-nav-link" onClick={scrollToBuilder}><span>📖</span> How it works</button>
+          <button className="menti-nav-link" onClick={() => setShowHowItWorks(true)}><span>📖</span> How it works</button>
         </div>
       </aside>
 
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowX: 'hidden' }}>
+      <div ref={mainPanelRef} className="menti-main-panel">
         <header className="menti-topbar">
           <div className="menti-search">
             <span>🔍</span>
@@ -682,6 +687,58 @@ export default function HostPage() {
             onClose={() => setShowAI(false)}
             initialTopic={aiInitialTopic}
           />
+        )}
+
+        {showHowItWorks && (
+          <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowHowItWorks(false)}>
+            <div className="modal stack stack-5" role="dialog" aria-label="How PollMeter Works" style={{ maxWidth: '560px' }}>
+              <div className="modal-header">
+                <div className="stack stack-1">
+                  <p className="t-title" style={{ fontSize: '1.35rem' }}>📖 How PollMeter Works</p>
+                  <p className="t-body-sm text-secondary">3 simple steps to run a live interactive classroom quiz</p>
+                </div>
+                <button className="btn btn-ghost btn--icon" onClick={() => setShowHowItWorks(false)} aria-label="Close">✕</button>
+              </div>
+
+              <div className="stack stack-3" style={{ gap: '1rem' }}>
+                <div className="row row-3" style={{ alignItems: 'flex-start', background: '#F8FAFC', padding: '0.9rem 1.1rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: '1.7rem', lineHeight: 1 }}>✨</span>
+                  <div className="stack stack-1 flex-1">
+                    <strong style={{ color: '#0F172A', fontSize: '0.95rem' }}>1. Build or Generate Quiz</strong>
+                    <p className="t-body-sm text-secondary" style={{ margin: 0 }}>
+                      Paste your syllabus/topics into <strong>Generate with AI</strong> or create custom MCQs with custom timers.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="row row-3" style={{ alignItems: 'flex-start', background: '#F8FAFC', padding: '0.9rem 1.1rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: '1.7rem', lineHeight: 1 }}>📱</span>
+                  <div className="stack stack-1 flex-1">
+                    <strong style={{ color: '#0F172A', fontSize: '0.95rem' }}>2. Project &amp; Connect Students</strong>
+                    <p className="t-body-sm text-secondary" style={{ margin: 0 }}>
+                      Click <strong>&quot;Get the join code&quot;</strong> and full-screen on projector. Students scan QR code to join instantly (no app download needed).
+                    </p>
+                  </div>
+                </div>
+
+                <div className="row row-3" style={{ alignItems: 'flex-start', background: '#F8FAFC', padding: '0.9rem 1.1rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: '1.7rem', lineHeight: 1 }}>🏁</span>
+                  <div className="stack stack-1 flex-1">
+                    <strong style={{ color: '#0F172A', fontSize: '0.95rem' }}>3. Play, Race &amp; Review</strong>
+                    <p className="t-body-sm text-secondary" style={{ margin: 0 }}>
+                      Launch questions with speed bonus scoring. Watch scores surge on the <strong>60FPS racing leaderboard</strong> with streak badges, then review answers together!
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                <button className="btn btn-primary btn--lg" onClick={() => setShowHowItWorks(false)} style={{ width: '100%', borderRadius: '10px' }}>
+                  Got it, let&apos;s start! 🚀
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         <main className="menti-content">
