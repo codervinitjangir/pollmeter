@@ -513,7 +513,16 @@ export default function HostPage() {
 
       {/* Right controls */}
       <div className="menti-stage-nav-right">
-        {phase !== 'ended' && (
+        {phase === 'ended' ? (
+          <button
+            className="btn btn-primary btn--sm"
+            onClick={newSession}
+            id="nav-new-quiz-btn"
+            style={{ fontWeight: 700, padding: '0.45rem 1rem', background: '#3B82F6', color: '#fff', border: 'none', borderRadius: '8px' }}
+          >
+            + Start New Quiz
+          </button>
+        ) : (
           <span className="menti-stage-live-dot" aria-label="Live session">
             <span className="menti-stage-live-pulse" />
             Live
@@ -995,6 +1004,24 @@ export default function HostPage() {
                 {(finalData?.questions.length ?? questionCount) === 1 ? '' : 's'} ·{' '}
                 {leaderboard.length} student{leaderboard.length === 1 ? '' : 's'}
               </p>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button
+                  className="btn btn-primary btn--lg"
+                  onClick={newSession}
+                  id="top-new-quiz-btn"
+                  style={{ fontWeight: 700, padding: '0.65rem 1.5rem', borderRadius: '10px' }}
+                >
+                  ✨ Start New Quiz
+                </button>
+                <button
+                  className="btn btn-secondary btn--lg"
+                  onClick={exportResultsCsv}
+                  id="top-export-csv-btn"
+                  style={{ fontWeight: 600, padding: '0.65rem 1.25rem', borderRadius: '10px' }}
+                >
+                  📥 Export CSV
+                </button>
+              </div>
             </div>
 
             <div className="card card--lg">
