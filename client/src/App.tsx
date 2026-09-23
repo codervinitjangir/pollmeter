@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import LandingPage from './pages/LandingPage';
 import HostPage from './pages/HostPage';
 import JoinPage from './pages/JoinPage';
 
@@ -6,11 +7,20 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/host" element={<HostPage />} />
+        {/* Landing page */}
+        <Route path="/" element={<LandingPage />} />
+
+        {/* Teacher dashboard */}
+        <Route path="/dashboard" element={<HostPage />} />
+
+        {/* Student join */}
         <Route path="/join" element={<JoinPage />} />
-        {/* Landing: redirect to /host */}
-        <Route path="/" element={<Navigate to="/host" replace />} />
-        <Route path="*" element={<Navigate to="/host" replace />} />
+
+        {/* Legacy redirect: keep /host working so old links don't break */}
+        <Route path="/host" element={<Navigate to="/dashboard" replace />} />
+
+        {/* 404 → landing */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

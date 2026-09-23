@@ -420,7 +420,7 @@ export default function JoinPage() {
     return (
       <div className="menti-join-canvas">
         <header className="menti-join-topbar">
-          <a href="/host" className="menti-join-pill-link">Host a session</a>
+          <a href="/dashboard" className="menti-join-pill-link">Host a session</a>
         </header>
 
         <main className="menti-join-center">

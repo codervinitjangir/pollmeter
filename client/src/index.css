@@ -1955,3 +1955,176 @@ fieldset.field {
 .ai-syllabus { font-family: var(--font); min-height: 96px; resize: vertical; }
 
 
+/* ─── Landing Page ───────────────────────────────────────────────────────── */
+.pm-landing {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0a0c13;
+  overflow: hidden;
+  padding: 2rem 1.25rem;
+}
+
+/* Animated background blobs */
+.pm-landing-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.35;
+  animation: pm-blob-drift 12s ease-in-out infinite alternate;
+}
+.pm-landing-blob-1 {
+  width: 520px; height: 520px;
+  background: radial-gradient(circle, #1F69FF 0%, transparent 70%);
+  top: -120px; left: -120px;
+  animation-delay: 0s;
+}
+.pm-landing-blob-2 {
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, #F43F5E 0%, transparent 70%);
+  bottom: -80px; right: -60px;
+  animation-delay: -4s;
+}
+.pm-landing-blob-3 {
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, #10B981 0%, transparent 70%);
+  bottom: 20%; left: 45%;
+  animation-delay: -8s;
+}
+@keyframes pm-blob-drift {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(40px, 30px) scale(1.08); }
+}
+
+.pm-landing-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 620px;
+  width: 100%;
+  gap: 0;
+}
+
+/* Logo */
+.pm-landing-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 2.5rem;
+}
+.pm-landing-brand {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
+/* Headline */
+.pm-landing-headline {
+  font-size: clamp(2rem, 6vw, 3.25rem);
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  margin: 0 0 1.1rem;
+}
+.pm-landing-headline-accent {
+  background: linear-gradient(135deg, #3B82F6 0%, #F43F5E 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Subtitle */
+.pm-landing-sub {
+  font-size: 1.05rem;
+  color: rgba(255,255,255,0.6);
+  line-height: 1.7;
+  margin: 0 0 2.5rem;
+  max-width: 480px;
+}
+
+/* CTA Cards */
+.pm-landing-cards {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+  margin-bottom: 2.5rem;
+  flex-wrap: wrap;
+}
+.pm-landing-card {
+  flex: 1;
+  min-width: 240px;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.35rem 1.4rem;
+  border-radius: 18px;
+  border: 1.5px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.07);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.2s, border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  font-family: var(--font);
+  text-decoration: none;
+  color: inherit;
+}
+.pm-landing-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+}
+.pm-landing-card-host:hover {
+  border-color: rgba(63,131,248,0.6);
+  background: rgba(63,131,248,0.12);
+}
+.pm-landing-card-join:hover {
+  border-color: rgba(244,63,94,0.6);
+  background: rgba(244,63,94,0.1);
+}
+.pm-landing-card-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+.pm-landing-card-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 0.2rem;
+}
+.pm-landing-card-desc {
+  font-size: 0.825rem;
+  color: rgba(255,255,255,0.55);
+}
+.pm-landing-card-arrow {
+  margin-left: auto;
+  font-size: 1.2rem;
+  color: rgba(255,255,255,0.35);
+  transition: transform 0.2s, color 0.2s;
+  flex-shrink: 0;
+}
+.pm-landing-card:hover .pm-landing-card-arrow {
+  transform: translateX(4px);
+  color: rgba(255,255,255,0.8);
+}
+
+/* Features strip */
+.pm-landing-features {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem 1.5rem;
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 520px) {
+  .pm-landing-cards { flex-direction: column; }
+  .pm-landing-card  { min-width: unset; }
+}
