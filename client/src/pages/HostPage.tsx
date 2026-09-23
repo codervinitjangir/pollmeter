@@ -669,9 +669,7 @@ export default function HostPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className="menti-topbar-actions">
-            <div className="menti-avatar" title="Mentor">M</div>
-          </div>
+          <div className="menti-topbar-actions" />
         </header>
 
         {showAI && (
