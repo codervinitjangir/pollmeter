@@ -96,6 +96,7 @@ function LbRow({
   isMe,
   prevScore,
   slotHeight,
+  isProjector = false,
   rowRef,
 }: {
   entry: LeaderboardEntry;
@@ -106,6 +107,7 @@ function LbRow({
   isMe: boolean;
   prevScore: number;
   slotHeight: number;
+  isProjector?: boolean;
   rowRef?: React.Ref<HTMLDivElement>;
 }) {
   const isSurgingOrSettled = surgePhase !== 'initial';
@@ -114,7 +116,10 @@ function LbRow({
   // Bar length percentage
   const targetPct = maxScore > 0 ? (animatedScore / maxScore) * 100 : 0;
   const initialPct = maxScore > 0 ? (prevScore / maxScore) * 100 : 0;
-  const barPct = surgePhase === 'initial' ? initialPct : targetPct;
+  const rawBarPct = surgePhase === 'initial' ? initialPct : targetPct;
+  // Scaled bar width so bar + avatar + name + badges never overflow the track
+  const maxBarLengthPct = isProjector ? 64 : 44;
+  const barPct = Math.max(3, (rawBarPct / 100) * maxBarLengthPct);
 
   const delta = entry.totalScore - prevScore;
   const color = getColor(entry.participantId);
@@ -349,6 +354,7 @@ export default function Leaderboard({
             isMe={entry.participantId === myParticipantId}
             prevScore={prevScoreMap.get(entry.participantId) ?? 0}
             slotHeight={slotHeight}
+            isProjector={isProjector}
             rowRef={idx === 0 ? firstRowRef : undefined}
           />
         ))}

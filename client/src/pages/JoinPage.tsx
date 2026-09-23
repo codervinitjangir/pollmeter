@@ -580,41 +580,64 @@ export default function JoinPage() {
 
   // ─── Ended ────────────────────────────────────────────────────────────────
   if (phase === 'ended') {
+    const isWinner = myEntry?.rank === 1;
+    const isPodium = myEntry?.rank && myEntry.rank <= 3;
+
     return (
-      <div className="page" style={{ justifyContent: 'center', alignItems: 'center', padding: '1.5rem' }}>
-        <div style={{ width: '100%', maxWidth: 480 }}>
-          <div className="stack stack-6">
-            <div className="text-center stack stack-3">
-              <div style={{ fontSize: '3.5rem', animation: 'bounce-in 0.5s var(--ease)' }}>🏆</div>
-              <h1 className="t-headline">That&rsquo;s a wrap!</h1>
-              {myEntry && (
-                <p className="t-body-lg" style={{ color: 'var(--menti-blue)', fontWeight: 700 }}>
-                  You finished #{myEntry.rank} with {myEntry.totalScore.toLocaleString()} points
-                  {myEntry.correctAnswers > 0 && ` · ${myEntry.correctAnswers} correct`}
-                </p>
-              )}
-              {finalData && (
-                <p className="t-body-md text-secondary">
-                  {finalData.questions.length} question{finalData.questions.length === 1 ? '' : 's'} ·{' '}
-                  {leaderboard.length} participant{leaderboard.length === 1 ? '' : 's'}
-                </p>
-              )}
-            </div>
+      <div className="menti-wrap-page">
+        <div className="menti-wrap-container">
+          {/* 1. Celebration Trophy & Title */}
+          <div className="menti-wrap-hero">
+            <div className="menti-wrap-trophy">🏆</div>
+            <h1 className="menti-wrap-title">That&rsquo;s a wrap!</h1>
 
-            <div className="card card--lg">
-              <Leaderboard
-                entries={leaderboard}
-                myParticipantId={myParticipantId}
-                showAll
-                title="🏁 Final results"
-                celebrateKey="final"
-              />
-            </div>
+            {/* 2. Personal Performance Highlight Card */}
+            {myEntry && (
+              <div className="menti-wrap-highlight">
+                <div className="menti-wrap-highlight-top">
+                  <span className={`menti-wrap-rank-badge ${isWinner ? 'rank-1' : isPodium ? 'rank-podium' : 'rank-other'}`}>
+                    {isWinner ? '👑 1st Place' : myEntry.rank === 2 ? '🥈 2nd Place' : myEntry.rank === 3 ? '🥉 3rd Place' : `Rank #${myEntry.rank}`}
+                  </span>
+                  <span className="menti-wrap-score-badge">
+                    {myEntry.totalScore.toLocaleString()} pts
+                  </span>
+                </div>
+                {myEntry.correctAnswers > 0 && (
+                  <p className="menti-wrap-accuracy">
+                    🎯 {myEntry.correctAnswers} of {finalData?.questions.length ?? questionCount} questions correct
+                  </p>
+                )}
+              </div>
+            )}
 
-            <button className="btn btn-primary btn--lg btn--full" onClick={leaveSession} id="join-new-btn">
-              Join another session
-            </button>
+            {/* 3. Session meta */}
+            {finalData && (
+              <p className="menti-wrap-meta">
+                {finalData.questions.length} question{finalData.questions.length === 1 ? '' : 's'} ·{' '}
+                {leaderboard.length} participant{leaderboard.length === 1 ? '' : 's'}
+              </p>
+            )}
           </div>
+
+          {/* 4. Full Final Leaderboard Card */}
+          <div className="menti-wrap-card">
+            <Leaderboard
+              entries={leaderboard}
+              myParticipantId={myParticipantId}
+              showAll
+              title="🏁 Final results"
+              celebrateKey="final"
+            />
+          </div>
+
+          {/* 5. Join Another Session Button */}
+          <button
+            className="menti-wrap-btn-primary"
+            onClick={leaveSession}
+            id="join-new-btn"
+          >
+            Join another session
+          </button>
         </div>
       </div>
     );
