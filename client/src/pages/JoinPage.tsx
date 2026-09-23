@@ -384,6 +384,40 @@ export default function JoinPage() {
     doJoin(stored.code, stored.name, stored);
   }, [doJoin]);
 
+  // Celebratory confetti burst & haptic feedback when session wraps up
+  useEffect(() => {
+    if (phase === 'ended') {
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try { navigator.vibrate([100, 50, 100, 50, 200]); } catch {}
+      }
+      try {
+        confetti({
+          particleCount: 80,
+          spread: 80,
+          origin: { y: 0.35 },
+          disableForReducedMotion: true,
+        });
+        const timer = setTimeout(() => {
+          confetti({
+            particleCount: 50,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0, y: 0.6 },
+            disableForReducedMotion: true,
+          });
+          confetti({
+            particleCount: 50,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1, y: 0.6 },
+            disableForReducedMotion: true,
+          });
+        }, 400);
+        return () => clearTimeout(timer);
+      } catch {}
+    }
+  }, [phase]);
+
   // ─── Actions ──────────────────────────────────────────────────────────────
   function handleJoinSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -623,15 +657,32 @@ export default function JoinPage() {
         <div className="menti-wrap-container">
           {/* 1. Celebration Trophy & Title */}
           <div className="menti-wrap-hero">
-            <div className="menti-wrap-trophy">🏆</div>
+            <div className="menti-wrap-trophy-wrap">
+              <div className="menti-wrap-trophy-glow" />
+              <div className="menti-wrap-trophy">🏆</div>
+            </div>
             <h1 className="menti-wrap-title">That&rsquo;s a wrap!</h1>
 
             {/* 2. Personal Performance Highlight Card */}
             {myEntry && (
-              <div className="menti-wrap-highlight">
+              <div
+                className={`menti-wrap-highlight ${
+                  isWinner ? 'menti-wrap-highlight--winner' : isPodium ? 'menti-wrap-highlight--podium' : ''
+                }`}
+              >
                 <div className="menti-wrap-highlight-top">
-                  <span className={`menti-wrap-rank-badge ${isWinner ? 'rank-1' : isPodium ? 'rank-podium' : 'rank-other'}`}>
-                    {isWinner ? '👑 1st Place' : myEntry.rank === 2 ? '🥈 2nd Place' : myEntry.rank === 3 ? '🥉 3rd Place' : `Rank #${myEntry.rank}`}
+                  <span
+                    className={`menti-wrap-rank-badge ${
+                      isWinner ? 'rank-1' : isPodium ? 'rank-podium' : 'rank-other'
+                    }`}
+                  >
+                    {isWinner
+                      ? '👑 1st Place'
+                      : myEntry.rank === 2
+                      ? '🥈 2nd Place'
+                      : myEntry.rank === 3
+                      ? '🥉 3rd Place'
+                      : `Rank #${myEntry.rank}`}
                   </span>
                   <span className="menti-wrap-score-badge">
                     {myEntry.totalScore.toLocaleString()} pts
@@ -654,12 +705,13 @@ export default function JoinPage() {
             )}
           </div>
 
-          {/* 4. Full Final Leaderboard Card */}
+          {/* 4. Full Final Leaderboard Card with Podium */}
           <div className="menti-wrap-card">
             <Leaderboard
               entries={leaderboard}
               myParticipantId={myParticipantId}
               showAll
+              showPodium={leaderboard.length >= 2}
               title="🏁 Final results"
               celebrateKey="final"
             />
@@ -671,7 +723,7 @@ export default function JoinPage() {
             onClick={leaveSession}
             id="join-new-btn"
           >
-            Join another session
+            <span>🔄</span> Join another session
           </button>
         </div>
       </div>

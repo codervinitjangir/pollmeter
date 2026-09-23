@@ -4023,3 +4023,229 @@ fieldset.field {
   animation: float-crown 2s ease-in-out infinite;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   STUDENT WRAP-UP SCREEN (phase === 'ended')
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.menti-wrap-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: clamp(1.5rem, 4vw, 3rem) 1rem 4.5rem;
+  background: radial-gradient(circle at 50% 12%, #F0F7FF 0%, #F8FAFC 55%, #EEF2F6 100%);
+  color: #0F172A;
+  box-sizing: border-box;
+  font-family: var(--font);
+}
+
+.menti-wrap-container {
+  width: 100%;
+  max-width: 540px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.4rem;
+  animation: wrap-fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes wrap-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 1. Hero: Trophy, Sparkle & Title */
+.menti-wrap-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.85rem;
+  width: 100%;
+}
+
+.menti-wrap-trophy-wrap {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menti-wrap-trophy-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.35) 0%, rgba(251, 191, 36, 0.12) 55%, transparent 75%);
+  filter: blur(14px);
+  animation: gold-glow-pulse 2.2s ease-in-out infinite;
+}
+
+.menti-wrap-trophy {
+  font-size: clamp(3.8rem, 10vw, 4.8rem);
+  line-height: 1;
+  position: relative;
+  z-index: 2;
+  filter: drop-shadow(0 8px 20px rgba(245, 158, 11, 0.4));
+  animation: float-crown 2.4s ease-in-out infinite;
+  user-select: none;
+}
+
+.menti-wrap-title {
+  font-size: clamp(2rem, 5.5vw, 2.6rem);
+  font-weight: 900;
+  color: #0F172A;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin: 0;
+}
+
+/* 2. Highlight Card for Student's Performance */
+.menti-wrap-highlight {
+  width: 100%;
+  background: #FFFFFF;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 20px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 10px 30px -6px rgba(15, 23, 42, 0.07), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.menti-wrap-highlight:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px -8px rgba(15, 23, 42, 0.1);
+}
+
+.menti-wrap-highlight--winner {
+  border-color: #FBBF24;
+  background: linear-gradient(180deg, #FFFDF0 0%, #FFFFFF 100%);
+  box-shadow: 0 12px 32px -6px rgba(245, 158, 11, 0.22), 0 0 0 1.5px rgba(251, 191, 36, 0.4);
+}
+
+.menti-wrap-highlight--podium {
+  border-color: #BAE6FD;
+  background: linear-gradient(180deg, #F0F9FF 0%, #FFFFFF 100%);
+  box-shadow: 0 10px 28px -6px rgba(2, 132, 199, 0.15);
+}
+
+.menti-wrap-highlight-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.menti-wrap-rank-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.95rem;
+  border-radius: 9999px;
+  font-size: 0.925rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.menti-wrap-rank-badge.rank-1 {
+  background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+  color: #92400E;
+  border: 1px solid #F59E0B;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+}
+
+.menti-wrap-rank-badge.rank-podium {
+  background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+  color: #1E40AF;
+  border: 1px solid #93C5FD;
+}
+
+.menti-wrap-rank-badge.rank-other {
+  background: #F1F5F9;
+  color: #475569;
+  border: 1px solid #CBD5E1;
+}
+
+.menti-wrap-score-badge {
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: #0F172A;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.menti-wrap-accuracy {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.menti-wrap-meta {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748B;
+  letter-spacing: 0.02em;
+}
+
+/* 3. Leaderboard Card */
+.menti-wrap-card {
+  width: 100%;
+  background: #FFFFFF;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 20px;
+  padding: 1.25rem 1.4rem;
+  box-shadow: 0 10px 30px -6px rgba(15, 23, 42, 0.06);
+  box-sizing: border-box;
+}
+
+/* 4. Action Button */
+.menti-wrap-btn-primary {
+  width: 100%;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  background: linear-gradient(135deg, #1F69FF 0%, #1754D6 100%);
+  color: #FFFFFF;
+  font-size: 1.05rem;
+  font-weight: 800;
+  font-family: var(--font);
+  border: none;
+  border-radius: 14px;
+  box-shadow: 0 6px 20px rgba(31, 105, 255, 0.35);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+  margin-top: 0.25rem;
+}
+
+.menti-wrap-btn-primary:hover {
+  background: linear-gradient(135deg, #1754D6 0%, #0F45B8 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(31, 105, 255, 0.45);
+}
+
+.menti-wrap-btn-primary:active {
+  transform: scale(0.98);
+}
+

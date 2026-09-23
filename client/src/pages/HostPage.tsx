@@ -524,6 +524,14 @@ export default function HostPage() {
     setTimeout(() => setCopied(false), 2000);
   }
 
+  useEffect(() => {
+    function onFsChange() {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    }
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
+
   function toggleFullscreen() {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
@@ -1258,7 +1266,7 @@ export default function HostPage() {
                 entries={leaderboard}
                 prevEntries={prevLeaderboard}
                 variant="projector"
-                showAll
+                limit={10}
                 title="Leaderboard"
                 celebrateKey={currentIndex}
               />
