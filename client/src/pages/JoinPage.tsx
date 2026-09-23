@@ -705,14 +705,14 @@ export default function JoinPage() {
             )}
           </div>
 
-          {/* 4. Full Final Leaderboard Card with Podium */}
+          {/* 4. Final Leaderboard Card with Podium (Top 10 for buttery smooth mobile performance) */}
           <div className="menti-wrap-card">
             <Leaderboard
               entries={leaderboard}
               myParticipantId={myParticipantId}
-              showAll
+              limit={10}
               showPodium={leaderboard.length >= 2}
-              title="🏁 Final results"
+              title="🏁 Top 10 Standings"
               celebrateKey="final"
             />
           </div>
