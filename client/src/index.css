@@ -3109,6 +3109,7 @@ fieldset.field {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  position: relative;
 }
 
 .menti-lb-row {
@@ -3119,10 +3120,12 @@ fieldset.field {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
-  transition: all 0.35s var(--ease);
-  animation: slide-in 0.3s var(--ease);
+  will-change: transform;
+  transition: transform 1.2s cubic-bezier(0.2, 0.9, 0.3, 1.1),
+              background 0.4s var(--ease),
+              border-color 0.4s var(--ease),
+              box-shadow 0.4s var(--ease);
   position: relative;
-  overflow: hidden;
 }
 
 /* Subtle colored left accent */
@@ -3135,6 +3138,44 @@ fieldset.field {
   width: 3px;
   background: var(--lb-color, #38BDF8);
   border-radius: 2px 0 0 2px;
+}
+
+.menti-lb-row--climbing {
+  z-index: 5 !important;
+  box-shadow: 0 8px 24px rgba(56, 189, 248, 0.32);
+  border-color: #38BDF8 !important;
+}
+
+.menti-lb-climb-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #16a34a;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  border-radius: 9999px;
+  padding: 0.1rem 0.45rem;
+  margin-left: 0.4rem;
+  animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  vertical-align: middle;
+}
+
+.chip--pulse {
+  background: var(--primary-light);
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  animation: chip-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes chip-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(31, 105, 255, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(31, 105, 255, 0);
+  }
 }
 
 .menti-lb-row--me {

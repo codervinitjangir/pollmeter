@@ -75,6 +75,10 @@ export default function HostPage() {
   const [autoAdvance, setAutoAdvance] = useState(5);
   const [autoPaused, setAutoPaused] = useState(false);
 
+  // Auto-advance from results (2s) to leaderboard so room flows automatically.
+  const [resultsAdvance, setResultsAdvance] = useState(2);
+  const [resultsPaused, setResultsPaused] = useState(false);
+
   const credentials = useRef<StoredHost | null>(null);
 
   useEffect(() => {
@@ -341,7 +345,29 @@ export default function HostPage() {
   const extendTime = useCallback((seconds: number) => send('host_extend_time', { seconds }), [send]);
   const endSession = useCallback(() => send('host_end'), [send]);
 
-  // ─── Auto-advance from the leaderboard ────────────────────────────────────
+  // ─── Auto-advance from results to leaderboard (2s) ────────────────────────
+  useEffect(() => {
+    if (phase !== 'results') return;
+    setResultsAdvance(2);
+    setResultsPaused(false);
+  }, [phase, currentIndex]);
+
+  useEffect(() => {
+    if (phase !== 'results' || resultsPaused) return;
+    const id = setInterval(() => {
+      setResultsAdvance((prev) => {
+        if (prev <= 1) {
+          clearInterval(id);
+          showLeaderboard();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [phase, resultsPaused, showLeaderboard]);
+
+  // ─── Auto-advance from the leaderboard (5s) ───────────────────────────────
   useEffect(() => {
     if (phase !== 'leaderboard') return;
     setAutoAdvance(5);
@@ -1091,12 +1117,31 @@ export default function HostPage() {
             </>
           )}
 
+          {phase === 'results' && (
+            <div className="row row-2">
+              <span className="chip chip--pulse">
+                Leaderboard in {resultsAdvance}s
+              </span>
+              <button
+                className="btn btn-ghost btn--sm"
+                onClick={() => setResultsPaused((p) => !p)}
+                title={resultsPaused ? 'Resume countdown' : 'Pause countdown'}
+              >
+                {resultsPaused ? '▶ Resume' : '⏸ Pause'}
+              </button>
+            </div>
+          )}
+
           {phase === 'leaderboard' && (
             <div className="row row-2">
-              <span className="chip">
+              <span className="chip chip--pulse">
                 {isLastQuestion ? 'Finishing' : 'Next question'} in {autoAdvance}s
               </span>
-              <button className="btn btn-ghost btn--sm" onClick={() => setAutoPaused((p) => !p)}>
+              <button
+                className="btn btn-ghost btn--sm"
+                onClick={() => setAutoPaused((p) => !p)}
+                title={autoPaused ? 'Resume countdown' : 'Pause countdown'}
+              >
                 {autoPaused ? '▶ Resume' : '⏸ Pause'}
               </button>
             </div>
@@ -1117,7 +1162,7 @@ export default function HostPage() {
           {phase === 'results' && (
             <>
               <button className="btn btn-secondary btn--lg" onClick={showLeaderboard} id="show-leaderboard-btn">
-                🏆 Show leaderboard
+                🏆 Show now
               </button>
               <button
                 className={`btn btn--lg ${isLastQuestion ? 'btn-danger' : 'btn-primary'}`}

@@ -43,17 +43,21 @@ function getColor(idx: number): string {
 
 /**
  * Counts a number up from `from` to `to` over `durationMs` milliseconds.
- * Returns the current animated value.
+ * Starts only when `active` is true.
  */
-function useCountUp(to: number, from: number, durationMs = 2200): number {
+function useCountUp(to: number, from: number, active: boolean, durationMs = 1500): number {
   const [value, setValue] = useState(from);
   const fromRef = useRef(from);
   const startRef = useRef<number | null>(null);
   const rafRef = useRef<number>(0);
 
   useEffect(() => {
-    // If target changed, start fresh from where we currently are.
-    fromRef.current = value;
+    if (!active) {
+      setValue(from);
+      fromRef.current = from;
+      return;
+    }
+
     startRef.current = null;
 
     function tick(ts: number) {
@@ -70,42 +74,83 @@ function useCountUp(to: number, from: number, durationMs = 2200): number {
 
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [to]);
+  }, [to, from, active, durationMs]);
 
   return value;
 }
 
-/** Individual leaderboard row with animated score and bar. */
+/** Individual leaderboard row with animated score, dynamic transform translation, and bar. */
 function LbRow({
   entry,
   idx,
+  initialRank,
+  surgePhase,
   maxScore,
   isMe,
   prevScore,
-  isProjector,
+  slotHeight,
+  rowRef,
 }: {
   entry: LeaderboardEntry;
   idx: number;
+  initialRank: number;
+  surgePhase: 'initial' | 'surging' | 'settled';
   maxScore: number;
   isMe: boolean;
   prevScore: number;
-  isProjector: boolean;
+  slotHeight: number;
+  rowRef?: React.Ref<HTMLDivElement>;
 }) {
-  const animatedScore = useCountUp(entry.totalScore, prevScore);
+  const isSurgingOrSettled = surgePhase !== 'initial';
+  const animatedScore = useCountUp(entry.totalScore, prevScore, isSurgingOrSettled);
   const barPct = maxScore > 0 ? (animatedScore / maxScore) * 100 : 0;
   const delta = entry.totalScore - prevScore;
   const color = getColor(idx);
   const avatar = getAvatar(entry.name);
 
+  // Position change calculation:
+  // initialRank is 0-indexed rank before this question
+  // idx is final 0-indexed rank
+  const rankDelta = initialRank - idx; // positive means climbed ranks!
+  const hasClimbed = rankDelta > 0;
+
+  // When 'initial', row is translated to its previous vertical slot:
+  // (initialRank - idx) * slotHeight.
+  // When 'surging' or 'settled', it transitions to 0px!
+  const translateY = surgePhase === 'initial' ? rankDelta * slotHeight : 0;
+
+  // Display rank:
+  // In 'initial', show previous rank (initialRank + 1)
+  // In 'settled', show crowns/medals or final rank
+  // In 'surging', if climbed, show current position or climb badge
+  const displayRank =
+    surgePhase === 'settled'
+      ? idx === 0
+        ? '👑'
+        : idx === 1
+        ? '🥈'
+        : idx === 2
+        ? '🥉'
+        : `#${idx + 1}`
+      : `#${initialRank + 1}`;
+
   return (
     <div
-      className={`menti-lb-row${isMe ? ' menti-lb-row--me' : ''}${idx < 3 ? ` menti-lb-row--top${idx + 1}` : ''}`}
-      style={{ '--lb-color': color } as React.CSSProperties}
+      ref={rowRef}
+      className={`menti-lb-row${isMe ? ' menti-lb-row--me' : ''}${
+        surgePhase === 'settled' && idx < 3 ? ` menti-lb-row--top${idx + 1}` : ''
+      }${hasClimbed && surgePhase === 'surging' ? ' menti-lb-row--climbing' : ''}`}
+      style={
+        {
+          '--lb-color': color,
+          transform: `translate3d(0, ${translateY}px, 0)`,
+          zIndex: hasClimbed && surgePhase === 'surging' ? 5 : undefined,
+        } as React.CSSProperties
+      }
     >
       {/* Rank */}
       <span className="menti-lb-rank">
-        {idx === 0 ? '👑' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
+        {displayRank}
       </span>
 
       {/* Avatar */}
@@ -119,6 +164,11 @@ function LbRow({
           <span className="menti-lb-name" title={entry.name}>
             {entry.name}
             {isMe && <span className="menti-lb-you-badge">You</span>}
+            {hasClimbed && isSurgingOrSettled && (
+              <span className="menti-lb-climb-badge" aria-label={`Climbed ${rankDelta} spots`}>
+                ▲ +{rankDelta}
+              </span>
+            )}
           </span>
           <div className="menti-lb-score-wrap">
             <span className="menti-lb-score" style={{ color }}>
@@ -155,6 +205,7 @@ function LbRow({
  *  - An animated score that counts up from the previous value
  *  - A horizontal bar that expands in sync with the count-up
  *  - A +XYZ delta chip showing points gained this round
+ *  - Smooth, dynamic overtaking rank animation (gliding rows)
  */
 export default function Leaderboard({
   entries,
@@ -167,6 +218,11 @@ export default function Leaderboard({
 }: Props) {
   const isProjector = variant === 'projector';
   const celebrated = useRef<string | number | undefined>(undefined);
+  const firstRowRef = useRef<HTMLDivElement>(null);
+  const [slotHeight, setSlotHeight] = useState(isProjector ? 62 : 54);
+
+  // Track surge animation phase: 'initial' (pre-animation) -> 'surging' (racing) -> 'settled'
+  const [surgePhase, setSurgePhase] = useState<'initial' | 'surging' | 'settled'>('initial');
 
   // Track previous totals for delta calculation and count-up animation origin.
   const prevTotalsRef = useRef<Map<string, number>>(new Map());
@@ -177,17 +233,60 @@ export default function Leaderboard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries]);
 
-  // Update the ref AFTER snapshot is captured.
+  // Compute initial ranks from previous scores
+  const initialRankMap = useMemo(() => {
+    const map = new Map<string, number>();
+    // Sort all entries by prevScore descending
+    const sorted = [...entries].sort((a, b) => {
+      const scoreA = prevTotalsSnapshot.get(a.participantId) ?? 0;
+      const scoreB = prevTotalsSnapshot.get(b.participantId) ?? 0;
+      if (scoreB !== scoreA) return scoreB - scoreA;
+      return a.participantId.localeCompare(b.participantId);
+    });
+    sorted.forEach((e, i) => map.set(e.participantId, i));
+    return map;
+  }, [entries, prevTotalsSnapshot]);
+
+  // Measure actual row height dynamically
+  useEffect(() => {
+    if (firstRowRef.current) {
+      const rect = firstRowRef.current.getBoundingClientRect();
+      if (rect.height > 0) {
+        setSlotHeight(rect.height + 8); // height + 0.5rem gap
+      }
+    }
+  }, [entries.length, isProjector]);
+
+  // Handle lively surge sequence: 0.0s - 0.5s initial, 0.5s - 2.0s surging, 2.0s+ settled
+  useEffect(() => {
+    setSurgePhase('initial');
+
+    const surgeTimer = setTimeout(() => {
+      setSurgePhase('surging');
+    }, 500);
+
+    const settleTimer = setTimeout(() => {
+      setSurgePhase('settled');
+    }, 2000);
+
+    return () => {
+      clearTimeout(surgeTimer);
+      clearTimeout(settleTimer);
+    };
+  }, [celebrateKey, entries]);
+
+  // Update the ref AFTER animation so next question has this question's final scores as baseline
   useEffect(() => {
     const timer = setTimeout(() => {
       prevTotalsRef.current = new Map(entries.map((e) => [e.participantId, e.totalScore]));
-    }, 3000); // keep animation visible for 3s before snapshotting new baseline
+    }, 3500);
     return () => clearTimeout(timer);
   }, [entries]);
 
-  // Confetti on reveal.
+  // Confetti when settled
   useEffect(() => {
     if (entries.length === 0) return;
+    if (surgePhase !== 'settled') return;
     if (celebrated.current === celebrateKey) return;
     celebrated.current = celebrateKey;
 
@@ -198,7 +297,7 @@ export default function Leaderboard({
       colors: ['#38BDF8', '#F43F5E', '#34D399', '#FBBF24', '#A78BFA', '#FB923C'],
       disableForReducedMotion: true,
     });
-  }, [celebrateKey, entries.length]);
+  }, [celebrateKey, entries.length, surgePhase]);
 
   const visible = showAll
     ? entries
@@ -238,10 +337,13 @@ export default function Leaderboard({
             key={entry.participantId}
             entry={entry}
             idx={idx}
+            initialRank={initialRankMap.get(entry.participantId) ?? idx}
+            surgePhase={surgePhase}
             maxScore={maxScore}
             isMe={entry.participantId === myParticipantId}
             prevScore={prevTotalsSnapshot.get(entry.participantId) ?? 0}
-            isProjector={isProjector}
+            slotHeight={slotHeight}
+            rowRef={idx === 0 ? firstRowRef : undefined}
           />
         ))}
       </div>

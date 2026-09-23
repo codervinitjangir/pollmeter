@@ -603,34 +603,85 @@ export default function JoinPage() {
       <div className="page">
         {topNav}
         <div className="main-content">
-          <div className="container--narrow stack stack-6" style={{ margin: '0 auto' }}>
+          <div className="container--narrow stack stack-5" style={{ margin: '0 auto' }}>
+            {/* Student's personal score and rank card */}
             <div
-              className="card text-center stack stack-2"
-              style={{ background: 'var(--surface-mid)', borderColor: 'rgba(31,105,255,0.2)' }}
+              className="card text-center stack stack-3"
+              style={{
+                background: 'var(--surface-mid)',
+                borderColor: 'rgba(31,105,255,0.25)',
+                padding: '1.75rem 1.25rem',
+                borderRadius: '20px',
+              }}
             >
-              <p className="t-headline" style={{ color: 'var(--menti-blue)' }}>{message}</p>
+              <div style={{ fontSize: '2.5rem' }}>{rank === 1 ? '👑' : rank && rank <= 3 ? '🥈' : '⚡'}</div>
+              <p className="t-headline" style={{ color: 'var(--menti-blue)', margin: 0 }}>{message}</p>
               {myEntry && (
-                <p className="t-body-md text-secondary">
-                  Your score: <strong>{myEntry.totalScore.toLocaleString()} pts</strong>
-                  {myEntry.correctAnswers > 0 && ` · ${myEntry.correctAnswers} correct`}
-                </p>
+                <div className="stack stack-1">
+                  <div className="row row-2" style={{ justifyContent: 'center', alignItems: 'baseline' }}>
+                    <span style={{ fontSize: '2.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      {myEntry.totalScore.toLocaleString()}
+                    </span>
+                    <span className="t-label-md text-muted">pts</span>
+                  </div>
+                  {feedback?.score ? (
+                    <span
+                      className="badge badge-success"
+                      style={{ alignSelf: 'center', fontSize: '0.85rem', fontWeight: 700 }}
+                    >
+                      +{feedback.score.toLocaleString()} this round
+                    </span>
+                  ) : null}
+                </div>
+              )}
+              {rank && (
+                <div className="row row-2" style={{ justifyContent: 'center', marginTop: '0.25rem' }}>
+                  <span className="badge badge-neutral" style={{ fontSize: '0.85rem' }}>
+                    Rank #{rank} of {leaderboard.length || 1}
+                  </span>
+                  {myEntry?.correctAnswers ? (
+                    <span className="badge badge-neutral" style={{ fontSize: '0.85rem' }}>
+                      ✓ {myEntry.correctAnswers} correct
+                    </span>
+                  ) : null}
+                </div>
               )}
             </div>
 
-            <div className="card card--lg">
-              <Leaderboard
-                entries={leaderboard}
-                myParticipantId={myParticipantId}
-                limit={10}
-                title="🏆 Standings"
-                celebrateKey={currentIndex}
-              />
-            </div>
-
-            <div className="card text-center" style={{ padding: '1rem', background: 'var(--surface-low)' }}>
-              <div className="row row-2" style={{ justifyContent: 'center' }}>
-                <span className="spinner spinner--sm" />
-                <span className="t-label-sm text-secondary">Waiting for the next question…</span>
+            {/* Look at the big screen card */}
+            <div
+              className="card text-center stack stack-3"
+              style={{
+                background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
+                color: '#F8FAFC',
+                padding: '1.75rem 1.25rem',
+                borderRadius: '20px',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2)',
+              }}
+            >
+              <div style={{ fontSize: '2.25rem' }}>👀</div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: '#FFFFFF' }}>
+                Look up at the screen!
+              </h3>
+              <p style={{ fontSize: '0.9rem', color: '#94A3B8', margin: 0, lineHeight: 1.5 }}>
+                The live leaderboard is racing on your mentor&apos;s display.
+              </p>
+              <div
+                className="row row-2"
+                style={{
+                  justifyContent: 'center',
+                  padding: '0.5rem 0.9rem',
+                  background: 'rgba(56, 189, 248, 0.12)',
+                  borderRadius: '9999px',
+                  alignSelf: 'center',
+                  marginTop: '0.25rem',
+                }}
+              >
+                <span className="spinner spinner--sm" style={{ borderTopColor: '#38BDF8' }} />
+                <span style={{ fontSize: '0.82rem', color: '#38BDF8', fontWeight: 600 }}>
+                  Next question coming up shortly…
+                </span>
               </div>
             </div>
           </div>
