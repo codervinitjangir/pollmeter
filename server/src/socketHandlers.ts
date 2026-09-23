@@ -113,6 +113,23 @@ function emitResults(io: Server, session: Session): void {
   io.to(session.code).emit('results_updated', {
     aggregated: aggregateResults(session, question.id),
   });
+
+  // Reveal each student's own result only after the question is locked. This
+  // prevents the first fast answer from teaching the room the answer key.
+  for (const participant of session.participants.values()) {
+    const response = findResponse(session, question.id, participant.id);
+    if (!response) continue;
+    for (const socketId of participant.sockets) {
+      io.to(socketId).emit('response_feedback', {
+        questionId: response.questionId,
+        value: response.value,
+        isCorrect: response.isCorrect,
+        graded: response.graded,
+        score: response.score,
+        correctAnswer: isGraded(question) ? question.correctAnswer : undefined,
+      });
+    }
+  }
 }
 
 function emitLeaderboard(io: Server, session: Session): void {
@@ -156,7 +173,16 @@ function startQuestion(io: Server, session: Session, index: number): void {
     timerEndsAt: endsAt,
   });
 
+  // Students must only receive the public form. The host gets the answer key
+  // through a separate room so it can reveal it after the timer expires.
   io.to(session.code).emit('question_changed', {
+    question: toPublicQuestion(question),
+    index,
+    timerStartedAt: startedAt,
+    questionCount: session.questions.length,
+  });
+
+  io.to(hostRoom(session.code)).emit('host_question_changed', {
     question,
     index,
     timerStartedAt: startedAt,
@@ -248,7 +274,7 @@ function buildStudentState(
     participantCount: session.participants.size,
     alreadyAnswered: Boolean(mine),
     myAnswer: mine?.value ?? null,
-    myFeedback: mine
+    myFeedback: revealed && mine
       ? {
           questionId: mine.questionId,
           value: mine.value,
@@ -474,9 +500,20 @@ export function registerSocketHandlers(io: Server, socket: Socket): void {
       return;
     }
 
-    const session = getSession(String(payload?.code ?? ''));
+    const code = String(payload?.code ?? '').trim();
+    if (socket.data.sessionCode !== code) {
+      socket.emit('error', { message: 'You are not joined to that session.' });
+      return;
+    }
+
+    const session = getSession(code);
     if (!session) {
       socket.emit('error', { message: 'Session not found.' });
+      return;
+    }
+
+    if (!session.participants.has(participantId)) {
+      socket.emit('error', { message: 'Your participant session is no longer valid. Please rejoin.' });
       return;
     }
 
@@ -519,7 +556,10 @@ export function registerSocketHandlers(io: Server, socket: Socket): void {
       graded: outcome.response.graded,
       score: outcome.response.score,
     };
-    socket.emit('response_accepted', feedback);
+    socket.emit('response_submitted', {
+      questionId: feedback.questionId,
+      value: feedback.value,
+    });
 
     scheduleCountBroadcast(io, session);
   });

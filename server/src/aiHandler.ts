@@ -1,28 +1,54 @@
+import 'dotenv/config';
 import { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { Question } from './types';
 
-const GEMINI_API_KEY = (process.env.GEMINI_API_KEY ?? '').trim();
-const GEMINI_MODEL = (process.env.GEMINI_MODEL ?? 'gemini-2.5-flash').trim();
-const FALLBACK_MODEL = 'gemini-2.0-flash';
-const REQUEST_TIMEOUT_MS = 30000;
-
 const PLACEHOLDER_KEYS = ['your_key_here', 'AIzaSy...', 'changeme', 'replace_me'];
 
+function getGeminiKeys(): string[] {
+  return [
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEY_2,
+    process.env.GEMINI_API_KEY_3,
+  ].map(k => (k ?? '').trim()).filter(k => k.length > 20 && !PLACEHOLDER_KEYS.includes(k));
+}
+
+function getGroqKeys(): string[] {
+  return [
+    process.env.GROQ_API_KEY,
+    process.env.GROQ_API_KEY_2,
+    process.env.GROQ_API_KEY_3,
+    process.env.GROQ_API_KEY_4,
+  ].map(k => (k ?? '').trim()).filter(k => k.length > 20 && !PLACEHOLDER_KEYS.includes(k));
+}
+
+const GEMINI_MODEL = (process.env.GEMINI_MODEL ?? 'gemini-3.6-flash').trim();
+const FALLBACK_MODEL = 'gemini-flash-latest';
+const GROQ_MODEL = (process.env.GROQ_MODEL ?? 'openai/gpt-oss-20b').trim();
+const REQUEST_TIMEOUT_MS = 30000;
+
+let currentKeyIndex = 0;
+let currentGroqKeyIndex = 0;
+
 export function hasApiKey(): boolean {
-  return GEMINI_API_KEY.length > 20 && !PLACEHOLDER_KEYS.includes(GEMINI_API_KEY);
+  return getGeminiKeys().length > 0 || getGroqKeys().length > 0;
 }
 
 /** Reports what is actually configured — the UI shows this verbatim. */
 export function getAiStatus(): { enabled: boolean; model: string | null; reason?: string } {
-  if (!hasApiKey()) {
-    return {
-      enabled: false,
-      model: null,
-      reason: 'No GEMINI_API_KEY set in server/.env — generation falls back to a small built-in question bank.',
-    };
+  const gemini = getGeminiKeys();
+  const groq = getGroqKeys();
+  if (gemini.length > 0) {
+    return { enabled: true, model: `${GEMINI_MODEL} (+ ${gemini.length - 1} backup keys, Groq fallback)` };
   }
-  return { enabled: true, model: GEMINI_MODEL };
+  if (groq.length > 0) {
+    return { enabled: true, model: `${GROQ_MODEL} (Groq)` };
+  }
+  return {
+    enabled: false,
+    model: null,
+    reason: 'No API keys set in server/.env — generation falls back to a small built-in question bank.',
+  };
 }
 
 interface GenerateRequest {
@@ -50,8 +76,9 @@ const RESPONSE_SCHEMA = {
       text: { type: 'STRING' },
       options: { type: 'ARRAY', items: { type: 'STRING' } },
       correctAnswer: { type: 'STRING' },
+      answer: { type: 'STRING' },
     },
-    required: ['type', 'text'],
+    required: ['type', 'text', 'options', 'correctAnswer'],
   },
 };
 
@@ -93,53 +120,146 @@ Return only the JSON array.`;
 }
 
 async function callGemini(model: string, prompt: string): Promise<unknown[] | null> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let lastStatus = 500;
+  const geminiKeys = getGeminiKeys();
+  if (geminiKeys.length === 0) return [];
 
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': GEMINI_API_KEY,
-        },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.85,
-            maxOutputTokens: 4096,
-            responseMimeType: 'application/json',
-            responseSchema: RESPONSE_SCHEMA,
+  for (let attempt = 0; attempt < geminiKeys.length; attempt++) {
+    const activeKey = geminiKeys[currentKeyIndex % geminiKeys.length];
+    if (!activeKey) return [];
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': activeKey,
           },
-        }),
-        signal: controller.signal,
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.85,
+              maxOutputTokens: 4096,
+              responseMimeType: 'application/json',
+              responseSchema: RESPONSE_SCHEMA,
+            },
+          }),
+          signal: controller.signal,
+        }
+      );
+
+      if (!response.ok) {
+        lastStatus = response.status;
+        const detail = await response.text().catch(() => '');
+        console.warn(`[ai] Key ${(currentKeyIndex % geminiKeys.length) + 1} (${model}) responded ${response.status}: ${detail.slice(0, 300)}`);
+        
+        if (response.status === 404) return null; // Model not found, let it fallback
+
+        currentKeyIndex = (currentKeyIndex + 1) % geminiKeys.length;
+        continue;
       }
-    );
 
-    if (!response.ok) {
-      const detail = await response.text().catch(() => '');
-      console.warn(`[ai] ${model} responded ${response.status}: ${detail.slice(0, 300)}`);
-      return response.status === 404 ? null : [];
+      const data = (await response.json()) as {
+        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+      };
+
+      const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+      if (!rawText.trim()) return [];
+
+      const parsed: unknown = JSON.parse(rawText);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') console.warn(`[ai] Key ${(currentKeyIndex % geminiKeys.length) + 1} request timed out`);
+      else console.warn(`[ai] Key ${(currentKeyIndex % geminiKeys.length) + 1} request failed:`, (err as Error).message);
+      
+      currentKeyIndex = (currentKeyIndex + 1) % geminiKeys.length;
+    } finally {
+      clearTimeout(timeout);
     }
-
-    const data = (await response.json()) as {
-      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-    };
-
-    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-    if (!rawText.trim()) return [];
-
-    const parsed: unknown = JSON.parse(rawText);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (err) {
-    if ((err as Error).name === 'AbortError') console.warn('[ai] request timed out');
-    else console.warn('[ai] request failed:', (err as Error).message);
-    return [];
-  } finally {
-    clearTimeout(timeout);
   }
+
+  return lastStatus === 404 ? null : [];
+}
+
+async function callGroq(model: string, prompt: string): Promise<unknown[] | null> {
+  let lastStatus = 500;
+  const groqKeys = getGroqKeys();
+  if (groqKeys.length === 0) return [];
+
+  for (let attempt = 0; attempt < groqKeys.length; attempt++) {
+    const activeKey = groqKeys[currentGroqKeyIndex % groqKeys.length];
+    if (!activeKey) return [];
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    try {
+      const groqPrompt = prompt + '\n\nIMPORTANT: Output ONLY a raw JSON array. Do not wrap in markdown ```json or include any conversational text. Just the array bracket [ to start and ] to end.';
+      
+      const response = await fetch(
+        'https://api.groq.com/openai/v1/chat/completions',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${activeKey}`,
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: [{ role: 'user', content: groqPrompt }],
+            temperature: 0.7,
+            max_tokens: 4096,
+          }),
+          signal: controller.signal,
+        }
+      );
+
+      if (!response.ok) {
+        lastStatus = response.status;
+        const detail = await response.text().catch(() => '');
+        console.warn(`[ai] Groq Key ${(currentGroqKeyIndex % groqKeys.length) + 1} (${model}) responded ${response.status}: ${detail.slice(0, 300)}`);
+        
+        if (response.status === 404) return null;
+
+        currentGroqKeyIndex = (currentGroqKeyIndex + 1) % groqKeys.length;
+        continue;
+      }
+
+      const data = (await response.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+      };
+
+      let rawText = data.choices?.[0]?.message?.content ?? '';
+      console.log('[ai] Groq raw response sample:', rawText.slice(0, 200));
+      rawText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+      
+      const arrayStart = rawText.indexOf('[');
+      const arrayEnd = rawText.lastIndexOf(']');
+      if (arrayStart >= 0 && arrayEnd >= arrayStart) {
+        rawText = rawText.substring(arrayStart, arrayEnd + 1);
+      }
+
+      if (!rawText) return [];
+
+      const parsed: unknown = JSON.parse(rawText);
+      console.log('[ai] Groq parsed item 0:', Array.isArray(parsed) ? parsed[0] : 'not array');
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') console.warn(`[ai] Groq Key ${(currentGroqKeyIndex % groqKeys.length) + 1} request timed out`);
+      else console.warn(`[ai] Groq Key ${(currentGroqKeyIndex % groqKeys.length) + 1} request failed:`, (err as Error).message);
+      
+      currentGroqKeyIndex = (currentGroqKeyIndex + 1) % groqKeys.length;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  return lastStatus === 404 ? null : [];
 }
 
 // ─── Normalisation ────────────────────────────────────────────────────────────
@@ -170,7 +290,7 @@ function normalizeQuestions(raw: unknown[], timeLimitSeconds: number, limit: num
     if (typeof item !== 'object' || item === null) continue;
     const record = item as Record<string, unknown>;
 
-    const text = String(record.text ?? '').trim().slice(0, 300);
+    const text = String(record.text ?? record.question ?? '').trim().slice(0, 300);
     if (!text) continue;
 
     const fingerprint = text.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -190,15 +310,20 @@ function normalizeQuestions(raw: unknown[], timeLimitSeconds: number, limit: num
     const unique = Array.from(new Set(options));
     if (unique.length < 2) continue;
 
-    const key = stripLabel(String(record.correctAnswer ?? ''));
-    if (!key || !unique.includes(key)) continue;
+    const rawKey = stripLabel(String(record.correctAnswer ?? record.answer ?? ''));
+    // Find matching option (case-insensitive fallback)
+    const matchingOption = unique.find(o => o.toLowerCase() === rawKey.toLowerCase()) ?? (unique.includes(rawKey) ? rawKey : null);
+    if (!matchingOption) {
+      console.warn(`[ai] Question skipped - correctAnswer "${rawKey}" not found in options:`, unique);
+      continue;
+    }
 
     questions.push({
       id: uuidv4(),
       type: 'mcq',
       text,
       options: shuffle(unique.slice(0, 6)),
-      correctAnswer: key,
+      correctAnswer: matchingOption,
       timeLimitSeconds,
     });
 
@@ -328,28 +453,49 @@ export async function handleGenerateQuestions(req: Request, res: Response): Prom
   if (hasApiKey()) {
     const prompt = buildPrompt(request);
 
-    let raw = await callGemini(GEMINI_MODEL, prompt);
-    let usedModel = GEMINI_MODEL;
+    let raw: unknown[] | null = null;
+    let usedModel = '';
 
-    // A configured model name that no longer exists returns 404 — retry once on
-    // a known-good model rather than silently degrading to canned questions.
-    if (raw === null) {
-      console.warn(`[ai] model "${GEMINI_MODEL}" not found, retrying with ${FALLBACK_MODEL}`);
-      raw = await callGemini(FALLBACK_MODEL, prompt);
-      usedModel = FALLBACK_MODEL;
+    const gemini = getGeminiKeys();
+    const groq = getGroqKeys();
+    console.log(`[ai] Starting generation: ${gemini.length} Gemini keys, ${groq.length} Groq keys available`);
+
+    if (gemini.length > 0) {
+      raw = await callGemini(GEMINI_MODEL, prompt);
+      usedModel = GEMINI_MODEL;
+      if (raw === null) {
+        console.warn(`[ai] model "${GEMINI_MODEL}" not found, retrying with ${FALLBACK_MODEL}`);
+        raw = await callGemini(FALLBACK_MODEL, prompt);
+        usedModel = FALLBACK_MODEL;
+      }
     }
+
+    console.log(`[ai] After Gemini attempt, raw length: ${raw?.length ?? 'null'}`);
+
+    if ((!raw || raw.length === 0) && groq.length > 0) {
+      console.log(`[ai] Falling back to Groq model ${GROQ_MODEL}...`);
+      raw = await callGroq(GROQ_MODEL, prompt);
+      usedModel = GROQ_MODEL;
+      if (raw === null) {
+        console.warn(`[ai] model "${GROQ_MODEL}" not found, retrying with openai/gpt-oss-120b`);
+        raw = await callGroq('openai/gpt-oss-120b', prompt);
+        usedModel = 'openai/gpt-oss-120b';
+      }
+    }
+
+    console.log(`[ai] Final raw result length: ${raw?.length ?? 'null'}, model: ${usedModel}`);
 
     const questions = normalizeQuestions(raw ?? [], request.timeLimitSeconds, request.count);
 
     if (questions.length > 0) {
-      res.json({ questions, source: 'gemini', model: usedModel });
+      res.json({ questions, source: 'ai', model: usedModel });
       return;
     }
 
     res.status(502).json({
       error:
         'The AI service did not return usable questions. Check the server log, then try again or add questions manually.',
-      source: 'gemini',
+      source: 'ai',
     });
     return;
   }

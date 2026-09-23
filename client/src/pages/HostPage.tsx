@@ -78,7 +78,7 @@ export default function HostPage() {
   useEffect(() => {
     if (!socket.connected) socket.connect();
 
-    socket.on('question_changed', (p: QuestionChangedPayload) => {
+    socket.on('host_question_changed', (p: QuestionChangedPayload) => {
       setCurrentQuestion(p.question);
       setCurrentIndex(p.index);
       setLiveResults(null);
@@ -124,7 +124,7 @@ export default function HostPage() {
     });
 
     return () => {
-      socket.off('question_changed');
+      socket.off('host_question_changed');
       socket.off('results_updated');
       socket.off('timer_started');
       socket.off('leaderboard_updated');
@@ -134,6 +134,15 @@ export default function HostPage() {
       socket.off('error');
     };
   }, []);
+
+  // Attach the presenter socket to its private room after the REST session is
+  // created. Without this, host broadcasts go only to students and a refresh
+  // loses the presenter connection entirely.
+  useEffect(() => {
+    if (!code || !hostId) return;
+    if (!socket.connected) socket.connect();
+    socket.emit('host_join', { code, hostId });
+  }, [code, hostId]);
 
   // ─── Build ────────────────────────────────────────────────────────────────
   function addQuestions(qs: Question[]) {

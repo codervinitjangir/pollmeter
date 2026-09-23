@@ -201,7 +201,13 @@ export default function JoinPage() {
       }
     }
 
-    function onResponseAccepted(payload: ResponseAcceptedPayload) {
+    function onResponseSubmitted(_payload: { questionId: string; value: string }) {
+      setSubmitting(false);
+      setFeedback(null);
+      setStep('answered');
+    }
+
+    function onResponseFeedback(payload: ResponseAcceptedPayload & { correctAnswer?: string }) {
       setSubmitting(false);
       setFeedback({
         isCorrect: payload.isCorrect,
@@ -237,7 +243,8 @@ export default function JoinPage() {
     socket.on('timer_started', onTimerStarted);
     socket.on('results_updated', onResultsUpdated);
     socket.on('results_revealed', onResultsRevealed);
-    socket.on('response_accepted', onResponseAccepted);
+    socket.on('response_submitted', onResponseSubmitted);
+    socket.on('response_feedback', onResponseFeedback);
     socket.on('leaderboard_updated', onLeaderboardUpdated);
     socket.on('session_ended', onSessionEnded);
     socket.on('error', onError);
@@ -248,7 +255,8 @@ export default function JoinPage() {
       socket.off('timer_started', onTimerStarted);
       socket.off('results_updated', onResultsUpdated);
       socket.off('results_revealed', onResultsRevealed);
-      socket.off('response_accepted', onResponseAccepted);
+      socket.off('response_submitted', onResponseSubmitted);
+      socket.off('response_feedback', onResponseFeedback);
       socket.off('leaderboard_updated', onLeaderboardUpdated);
       socket.off('session_ended', onSessionEnded);
       socket.off('error', onError);
