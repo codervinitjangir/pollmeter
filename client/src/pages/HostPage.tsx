@@ -25,7 +25,7 @@ import LiveBarChart from '../components/LiveBarChart';
 import TextResponseList from '../components/TextResponseList';
 import CountdownTimer from '../components/CountdownTimer';
 import { playCue, unlockAudio, isMuted, toggleMuted } from '../sounds';
-import Leaderboard from '../components/Leaderboard';
+import Leaderboard, { OlympicPodium } from '../components/Leaderboard';
 import AIGenerateModal from '../components/AIGenerateModal';
 import { apiUrl } from '../api';
 import { cleanText } from '../cleanText';
@@ -526,10 +526,24 @@ export default function HostPage() {
 
   useEffect(() => {
     function onFsChange() {
-      setIsFullscreen(Boolean(document.fullscreenElement));
+      const isFs = Boolean(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+      setIsFullscreen(isFs);
     }
     document.addEventListener('fullscreenchange', onFsChange);
-    return () => document.removeEventListener('fullscreenchange', onFsChange);
+    document.addEventListener('webkitfullscreenchange', onFsChange);
+    document.addEventListener('mozfullscreenchange', onFsChange);
+    document.addEventListener('MSFullscreenChange', onFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFsChange);
+      document.removeEventListener('webkitfullscreenchange', onFsChange);
+      document.removeEventListener('mozfullscreenchange', onFsChange);
+      document.removeEventListener('MSFullscreenChange', onFsChange);
+    };
   }, []);
 
   function toggleFullscreen() {
@@ -1138,47 +1152,81 @@ export default function HostPage() {
   if (phase === 'ended') return (
     <div className="page">
       {sessionNav}
-      <div className="main-content">
-        <div className="container--wide" style={{ margin: '0 auto' }}>
-          <div className="stack stack-8">
-            <div className="text-center stack stack-3">
-              <div style={{ fontSize: '4rem', animation: 'bounce-in 0.5s var(--ease)' }}>👑</div>
-              <h1 className="t-display" style={{ fontSize: '2.5rem' }}>Final standings</h1>
-              <p className="t-body-lg text-secondary">
-                {finalData?.questions.length ?? questionCount} question
-                {(finalData?.questions.length ?? questionCount) === 1 ? '' : 's'} ·{' '}
-                {leaderboard.length} student{leaderboard.length === 1 ? '' : 's'}
-              </p>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
+      <div className="main-content" style={{ padding: '1.25rem 1.5rem 3rem' }}>
+        <div className="container--showcase">
+          <div className="stack stack-6">
+            {/* Sleek, compact celebration banner */}
+            <div className="final-standings-bar">
+              <div className="final-standings-title-wrap">
+                <span className="final-standings-crown">👑</span>
+                <div>
+                  <h1 className="final-standings-heading">Final Standings</h1>
+                  <p className="final-standings-subtitle">
+                    {finalData?.questions.length ?? questionCount} questions · {leaderboard.length} students
+                  </p>
+                </div>
+              </div>
+              <div className="final-standings-btns">
                 <button
-                  className="btn btn-primary btn--lg"
+                  className="btn btn-primary"
                   onClick={newSession}
                   id="top-new-quiz-btn"
-                  style={{ fontWeight: 700, padding: '0.65rem 1.5rem', borderRadius: '10px' }}
+                  style={{ fontWeight: 700, padding: '0.55rem 1.4rem', borderRadius: '10px' }}
                 >
                   ✨ Start New Quiz
                 </button>
                 <button
-                  className="btn btn-secondary btn--lg"
+                  className="btn btn-secondary"
                   onClick={exportResultsCsv}
                   id="top-export-csv-btn"
-                  style={{ fontWeight: 600, padding: '0.65rem 1.25rem', borderRadius: '10px' }}
+                  style={{ fontWeight: 600, padding: '0.55rem 1.2rem', borderRadius: '10px' }}
                 >
                   📥 Export CSV
                 </button>
               </div>
             </div>
 
-            <div className="card card--lg">
-              <Leaderboard
-                entries={leaderboard}
-                prevEntries={prevLeaderboard}
-                variant="projector"
-                showAll
-                showPodium
-                title="Champions"
-                celebrateKey="final"
-              />
+            {/* 2-Column Full-Page Showcase: Left = Top 3 3D Podium, Right = Top 10 Horizontal Racing Bars */}
+            <div className="final-showcase-grid">
+              {/* Left Column: 3D Olympic Podium */}
+              <div className="final-showcase-card final-showcase-card--podium">
+                <div className="final-showcase-card-header">
+                  <div className="final-showcase-card-header-left">
+                    <span className="final-showcase-icon">🏆</span>
+                    <h2 className="final-showcase-card-title">Top 3 Champions</h2>
+                  </div>
+                  <span className="final-showcase-badge final-showcase-badge--gold">Podium</span>
+                </div>
+                <div className="final-showcase-podium-body">
+                  <OlympicPodium
+                    topEntries={leaderboard.slice(0, 3)}
+                    showWinnerCard={true}
+                  />
+                </div>
+              </div>
+
+              {/* Right Column: Top 10 Horizontal Racing Bars */}
+              <div className="final-showcase-card final-showcase-card--bars">
+                <div className="final-showcase-card-header">
+                  <div className="final-showcase-card-header-left">
+                    <span className="final-showcase-icon">🏁</span>
+                    <h2 className="final-showcase-card-title">Top 10 Leaderboard</h2>
+                  </div>
+                  <span className="final-showcase-badge final-showcase-badge--blue">
+                    {Math.min(10, leaderboard.length)} Racers
+                  </span>
+                </div>
+                <div className="final-showcase-bars-body">
+                  <Leaderboard
+                    entries={leaderboard}
+                    prevEntries={prevLeaderboard}
+                    variant="projector"
+                    limit={10}
+                    title=""
+                    celebrateKey="final"
+                  />
+                </div>
+              </div>
             </div>
 
             {finalData?.questions.map((q, idx) => {
@@ -1267,8 +1315,7 @@ export default function HostPage() {
                 prevEntries={prevLeaderboard}
                 variant="projector"
                 limit={10}
-                allowViewToggle
-                showPodium={leaderboard.length <= 3}
+                showPodium={false}
                 title={`⚡ Standings · Question ${currentIndex + 1} of ${questionCount}`}
                 subtitle="Top 10 Leaders · Faster responses score higher"
                 celebrateKey={currentIndex}

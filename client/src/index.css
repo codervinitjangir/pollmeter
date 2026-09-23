@@ -4443,3 +4443,210 @@ fieldset.field {
   margin-left: 0.25rem;
 }
 
+/* ─── Final Showcase 2-Column Full-Page Layout ───────────────────────────── */
+.container--showcase {
+  width: 100%;
+  max-width: 1560px;
+  margin: 0 auto;
+  padding: 0 clamp(0.75rem, 2vw, 1.5rem);
+}
+
+.final-standings-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding: 0.9rem 1.6rem;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 18px;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+  flex-wrap: wrap;
+}
+
+.final-standings-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.final-standings-crown {
+  font-size: 2.2rem;
+  line-height: 1;
+  animation: float-crown 2.4s ease-in-out infinite;
+  filter: drop-shadow(0 2px 8px rgba(245, 158, 11, 0.3));
+}
+
+.final-standings-heading {
+  font-size: 1.55rem;
+  font-weight: 900;
+  color: #0F172A;
+  margin: 0;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.final-standings-subtitle {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #64748B;
+  margin: 0.15rem 0 0 0;
+}
+
+.final-standings-btns {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.final-showcase-grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) minmax(440px, 1.25fr);
+  gap: 1.5rem;
+  align-items: stretch;
+  width: 100%;
+}
+
+@media (max-width: 980px) {
+  .final-showcase-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.final-showcase-card {
+  display: flex;
+  flex-direction: column;
+  background: #FFFFFF;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 22px;
+  padding: 1.4rem 1.6rem;
+  box-shadow: 0 10px 30px -4px rgba(0, 0, 0, 0.06);
+  min-height: 520px;
+}
+
+.final-showcase-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.9rem;
+  margin-bottom: 1.1rem;
+  border-bottom: 1.5px solid #F1F5F9;
+}
+
+.final-showcase-card-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.final-showcase-icon {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.final-showcase-card-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0F172A;
+  margin: 0;
+  letter-spacing: -0.015em;
+}
+
+.final-showcase-badge {
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.final-showcase-badge--gold {
+  background: #FEF3C7;
+  color: #B45309;
+  border: 1px solid #FDE68A;
+}
+
+.final-showcase-badge--blue {
+  background: #EFF6FF;
+  color: #1D4ED8;
+  border: 1px solid #BFDBFE;
+}
+
+.final-showcase-podium-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.final-showcase-bars-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.final-showcase-card .olympic-podium-wrap {
+  margin-bottom: 0;
+  padding: 0.5rem 0.5rem 0;
+  width: 100%;
+}
+
+.podium-champion-card {
+  margin-top: 1.25rem;
+  width: 100%;
+  max-width: 440px;
+  background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+  border: 1.5px solid #FCD34D;
+  border-radius: 16px;
+  padding: 0.85rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.15);
+  animation: pop-in 0.5s ease-out;
+}
+
+.podium-champion-badge {
+  font-size: 0.72rem;
+  font-weight: 900;
+  color: #92400E;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.podium-champion-body {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.podium-champion-avatar {
+  font-size: 1.8rem;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+}
+
+.podium-champion-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.podium-champion-name {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #78350F;
+  line-height: 1.2;
+}
+
+.podium-champion-score {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #B45309;
+}
+

@@ -257,12 +257,14 @@ function LbRow({
 }
 
 /** Olympic 3D Top 3 Podium */
-function OlympicPodium({
+export function OlympicPodium({
   topEntries,
   myParticipantId,
+  showWinnerCard = true,
 }: {
   topEntries: LeaderboardEntry[];
   myParticipantId?: string;
+  showWinnerCard?: boolean;
 }) {
   if (topEntries.length === 0) return null;
 
@@ -314,6 +316,21 @@ function OlympicPodium({
           );
         })}
       </div>
+
+      {showWinnerCard && first && (
+        <div className="podium-champion-card">
+          <div className="podium-champion-badge">
+            <span>👑 1ST PLACE WINNER</span>
+          </div>
+          <div className="podium-champion-body">
+            <span className="podium-champion-avatar">{getAvatar(first.name)}</span>
+            <div className="podium-champion-info">
+              <span className="podium-champion-name">{cleanText(first.name)}</span>
+              <span className="podium-champion-score">{first.totalScore.toLocaleString()} points</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -335,21 +352,11 @@ export default function Leaderboard({
   celebrateKey,
   showPodium,
   isPodium,
-  allowViewToggle = false,
 }: Props) {
   const isProjector = variant === 'projector';
   const celebrated = useRef<string | number | undefined>(undefined);
   const firstRowRef = useRef<HTMLDivElement>(null);
-  const [slotHeight, setSlotHeight] = useState(isProjector ? 56 : 40);
-
-  // Dynamic View Mode: presenter can toggle between Racing Track and 3D Olympic Podium
-  const [viewMode, setViewMode] = useState<'race' | 'podium'>(showPodium || isPodium ? 'podium' : 'race');
-
-  useEffect(() => {
-    if (showPodium || isPodium) {
-      setViewMode('podium');
-    }
-  }, [showPodium, isPodium]);
+  const [slotHeight, setSlotHeight] = useState(isProjector ? 46 : 40);
 
   // Track surge animation phase: 'initial' (pre-animation) -> 'surging' (racing) -> 'settled'
   const [surgePhase, setSurgePhase] = useState<'initial' | 'surging' | 'settled'>('initial');
@@ -464,62 +471,31 @@ export default function Leaderboard({
     );
   }
 
-  const isPodiumMode = viewMode === 'podium';
+  const isPodiumMode = Boolean(showPodium || isPodium);
   const topPodiumEntries = isPodiumMode ? visible.slice(0, 3) : [];
-  const listEntries = isPodiumMode ? visible.slice(3) : visible;
 
   return (
     <div className={`menti-race-shell${isProjector ? ' menti-race-shell--projector' : ''}`}>
       {/* Title Header */}
-      <div className="menti-race-header">
-        <div className="menti-race-header-left">
-          <h2 className="menti-race-title">{title}</h2>
-          {subtitle && <p className="menti-race-subtitle">{subtitle}</p>}
-        </div>
+      {title && (
+        <div className="menti-race-header">
+          <div className="menti-race-header-left">
+            <h2 className="menti-race-title">{title}</h2>
+            {subtitle && <p className="menti-race-subtitle">{subtitle}</p>}
+          </div>
 
-        <div className="menti-race-header-right">
-          {allowViewToggle && entries.length > 0 && (
-            <div className="menti-race-view-toggle">
-              <button
-                type="button"
-                className={`menti-race-toggle-btn ${viewMode === 'race' ? 'is-active' : ''}`}
-                onClick={() => setViewMode('race')}
-                title="Racing track view"
-              >
-                🏁 Race
-              </button>
-              <button
-                type="button"
-                className={`menti-race-toggle-btn ${viewMode === 'podium' ? 'is-active' : ''}`}
-                onClick={() => setViewMode('podium')}
-                title="3D Olympic podium view"
-              >
-                🏆 Podium
-              </button>
-            </div>
-          )}
-
-          {myParticipantId ? (
-            (() => {
-              const me = entries.find((e) => e.participantId === myParticipantId);
-              return me ? (
-                <span className="menti-race-my-rank">
-                  You&apos;re #{me.rank} of {entries.length}
-                </span>
-              ) : null;
-            })()
-          ) : (
-            <div className="menti-race-live-chip">
-              <span className="menti-stage-live-pulse" />
-              <span>
-                {entries.length} {entries.length === 1 ? 'Racer' : 'Racers'}
+          {myParticipantId && (() => {
+            const me = entries.find((e) => e.participantId === myParticipantId);
+            return me ? (
+              <span className="menti-race-my-rank">
+                You&apos;re #{me.rank} of {entries.length}
               </span>
-            </div>
-          )}
+            ) : null;
+          })()}
         </div>
-      </div>
+      )}
 
-      {/* Olympic 3D Podium for Top 3 */}
+      {/* Olympic 3D Podium for Top 3 (on final page) */}
       {isPodiumMode && (
         <OlympicPodium
           topEntries={topPodiumEntries}
@@ -527,57 +503,24 @@ export default function Leaderboard({
         />
       )}
 
-      {/* Racing Rows List */}
-      {listEntries.length > 0 && (
-        <div className="menti-race-list">
-          {listEntries.map((entry, idx) => {
-            const actualIdx = isPodiumMode ? idx + 3 : idx;
-            return (
-              <LbRow
-                key={entry.participantId}
-                entry={entry}
-                idx={actualIdx}
-                initialRank={initialRankMap.get(entry.participantId) ?? actualIdx}
-                surgePhase={surgePhase}
-                maxScore={maxScore}
-                isMe={entry.participantId === myParticipantId}
-                prevScore={prevScoreMap.get(entry.participantId) ?? 0}
-                slotHeight={slotHeight}
-                isProjector={isProjector}
-                rowRef={actualIdx === 0 ? firstRowRef : undefined}
-              />
-            );
-          })}
-        </div>
-      )}
-
-      {/* Leader spotlight when few participants in race view to eliminate awkward empty card void */}
-      {viewMode === 'race' && entries.length > 0 && entries.length <= 4 && (
-        <div className="menti-race-spotlight">
-          <div className="menti-race-spotlight-item">
-            <span className="menti-race-spotlight-icon">👑</span>
-            <div className="menti-race-spotlight-text">
-              <strong>{cleanText(entries[0].name)}</strong> is leading with{' '}
-              <span className="menti-race-spotlight-pts">{entries[0].totalScore.toLocaleString()} pts</span>
-            </div>
-          </div>
-          {entries[0].streak && entries[0].streak >= 2 ? (
-            <div className="menti-race-spotlight-item">
-              <span className="menti-race-spotlight-icon">🔥</span>
-              <div className="menti-race-spotlight-text">
-                On fire with <strong>{entries[0].streak} streak</strong>!
-              </div>
-            </div>
-          ) : (
-            <div className="menti-race-spotlight-item">
-              <span className="menti-race-spotlight-icon">⚡</span>
-              <div className="menti-race-spotlight-text">
-                Every point counts · Stay sharp for the next round!
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Racing Rows List (All visible entries) */}
+      <div className="menti-race-list">
+        {visible.map((entry, idx) => (
+          <LbRow
+            key={entry.participantId}
+            entry={entry}
+            idx={idx}
+            initialRank={initialRankMap.get(entry.participantId) ?? idx}
+            surgePhase={surgePhase}
+            maxScore={maxScore}
+            isMe={entry.participantId === myParticipantId}
+            prevScore={prevScoreMap.get(entry.participantId) ?? 0}
+            slotHeight={slotHeight}
+            isProjector={isProjector}
+            rowRef={idx === 0 ? firstRowRef : undefined}
+          />
+        ))}
+      </div>
 
       {!showAll && limit != null && entries.length > visible.length && (
         <p className="text-muted text-center" style={{ fontSize: '0.85rem', marginTop: '0.75rem' }}>
