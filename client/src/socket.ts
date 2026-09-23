@@ -11,14 +11,14 @@ const URL = getApiBaseUrl() || (import.meta.env.MODE === 'production' ? window.l
  * ten tries and stranding a student mid-quiz.
  */
 const socket: Socket = io(URL, {
-  autoConnect: false,
+  autoConnect: true,
   reconnection: true,
   reconnectionAttempts: Infinity,
   reconnectionDelay: 500,
   reconnectionDelayMax: 4000,
   randomizationFactor: 0.4,
   timeout: 10000,
-  transports: ['websocket', 'polling'],
+  transports: ['polling', 'websocket'],
 });
 
 export function ensureConnected(): void {

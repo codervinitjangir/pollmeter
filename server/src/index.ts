@@ -26,7 +26,7 @@ const PORT = parseInt(process.env.PORT ?? '3001', 10);
  * and known deployment domains (Cloudflare Pages, Vercel, Netlify).
  */
 const PRIVATE_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|10\.[\d.]+|192\.168\.[\d.]+|172\.(1[6-9]|2\d|3[01])\.[\d.]+|[\w-]+\.local)(:\d+)?$/i;
-const DEPLOY_ORIGIN  = /^https:\/\/([\w-]+\.pages\.dev|[\w-]+\.vercel\.app|[\w-]+\.netlify\.app|[\w-]+\.onrender\.com)$/i;
+const DEPLOY_ORIGIN  = /^https:\/\/([\w-]+\.pages\.dev|[\w-]+\.vercel\.app|[\w-]+\.netlify\.app|[\w-]+\.onrender\.com)(:\d+)?$/i;
 
 const extraOrigins = (process.env.CLIENT_ORIGIN ?? '')
   .split(',')
