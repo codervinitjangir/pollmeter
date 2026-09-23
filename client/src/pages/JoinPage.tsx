@@ -291,9 +291,9 @@ export default function JoinPage() {
         clearTimeout(joinTimeoutRef.current);
         joinTimeoutRef.current = null;
       }
+      setJoining(false);
       if (!joinedRef.current) {
-        setJoinError(p.message);
-        setJoining(false);
+        setJoinError(p.message || 'Unable to join session.');
         // A stale identity from a finished session must not block a fresh join.
         localStorage.removeItem(LS_KEY);
         identity.current = null;
@@ -348,7 +348,6 @@ export default function JoinPage() {
     const params = new URLSearchParams(window.location.search);
     const codeParam = params.get('code');
     if (codeParam && codeParam !== stored.code) return;   // scanned a different class
-    joinedRef.current = true;
     doJoin(stored.code, stored.name, stored);
   }, [doJoin]);
 
@@ -366,7 +365,6 @@ export default function JoinPage() {
       setJoinError('Please enter your name so your mentor can see your score.');
       return;
     }
-    joinedRef.current = true;
     doJoin(code, name, identity.current);
   }
 
