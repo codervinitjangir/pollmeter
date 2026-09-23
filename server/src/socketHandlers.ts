@@ -167,6 +167,7 @@ function startQuestion(io: Server, session: Session, index: number): void {
   const endsAt = startedAt + question.timeLimitSeconds * 1000;
 
   session.currentIndex = index;
+  session.maxAskedIndex = Math.max(session.maxAskedIndex, index);
   session.phase = 'question';
   session.timerStartedAt = startedAt;
   session.timerEndsAt = endsAt;
@@ -236,6 +237,39 @@ function showLeaderboard(io: Server, session: Session): void {
 
   emitPhase(io, session);
   emitLeaderboard(io, session);
+}
+
+/**
+ * Navigate to a question the class has already been asked, and show its
+ * recorded result. Answers stay closed and no timer runs — re-opening a
+ * question the room already voted on would reject every student who answered
+ * the first time, and would let anyone who skipped it vote late for points.
+ */
+function reviewQuestion(io: Server, session: Session, index: number): void {
+  const question = session.questions[index];
+  if (!question) return;
+
+  clearSessionTimer(session);
+  session.currentIndex = index;
+  session.phase = 'results';
+  session.timerStartedAt = null;
+  session.timerEndsAt = null;
+  touchSession(session);
+
+  emitPhase(io, session);
+
+  // Students need the question text back on screen before the distribution
+  // lands, and without the phase reset that `question_started` would cause.
+  io.to(session.code).emit('question_reviewed', {
+    question: toPublicQuestion(question),
+    index,
+    questionCount: session.questions.length,
+  });
+
+  // Replays the recorded aggregate plus each student's own past answer.
+  emitResults(io, session);
+
+  io.to(hostRoom(session.code)).emit('host_state', buildHostState(session));
 }
 
 function endSession(io: Server, session: Session): void {
@@ -401,8 +435,15 @@ export function registerSocketHandlers(io: Server, socket: Socket): void {
     if (session.phase === 'lobby' || session.phase === 'ended') return;
 
     const nextIndex = session.currentIndex + 1;
-    if (nextIndex >= session.questions.length) endSession(io, session);
-    else startQuestion(io, session, nextIndex);
+    if (nextIndex >= session.questions.length) {
+      endSession(io, session);
+    } else if (nextIndex <= session.maxAskedIndex) {
+      // Stepping forward through questions the class has already answered —
+      // review them, don't re-run them.
+      reviewQuestion(io, session, nextIndex);
+    } else {
+      startQuestion(io, session, nextIndex);
+    }
   });
 
   socket.on('host_next_question', (payload: HostCommandPayload) => {
@@ -417,15 +458,22 @@ export function registerSocketHandlers(io: Server, socket: Socket): void {
     }
 
     const nextIndex = session.currentIndex + 1;
-    if (nextIndex >= session.questions.length) endSession(io, session);
-    else startQuestion(io, session, nextIndex);
+    if (nextIndex >= session.questions.length) {
+      endSession(io, session);
+    } else if (nextIndex <= session.maxAskedIndex) {
+      // Stepping forward through questions the class has already answered —
+      // review them read-only, don't re-run them.
+      reviewQuestion(io, session, nextIndex);
+    } else {
+      startQuestion(io, session, nextIndex);
+    }
   });
 
   socket.on('host_previous', (payload: HostCommandPayload) => {
     const session = requireHost(socket, payload);
     if (!session || session.phase === 'lobby' || session.phase === 'ended') return;
     if (session.currentIndex <= 0) return;
-    startQuestion(io, session, session.currentIndex - 1);
+    reviewQuestion(io, session, session.currentIndex - 1);
   });
 
   socket.on('host_extend_time', (payload: HostExtendTimePayload) => {

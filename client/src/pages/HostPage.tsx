@@ -82,6 +82,10 @@ export default function HostPage() {
   const [resultsAdvance, setResultsAdvance] = useState(2);
   const [resultsPaused, setResultsPaused] = useState(false);
 
+  // True when the host stepped back to review an already-answered question.
+  // Suppresses the 2-second auto-advance so the mentor can explain at leisure.
+  const [isReviewMode, setIsReviewMode] = useState(false);
+
   const credentials = useRef<StoredHost | null>(null);
 
   useEffect(() => {
@@ -148,6 +152,7 @@ export default function HostPage() {
 
     function onHostQuestionChanged(p: QuestionChangedPayload) {
       setPhase('question');
+      setIsReviewMode(false);  // fresh live question — re-enable 2s auto-advance
       setCurrentQuestion(p.question);
       setCurrentIndex(p.index);
       if (p.questionCount) setQuestionCount(p.questionCount);
@@ -158,6 +163,14 @@ export default function HostPage() {
         endsAt: p.timerStartedAt + p.question.timeLimitSeconds * 1000,
         durationSeconds: p.question.timeLimitSeconds,
       });
+    }
+
+    function onQuestionReviewed(p: { index: number; questionCount: number }) {
+      // The server stepped back: surface results read-only, suppress auto-advance.
+      setIsReviewMode(true);
+      setCurrentIndex(p.index);
+      setQuestionCount(p.questionCount);
+      setResultsPaused(true); // explicitly halt the countdown for review mode
     }
 
     function onPhaseChanged(p: PhaseChangedPayload) {
@@ -232,6 +245,7 @@ export default function HostPage() {
     socket.on('connect', onConnect);
     socket.on('host_state', onHostState);
     socket.on('host_question_changed', onHostQuestionChanged);
+    socket.on('question_reviewed', onQuestionReviewed);
     socket.on('phase_changed', onPhaseChanged);
     socket.on('timer_updated', onTimerUpdated);
     socket.on('response_count', onResponseCount);
@@ -246,6 +260,7 @@ export default function HostPage() {
       socket.off('connect', onConnect);
       socket.off('host_state', onHostState);
       socket.off('host_question_changed', onHostQuestionChanged);
+      socket.off('question_reviewed', onQuestionReviewed);
       socket.off('phase_changed', onPhaseChanged);
       socket.off('timer_updated', onTimerUpdated);
       socket.off('response_count', onResponseCount);
@@ -358,8 +373,14 @@ export default function HostPage() {
   useEffect(() => {
     if (phase !== 'results') return;
     setResultsAdvance(2);
-    setResultsPaused(false);
-  }, [phase, currentIndex]);
+    // In review mode the mentor stepped back — never auto-flip to leaderboard;
+    // they'll click "Next" or manually trigger when they're ready.
+    if (isReviewMode) {
+      setResultsPaused(true);
+    } else {
+      setResultsPaused(false);
+    }
+  }, [phase, currentIndex, isReviewMode]);
 
   useEffect(() => {
     if (phase !== 'results' || resultsPaused) return;
@@ -1178,16 +1199,24 @@ export default function HostPage() {
 
           {phase === 'results' && (
             <div className="row row-2">
-              <span className="chip chip--pulse">
-                Leaderboard in {resultsAdvance}s
-              </span>
-              <button
-                className="btn btn-ghost btn--sm"
-                onClick={() => setResultsPaused((p) => !p)}
-                title={resultsPaused ? 'Resume countdown' : 'Pause countdown'}
-              >
-                {resultsPaused ? '▶ Resume' : '⏸ Pause'}
-              </button>
+              {isReviewMode ? (
+                <span className="chip" style={{ background: 'rgba(245,158,11,0.15)', color: '#B45309', border: '1px solid rgba(245,158,11,0.3)' }}>
+                  👁 Review mode — auto-advance paused
+                </span>
+              ) : (
+                <>
+                  <span className="chip chip--pulse">
+                    Leaderboard in {resultsAdvance}s
+                  </span>
+                  <button
+                    className="btn btn-ghost btn--sm"
+                    onClick={() => setResultsPaused((p) => !p)}
+                    title={resultsPaused ? 'Resume countdown' : 'Pause countdown'}
+                  >
+                    {resultsPaused ? '▶ Resume' : '⏸ Pause'}
+                  </button>
+                </>
+              )}
             </div>
           )}
 

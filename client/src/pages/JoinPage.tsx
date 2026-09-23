@@ -8,6 +8,7 @@ import {
   TextAggregated,
   SessionStatePayload,
   QuestionStartedPayload,
+  QuestionReviewedPayload,
   PhaseChangedPayload,
   ResponseCountPayload,
   ResultsRevealedPayload,
@@ -221,6 +222,21 @@ export default function JoinPage() {
       setQuestionCount(p.questionCount);
     }
 
+    /**
+     * The mentor stepped back to a question the class already answered. Put it
+     * back on screen with answers closed — `results_revealed` and
+     * `response_feedback` follow immediately and restore the recorded
+     * distribution and this student's own answer.
+     */
+    function onQuestionReviewed(p: QuestionReviewedPayload) {
+      resetForNewQuestion();
+      setPhase('results');
+      setQuestion(p.question);
+      setCurrentIndex(p.index);
+      setQuestionCount(p.questionCount);
+      setTimer(null);
+    }
+
     function onTimerUpdated(p: TimerUpdatedPayload) {
       if (!p.timerEndsAt) return;
       setTimer((prev) => (prev ? { ...prev, endsAt: p.timerEndsAt! } : prev));
@@ -313,6 +329,7 @@ export default function JoinPage() {
     socket.on('disconnect', onDisconnect);
     socket.on('session_state', onSessionState);
     socket.on('question_started', onQuestionStarted);
+    socket.on('question_reviewed', onQuestionReviewed);
     socket.on('phase_changed', onPhaseChanged);
     socket.on('timer_updated', onTimerUpdated);
     socket.on('response_count', onResponseCount);
@@ -329,6 +346,7 @@ export default function JoinPage() {
       socket.off('disconnect', onDisconnect);
       socket.off('session_state', onSessionState);
       socket.off('question_started', onQuestionStarted);
+      socket.off('question_reviewed', onQuestionReviewed);
       socket.off('phase_changed', onPhaseChanged);
       socket.off('timer_updated', onTimerUpdated);
       socket.off('response_count', onResponseCount);

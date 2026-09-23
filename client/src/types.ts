@@ -98,8 +98,14 @@ export interface QuestionStartedPayload {
   timerEndsAt: number;
 }
 
-export interface QuestionChangedPayload {
-  question: Question;
+/** Host stepped back to an already-answered question: shown read-only. */
+export interface QuestionReviewedPayload {
+  question: PublicQuestion;
+  index: number;
+  questionCount: number;
+}
+
+export interface QuestionChangedPayload {  question: Question;
   index: number;
   timerStartedAt: number;
   questionCount?: number;
