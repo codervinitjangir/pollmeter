@@ -23,9 +23,9 @@ function getGroqKeys(): string[] {
 }
 
 const GEMINI_MODEL = (process.env.GEMINI_MODEL ?? 'gemini-3.6-flash').trim();
-const FALLBACK_MODEL = 'gemini-flash-latest';
+const FALLBACK_MODEL = (process.env.GEMINI_FALLBACK_MODEL ?? 'gemini-flash-lite-latest').trim();
 const GROQ_MODEL = (process.env.GROQ_MODEL ?? 'qwen/qwen3.8-27b').trim();
-const REQUEST_TIMEOUT_MS = 12000;
+const REQUEST_TIMEOUT_MS = 8000;
 
 let currentKeyIndex = 0;
 let currentGroqKeyIndex = 0;
@@ -159,7 +159,11 @@ async function callGemini(model: string, prompt: string): Promise<unknown[] | nu
         const detail = await response.text().catch(() => '');
         console.warn(`[ai] Key ${(currentKeyIndex % geminiKeys.length) + 1} (${model}) responded ${response.status}: ${detail.slice(0, 300)}`);
         
-        if (response.status === 404) return null; // Model not found, let it fallback
+        // If 404 (not found) or 503 (high demand spike), fallback immediately to next model
+        if (response.status === 404 || response.status === 503) {
+          currentKeyIndex = (currentKeyIndex + 1) % geminiKeys.length;
+          return null;
+        }
 
         currentKeyIndex = (currentKeyIndex + 1) % geminiKeys.length;
         continue;
@@ -400,6 +404,16 @@ const QUESTION_BANK: BankTopic[] = [
       { text: 'Roughly how many bones are in an adult human body?', options: ['206', '186', '226', '246'], correctAnswer: '206', openPrompt: 'What habit most improves long-term health, and why?' },
     ],
   },
+  {
+    keywords: ['geography', 'world', 'country', 'capital', 'continent', 'map'],
+    questions: [
+      { text: 'What is the capital of France?', options: ['Paris', 'Lyon', 'Marseille', 'Nice'], correctAnswer: 'Paris', openPrompt: 'Name one country in South America and its capital.' },
+      { text: 'Which is the largest ocean on Earth?', options: ['Pacific Ocean', 'Atlantic Ocean', 'Indian Ocean', 'Arctic Ocean'], correctAnswer: 'Pacific Ocean', openPrompt: 'Why are oceans vital to regulating Earth\'s climate?' },
+      { text: 'Which is the longest river in the world?', options: ['Nile', 'Amazon', 'Yangtze', 'Mississippi'], correctAnswer: 'Nile', openPrompt: 'What defines a desert geographically?' },
+      { text: 'Mount Everest is located in which mountain range?', options: ['Himalayas', 'Andes', 'Alps', 'Rockies'], correctAnswer: 'Himalayas', openPrompt: 'Explain how tectonic plates form mountains.' },
+      { text: 'Which country has the largest land area in the world?', options: ['Russia', 'Canada', 'China', 'United States'], correctAnswer: 'Russia', openPrompt: 'What is the prime meridian and why is it important?' },
+    ],
+  },
 ];
 
 function buildBankQuestions(req: GenerateRequest): Question[] {
@@ -476,8 +490,8 @@ export async function handleGenerateQuestions(req: Request, res: Response): Prom
     if (gemini.length > 0) {
       raw = await callGemini(GEMINI_MODEL, prompt);
       usedModel = GEMINI_MODEL;
-      if (raw === null) {
-        console.warn(`[ai] model "${GEMINI_MODEL}" not found, retrying with ${FALLBACK_MODEL}`);
+      if (raw === null || raw.length === 0) {
+        console.warn(`[ai] model "${GEMINI_MODEL}" unavailable or busy, retrying with ${FALLBACK_MODEL}`);
         raw = await callGemini(FALLBACK_MODEL, prompt);
         usedModel = FALLBACK_MODEL;
       }
@@ -489,8 +503,8 @@ export async function handleGenerateQuestions(req: Request, res: Response): Prom
       console.log(`[ai] Falling back to Groq model ${GROQ_MODEL}...`);
       raw = await callGroq(GROQ_MODEL, prompt);
       usedModel = GROQ_MODEL;
-      if (raw === null) {
-        console.warn(`[ai] model "${GROQ_MODEL}" not found, retrying with openai/gpt-oss-120b`);
+      if (raw === null || raw.length === 0) {
+        console.warn(`[ai] model "${GROQ_MODEL}" unavailable, retrying with openai/gpt-oss-120b`);
         raw = await callGroq('openai/gpt-oss-120b', prompt);
         usedModel = 'openai/gpt-oss-120b';
       }
@@ -505,9 +519,21 @@ export async function handleGenerateQuestions(req: Request, res: Response): Prom
       return;
     }
 
+    // Safety net: If AI models fail due to upstream Google/Groq outages, serve the verified question bank
+    const bank = buildBankQuestions(request);
+    if (bank.length > 0) {
+      console.log(`[ai] AI models unavailable, served ${bank.length} questions from question bank for topic "${request.topic}"`);
+      res.json({
+        questions: bank,
+        source: 'question-bank',
+        notice: 'AI service was momentarily busy; loaded verified questions for this topic.',
+      });
+      return;
+    }
+
     res.status(502).json({
       error:
-        'The AI service did not return usable questions. Check the server log, then try again or add questions manually.',
+        'The AI service is temporarily busy. Please try again in a few seconds or add questions manually.',
       source: 'ai',
     });
     return;
