@@ -22,6 +22,7 @@ export default function QuestionForm({ onSave, onAdd, initial = null, onCancel }
   // Tracked by index, not by value — tracking by string broke when an option
   // was renamed or when two options briefly held the same text.
   const [correctIndex, setCorrectIndex] = useState<number | null>(null);
+  const [format, setFormat] = useState<'mcq' | 'true_false' | 'poll'>('mcq');
   const [timeLimit, setTimeLimit] = useState(30);
   const [error, setError] = useState('');
 
@@ -35,10 +36,18 @@ export default function QuestionForm({ onSave, onAdd, initial = null, onCancel }
       initial.correctAnswer ? opts.indexOf(initial.correctAnswer) : null
     );
     setTimeLimit(initial.timeLimitSeconds);
+    if (opts.length === 2 && opts[0] === 'True' && opts[1] === 'False') {
+      setFormat('true_false');
+    } else if (!initial.correctAnswer) {
+      setFormat('poll');
+    } else {
+      setFormat('mcq');
+    }
     setError('');
   }, [initial]);
 
   function reset() {
+    setFormat('mcq');
     setType('mcq');
     setText('');
     setOptions(['', '', '', '']);
@@ -116,25 +125,35 @@ export default function QuestionForm({ onSave, onAdd, initial = null, onCancel }
   }
 
   function setTrueFalseMode() {
+    setFormat('true_false');
     setType('mcq');
     setOptions(['True', 'False']);
-    setCorrectIndex(0);
+    if (correctIndex === null || correctIndex > 1) {
+      setCorrectIndex(0);
+    }
   }
 
   function setMcqMode() {
+    setFormat('mcq');
     setType('mcq');
-    if (options.length < 4) {
+    if (options.length === 2 && options[0] === 'True' && options[1] === 'False') {
       setOptions(['', '', '', '']);
+    } else if (options.length < 4) {
+      setOptions((prev) => (prev.length >= 4 ? prev : ['', '', '', '']));
+    }
+    if (correctIndex === null) {
+      setCorrectIndex(0);
     }
   }
 
   function setPollMode() {
+    setFormat('poll');
     setType('mcq');
     setCorrectIndex(null);
+    if (options.length === 2 && options[0] === 'True' && options[1] === 'False') {
+      setOptions(['', '', '', '']);
+    }
   }
-
-  const isTrueFalse = options.length === 2 && options[0] === 'True' && options[1] === 'False';
-  const isPoll = correctIndex === null;
 
   return (
     <form onSubmit={handleSubmit} className="qform" noValidate>
@@ -142,21 +161,21 @@ export default function QuestionForm({ onSave, onAdd, initial = null, onCancel }
         <div className="seg" role="group" aria-label="Question format">
           <button
             type="button"
-            className={`seg-btn${!isTrueFalse && !isPoll ? ' is-active' : ''}`}
+            className={`seg-btn${format === 'mcq' ? ' is-active' : ''}`}
             onClick={setMcqMode}
           >
             Multiple choice
           </button>
           <button
             type="button"
-            className={`seg-btn${isTrueFalse ? ' is-active' : ''}`}
+            className={`seg-btn${format === 'true_false' ? ' is-active' : ''}`}
             onClick={setTrueFalseMode}
           >
             True / False
           </button>
           <button
             type="button"
-            className={`seg-btn${isPoll && !isTrueFalse ? ' is-active' : ''}`}
+            className={`seg-btn${format === 'poll' ? ' is-active' : ''}`}
             onClick={setPollMode}
           >
             📊 Live Poll
