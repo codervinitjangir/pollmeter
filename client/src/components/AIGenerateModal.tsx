@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Question, AiStatus } from '../types';
+import { apiUrl } from '../api';
 import QuestionForm from './QuestionForm';
 
 interface Props {
@@ -36,7 +37,7 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
 
   // Report what is actually configured rather than claiming a specific vendor.
   useEffect(() => {
-    fetch('/api/ai/status')
+    fetch(apiUrl('/api/ai/status'))
       .then((r) => r.json())
       .then(setStatus)
       .catch(() => setStatus(null));
@@ -57,7 +58,7 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
     setSource(null);
 
     try {
-      const res = await fetch('/api/ai/generate-questions', {
+      const res = await fetch(apiUrl('/api/ai/generate-questions'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

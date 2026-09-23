@@ -25,6 +25,7 @@ import TextResponseList from '../components/TextResponseList';
 import CountdownTimer from '../components/CountdownTimer';
 import Leaderboard from '../components/Leaderboard';
 import AIGenerateModal from '../components/AIGenerateModal';
+import { apiUrl } from '../api';
 
 /**
  * The projector laptop is the least reliable machine in the room — someone
@@ -77,7 +78,7 @@ export default function HostPage() {
   const credentials = useRef<StoredHost | null>(null);
 
   useEffect(() => {
-    fetch('/api/network-info')
+    fetch(apiUrl('/api/network-info'))
       .then((r) => r.json())
       .then((d) => {
         if (d.localIp && d.localIp !== 'localhost') setLanIp(d.localIp);
@@ -300,7 +301,7 @@ export default function HostPage() {
     }
     setLoading(true);
     try {
-      const res = await fetch('/api/sessions', {
+      const res = await fetch(apiUrl('/api/sessions'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ questions }),

@@ -1,8 +1,10 @@
 import { io, Socket } from 'socket.io-client';
+import { getApiBaseUrl } from './api';
 
 // Dev: Vite proxies /socket.io to Express server.
-// Production: same-origin by default, or VITE_SERVER_URL if deployed separately.
-const URL = import.meta.env.VITE_SERVER_URL || (import.meta.env.MODE === 'production' ? window.location.origin : '/');
+// Cloudflare Pages / separate deploy: points to Render backend.
+// Production single-origin: same-origin by default.
+const URL = getApiBaseUrl() || (import.meta.env.MODE === 'production' ? window.location.origin : '/');
 
 /**
  * Classroom wifi drops. Retry forever with backoff rather than giving up after
