@@ -22,8 +22,8 @@ function getGroqKeys(): string[] {
   ].map(k => (k ?? '').trim()).filter(k => k.length > 20 && !PLACEHOLDER_KEYS.includes(k));
 }
 
-const GEMINI_MODEL = (process.env.GEMINI_MODEL ?? 'gemini-2.0-flash').trim();
-const FALLBACK_MODEL = 'gemini-1.5-flash';
+const GEMINI_MODEL = (process.env.GEMINI_MODEL ?? 'gemini-3.6-flash').trim();
+const FALLBACK_MODEL = 'gemini-2.5-flash';
 const GROQ_MODEL = (process.env.GROQ_MODEL ?? 'llama3-70b-8192').trim();
 const REQUEST_TIMEOUT_MS = 45000;
 
