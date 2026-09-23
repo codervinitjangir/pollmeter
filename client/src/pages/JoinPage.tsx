@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import confetti from 'canvas-confetti';
 import socket from '../socket';
 import {
   PublicQuestion,
@@ -271,6 +272,20 @@ export default function JoinPage() {
       setFeedback(p);
       setMyAnswer(p.value);
       if (p.correctAnswer) setCorrectAnswer(p.correctAnswer);
+
+      if (p.isCorrect) {
+        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+          try { navigator.vibrate([45, 30, 50]); } catch {}
+        }
+        try {
+          confetti({
+            particleCount: 35,
+            spread: 60,
+            origin: { y: 0.65 },
+            disableForReducedMotion: true,
+          });
+        } catch {}
+      }
     }
 
     function onLeaderboardUpdated(p: LeaderboardPayload) {
@@ -391,6 +406,10 @@ export default function JoinPage() {
   function submitValue(value: string) {
     if (!question || !identity.current) return;
     if (!answersOpen || submitting) return;
+
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try { navigator.vibrate(35); } catch {}
+    }
 
     setMyAnswer(value);        // optimistic, so the tap feels instant
     submittingRef.current = true;

@@ -16,21 +16,42 @@ interface Props {
   celebrateKey?: string | number;
 }
 
-/** Authentic Mentimeter signature racing palette */
-const MENTI_COLORS = [
-  '#0D9488', // teal (Anjna)
-  '#64748B', // slate gray (Shikha)
-  '#FB7185', // salmon coral (Sunita)
-  '#10B981', // emerald green (Anita)
-  '#F472B6', // rose pink (Nalinder)
-  '#F43F5E', // vivid pink (Lakshmi)
-  '#F97316', // orange (Poonam)
-  '#06B6D4', // bright cyan (Payal)
-  '#FBBF24', // warm amber (Sorbjot)
-  '#334155', // dark charcoal (Sujata)
-  '#8B5CF6', // violet
-  '#3B82F6', // royal blue
+interface BarStyle {
+  gradient: string;
+  accent: string;
+  glow?: string;
+}
+
+const VIBRANT_GRADIENTS: BarStyle[] = [
+  { gradient: 'linear-gradient(90deg, #0D9488 0%, #2DD4BF 100%)', accent: '#0D9488', glow: 'rgba(45, 212, 191, 0.35)' },
+  { gradient: 'linear-gradient(90deg, #7C3AED 0%, #EC4899 100%)', accent: '#7C3AED', glow: 'rgba(236, 72, 153, 0.35)' },
+  { gradient: 'linear-gradient(90deg, #2563EB 0%, #38BDF8 100%)', accent: '#2563EB', glow: 'rgba(56, 189, 248, 0.35)' },
+  { gradient: 'linear-gradient(90deg, #059669 0%, #10B981 100%)', accent: '#059669', glow: 'rgba(16, 185, 129, 0.35)' },
+  { gradient: 'linear-gradient(90deg, #E11D48 0%, #FB7185 100%)', accent: '#E11D48', glow: 'rgba(251, 113, 133, 0.35)' },
+  { gradient: 'linear-gradient(90deg, #EA580C 0%, #FBBF24 100%)', accent: '#EA580C', glow: 'rgba(251, 191, 36, 0.35)' },
+  { gradient: 'linear-gradient(90deg, #C026D3 0%, #F472B6 100%)', accent: '#C026D3', glow: 'rgba(244, 114, 182, 0.35)' },
+  { gradient: 'linear-gradient(90deg, #0891B2 0%, #06B6D4 100%)', accent: '#0891B2', glow: 'rgba(6, 182, 212, 0.35)' },
 ];
+
+const GOLD_STYLE: BarStyle = {
+  gradient: 'linear-gradient(90deg, #D97706 0%, #F59E0B 50%, #FBBF24 100%)',
+  accent: '#F59E0B',
+  glow: 'rgba(245, 158, 11, 0.5)',
+};
+
+const SILVER_STYLE: BarStyle = {
+  gradient: 'linear-gradient(90deg, #64748B 0%, #94A3B8 60%, #CBD5E1 100%)',
+  accent: '#94A3B8',
+  glow: 'rgba(148, 163, 184, 0.35)',
+};
+
+const BRONZE_STYLE: BarStyle = {
+  gradient: 'linear-gradient(90deg, #C2410C 0%, #EA580C 60%, #FB923C 100%)',
+  accent: '#EA580C',
+  glow: 'rgba(234, 88, 12, 0.35)',
+};
+
+const CONFETTI_COLORS = ['#F59E0B', '#10B981', '#3B82F6', '#EC4899', '#8B5CF6', '#F43F5E'];
 
 /** Mentimeter-style cute emoji avatars */
 const AVATARS = ['🎂', '🍔', '🕵️', '🤔', '🐻', '🍩', '🎅', '🦁', '🐯', '🛸', '🚀', '🌟', '🍕', '🍉', '🍌', '🦀'];
@@ -41,11 +62,14 @@ function getAvatar(name: string): string {
   return AVATARS[Math.abs(hash) % AVATARS.length];
 }
 
-/** Participant color is bound to participant ID so their specific bar color stays with them as they move */
-function getColor(participantId: string): string {
+/** Participant bar styling - deterministic per participant with metallic gold/silver/bronze for top ranks */
+function getBarStyle(participantId: string, rankIdx?: number): BarStyle {
+  if (rankIdx === 0) return GOLD_STYLE;
+  if (rankIdx === 1) return SILVER_STYLE;
+  if (rankIdx === 2) return BRONZE_STYLE;
   let hash = 0;
   for (let i = 0; i < participantId.length; i++) hash += participantId.charCodeAt(i);
-  return MENTI_COLORS[Math.abs(hash) % MENTI_COLORS.length];
+  return VIBRANT_GRADIENTS[Math.abs(hash) % VIBRANT_GRADIENTS.length];
 }
 
 /**
@@ -125,7 +149,8 @@ function LbRow({
   // Optional on the wire, so treat a missing value as "no streak" rather than
   // letting `undefined` reach the comparison.
   const streak = entry.streak ?? 0;
-  const color = getColor(entry.participantId);
+  const barStyle = getBarStyle(entry.participantId, idx);
+  const color = barStyle.accent;
   const avatar = getAvatar(entry.name);
   const cleanedName = cleanText(entry.name);
 
@@ -159,8 +184,8 @@ function LbRow({
     <div
       ref={rowRef}
       className={`menti-race-row${isMe ? ' menti-race-row--me' : ''}${
-        hasClimbed && surgePhase === 'surging' ? ' menti-race-row--climbing' : ''
-      }`}
+        idx === 0 ? ' menti-race-row--rank1' : ''
+      }${hasClimbed && surgePhase === 'surging' ? ' menti-race-row--climbing' : ''}`}
       style={
         {
           transform: `translate3d(0, ${translateY}px, 0)`,
@@ -179,13 +204,14 @@ function LbRow({
         <span className="menti-race-unit">p</span>
       </div>
 
-      {/* 2. Racing Track & Dynamic Solid Color Bar */}
+      {/* 2. Racing Track & Dynamic Vibrant Gradient Bar */}
       <div className="menti-race-track-wrap">
         <div
           className="menti-race-bar"
           style={{
             width: `${Math.max(2, barPct)}%`,
-            backgroundColor: color,
+            background: barStyle.gradient,
+            boxShadow: barStyle.glow ? `0 2px 12px ${barStyle.glow}` : undefined,
             transition:
               surgePhase === 'initial'
                 ? 'none'
@@ -228,6 +254,68 @@ function LbRow({
   );
 }
 
+/** Olympic 3D Top 3 Podium */
+function OlympicPodium({
+  topEntries,
+  myParticipantId,
+}: {
+  topEntries: LeaderboardEntry[];
+  myParticipantId?: string;
+}) {
+  if (topEntries.length === 0) return null;
+
+  const first = topEntries[0];
+  const second = topEntries[1];
+  const third = topEntries[2];
+
+  const steps = [
+    { entry: second, rank: 2, icon: '🥈', className: 'podium-step--2' },
+    { entry: first, rank: 1, icon: '👑', className: 'podium-step--1' },
+    { entry: third, rank: 3, icon: '🥉', className: 'podium-step--3' },
+  ].filter((s) => Boolean(s.entry));
+
+  return (
+    <div className="olympic-podium-wrap">
+      <div className="olympic-podium">
+        {steps.map(({ entry, rank, icon, className }) => {
+          if (!entry) return null;
+          const cleaned = cleanText(entry.name);
+          const avatar = getAvatar(entry.name);
+          const isMe = entry.participantId === myParticipantId;
+          const streak = entry.streak ?? 0;
+
+          return (
+            <div key={entry.participantId} className={`podium-step ${className}`}>
+              <div className="podium-head">
+                <span className="podium-badge-icon" role="img" aria-label={`Rank ${rank}`}>
+                  {icon}
+                </span>
+                <div className="podium-avatar">
+                  <span>{avatar}</span>
+                </div>
+                <span className="podium-name" title={cleaned}>
+                  {cleaned} {isMe && '(You)'}
+                </span>
+                <span className="podium-score-pill">
+                  {entry.totalScore.toLocaleString()} pts
+                </span>
+                {streak >= 3 && (
+                  <span className="menti-lb-streak-badge" style={{ fontSize: '0.65rem' }}>
+                    🔥 {streak}x
+                  </span>
+                )}
+              </div>
+              <div className="podium-pedestal">
+                <span className="podium-rank-num">#{rank}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /**
  * Authentic Mentimeter Racing Leaderboard
  * Matches Mentimeter's signature score-left, solid-bar-middle, avatar+name-at-tip layout.
@@ -242,6 +330,8 @@ export default function Leaderboard({
   showAll = false,
   limit,
   celebrateKey,
+  showPodium,
+  isPodium,
 }: Props) {
   const isProjector = variant === 'projector';
   const celebrated = useRef<string | number | undefined>(undefined);
@@ -313,12 +403,36 @@ export default function Leaderboard({
     celebrated.current = celebrateKey;
 
     confetti({
-      particleCount: 80,
-      spread: 80,
+      particleCount: 90,
+      spread: 90,
       origin: { y: 0.5 },
-      colors: MENTI_COLORS,
+      colors: CONFETTI_COLORS,
       disableForReducedMotion: true,
     });
+
+    if (celebrateKey === 'final') {
+      const end = Date.now() + 1500;
+      const frame = () => {
+        confetti({
+          particleCount: 20,
+          angle: 60,
+          spread: 60,
+          origin: { x: 0, y: 0.7 },
+          colors: CONFETTI_COLORS,
+        });
+        confetti({
+          particleCount: 20,
+          angle: 120,
+          spread: 60,
+          origin: { x: 1, y: 0.7 },
+          colors: CONFETTI_COLORS,
+        });
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      };
+      frame();
+    }
   }, [celebrateKey, entries.length, surgePhase]);
 
   const visible = showAll
@@ -337,6 +451,10 @@ export default function Leaderboard({
     );
   }
 
+  const isPodiumMode = Boolean(showPodium || isPodium);
+  const topPodiumEntries = isPodiumMode ? visible.slice(0, 3) : [];
+  const listEntries = isPodiumMode ? visible.slice(3) : visible;
+
   return (
     <div className={`menti-race-shell${isProjector ? ' menti-race-shell--projector' : ''}`}>
       {/* Title Header */}
@@ -352,24 +470,37 @@ export default function Leaderboard({
         })()}
       </div>
 
+      {/* Olympic 3D Podium for Top 3 */}
+      {isPodiumMode && (
+        <OlympicPodium
+          topEntries={topPodiumEntries}
+          myParticipantId={myParticipantId}
+        />
+      )}
+
       {/* Racing Rows List */}
-      <div className="menti-race-list">
-        {visible.map((entry, idx) => (
-          <LbRow
-            key={entry.participantId}
-            entry={entry}
-            idx={idx}
-            initialRank={initialRankMap.get(entry.participantId) ?? idx}
-            surgePhase={surgePhase}
-            maxScore={maxScore}
-            isMe={entry.participantId === myParticipantId}
-            prevScore={prevScoreMap.get(entry.participantId) ?? 0}
-            slotHeight={slotHeight}
-            isProjector={isProjector}
-            rowRef={idx === 0 ? firstRowRef : undefined}
-          />
-        ))}
-      </div>
+      {listEntries.length > 0 && (
+        <div className="menti-race-list">
+          {listEntries.map((entry, idx) => {
+            const actualIdx = isPodiumMode ? idx + 3 : idx;
+            return (
+              <LbRow
+                key={entry.participantId}
+                entry={entry}
+                idx={actualIdx}
+                initialRank={initialRankMap.get(entry.participantId) ?? actualIdx}
+                surgePhase={surgePhase}
+                maxScore={maxScore}
+                isMe={entry.participantId === myParticipantId}
+                prevScore={prevScoreMap.get(entry.participantId) ?? 0}
+                slotHeight={slotHeight}
+                isProjector={isProjector}
+                rowRef={actualIdx === 0 ? firstRowRef : undefined}
+              />
+            );
+          })}
+        </div>
+      )}
 
       {!showAll && limit != null && entries.length > visible.length && (
         <p className="text-muted text-center" style={{ fontSize: '0.85rem', marginTop: '0.75rem' }}>

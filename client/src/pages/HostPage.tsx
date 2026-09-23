@@ -1167,6 +1167,7 @@ export default function HostPage() {
                 prevEntries={prevLeaderboard}
                 variant="projector"
                 showAll
+                showPodium
                 title="Champions"
                 celebrateKey="final"
               />
