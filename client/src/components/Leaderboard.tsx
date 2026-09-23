@@ -5,6 +5,7 @@ import { cleanText } from '../cleanText';
 
 interface Props {
   entries: LeaderboardEntry[];
+  prevEntries?: LeaderboardEntry[];
   myParticipantId?: string;
   title?: string;
   variant?: 'projector' | 'compact';
@@ -17,8 +18,8 @@ interface Props {
 
 /** Authentic Mentimeter signature racing palette */
 const MENTI_COLORS = [
-  '#64748B', // slate gray (Shikha)
   '#0D9488', // teal (Anjna)
+  '#64748B', // slate gray (Shikha)
   '#FB7185', // salmon coral (Sunita)
   '#10B981', // emerald green (Anita)
   '#F472B6', // rose pink (Nalinder)
@@ -40,15 +41,18 @@ function getAvatar(name: string): string {
   return AVATARS[Math.abs(hash) % AVATARS.length];
 }
 
-function getColor(idx: number): string {
-  return MENTI_COLORS[idx % MENTI_COLORS.length];
+/** Participant color is bound to participant ID so their specific bar color stays with them as they move */
+function getColor(participantId: string): string {
+  let hash = 0;
+  for (let i = 0; i < participantId.length; i++) hash += participantId.charCodeAt(i);
+  return MENTI_COLORS[Math.abs(hash) % MENTI_COLORS.length];
 }
 
 /**
  * Counts a number up from `from` to `to` over `durationMs` milliseconds.
  * Starts only when `active` is true.
  */
-function useCountUp(to: number, from: number, active: boolean, durationMs = 1400): number {
+function useCountUp(to: number, from: number, active: boolean, durationMs = 1300): number {
   const [value, setValue] = useState(from);
   const fromRef = useRef(from);
   const startRef = useRef<number | null>(null);
@@ -82,7 +86,7 @@ function useCountUp(to: number, from: number, active: boolean, durationMs = 1400
   return value;
 }
 
-/** Individual Mentimeter-style racing row: Score on Left, Solid Bar in Middle, Avatar + Name at Tip */
+/** Individual Mentimeter racing row: Score on Left, Solid Bar in Middle, Avatar + Name at Tip */
 function LbRow({
   entry,
   idx,
@@ -113,7 +117,7 @@ function LbRow({
   const barPct = surgePhase === 'initial' ? initialPct : targetPct;
 
   const delta = entry.totalScore - prevScore;
-  const color = getColor(idx);
+  const color = getColor(entry.participantId);
   const avatar = getAvatar(entry.name);
   const cleanedName = cleanText(entry.name);
 
@@ -152,7 +156,11 @@ function LbRow({
       style={
         {
           transform: `translate3d(0, ${translateY}px, 0)`,
-          zIndex: hasClimbed && surgePhase === 'surging' ? 5 : undefined,
+          transition:
+            surgePhase === 'initial'
+              ? 'none'
+              : 'transform 1.3s cubic-bezier(0.2, 0.9, 0.3, 1.1)',
+          zIndex: hasClimbed && surgePhase === 'surging' ? 10 : undefined,
         } as React.CSSProperties
       }
     >
@@ -170,6 +178,10 @@ function LbRow({
           style={{
             width: `${Math.max(2, barPct)}%`,
             backgroundColor: color,
+            transition:
+              surgePhase === 'initial'
+                ? 'none'
+                : 'width 1.3s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
           {/* Avatar and name cruising along the tip of the expanding bar */}
@@ -203,9 +215,11 @@ function LbRow({
 /**
  * Authentic Mentimeter Racing Leaderboard
  * Matches Mentimeter's signature score-left, solid-bar-middle, avatar+name-at-tip layout.
+ * Physical row overtaking with translateY spring physics.
  */
 export default function Leaderboard({
   entries,
+  prevEntries,
   myParticipantId,
   title = 'Leaderboard',
   variant = 'compact',
@@ -221,40 +235,43 @@ export default function Leaderboard({
   // Track surge animation phase: 'initial' (pre-animation) -> 'surging' (racing) -> 'settled'
   const [surgePhase, setSurgePhase] = useState<'initial' | 'surging' | 'settled'>('initial');
 
-  // Track previous totals for delta calculation and count-up animation origin.
-  const prevTotalsRef = useRef<Map<string, number>>(new Map());
+  // Map of participantId -> previous score
+  const prevScoreMap = useMemo(() => {
+    const map = new Map<string, number>();
+    if (prevEntries && prevEntries.length > 0) {
+      prevEntries.forEach((e) => map.set(e.participantId, e.totalScore));
+    }
+    return map;
+  }, [prevEntries]);
 
-  // Capture prev scores BEFORE entries update so count-up starts from the right place.
-  const prevTotalsSnapshot = useMemo(() => {
-    return new Map(prevTotalsRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries]);
-
-  // Compute initial ranks from previous scores
+  // Initial rank (0-indexed) before this round
   const initialRankMap = useMemo(() => {
     const map = new Map<string, number>();
-    // Sort all entries by prevScore descending
-    const sorted = [...entries].sort((a, b) => {
-      const scoreA = prevTotalsSnapshot.get(a.participantId) ?? 0;
-      const scoreB = prevTotalsSnapshot.get(b.participantId) ?? 0;
-      if (scoreB !== scoreA) return scoreB - scoreA;
-      return a.participantId.localeCompare(b.participantId);
-    });
-    sorted.forEach((e, i) => map.set(e.participantId, i));
+    if (prevEntries && prevEntries.length > 0) {
+      // Sort prevEntries by totalScore descending
+      const sorted = [...prevEntries].sort((a, b) => b.totalScore - a.totalScore);
+      sorted.forEach((e, i) => map.set(e.participantId, i));
+    } else {
+      // First round: everyone starts at their current index
+      entries.forEach((e, i) => map.set(e.participantId, i));
+    }
     return map;
-  }, [entries, prevTotalsSnapshot]);
+  }, [entries, prevEntries]);
 
   // Measure actual row height dynamically
   useEffect(() => {
     if (firstRowRef.current) {
       const rect = firstRowRef.current.getBoundingClientRect();
       if (rect.height > 0) {
-        setSlotHeight(rect.height + 8); // height + gap
+        setSlotHeight(rect.height + 10.4); // height + 0.65rem gap
       }
     }
   }, [entries.length, isProjector]);
 
-  // Handle lively surge sequence: 0.0s - 0.5s initial, 0.5s - 2.0s surging, 2.0s+ settled
+  // Handle lively surge sequence:
+  // 0.0s - 0.5s: 'initial' (DOM paints rows at previous rank slots without animation)
+  // 0.5s - 2.0s: 'surging' (rows smoothly glide into new rank slots, scores count up)
+  // 2.0s+: 'settled' (medals lock in, confetti bursts)
   useEffect(() => {
     setSurgePhase('initial');
 
@@ -271,14 +288,6 @@ export default function Leaderboard({
       clearTimeout(settleTimer);
     };
   }, [celebrateKey, entries]);
-
-  // Update the ref AFTER animation so next question has this question's final scores as baseline
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      prevTotalsRef.current = new Map(entries.map((e) => [e.participantId, e.totalScore]));
-    }, 3500);
-    return () => clearTimeout(timer);
-  }, [entries]);
 
   // Confetti when settled
   useEffect(() => {
@@ -338,7 +347,7 @@ export default function Leaderboard({
             surgePhase={surgePhase}
             maxScore={maxScore}
             isMe={entry.participantId === myParticipantId}
-            prevScore={prevTotalsSnapshot.get(entry.participantId) ?? 0}
+            prevScore={prevScoreMap.get(entry.participantId) ?? 0}
             slotHeight={slotHeight}
             rowRef={idx === 0 ? firstRowRef : undefined}
           />

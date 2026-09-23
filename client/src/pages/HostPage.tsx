@@ -65,6 +65,7 @@ export default function HostPage() {
   const [correctAnswer, setCorrectAnswer] = useState<string | undefined>();
   const [timer, setTimer] = useState<{ endsAt: number; durationSeconds: number } | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [prevLeaderboard, setPrevLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [finalData, setFinalData] = useState<SessionEndedPayload | null>(null);
 
   const [lanIp, setLanIp] = useState('');
@@ -184,7 +185,10 @@ export default function HostPage() {
 
     function onLeaderboardUpdated(p: LeaderboardPayload) {
       setPhase('leaderboard');
-      setLeaderboard(p.leaderboard);
+      setLeaderboard((prev) => {
+        setPrevLeaderboard(prev);
+        return p.leaderboard;
+      });
       setCurrentIndex(p.questionIndex);
       setQuestionCount(p.questionCount);
       if (p.correctAnswer) setCorrectAnswer(p.correctAnswer);
@@ -193,7 +197,10 @@ export default function HostPage() {
     function onSessionEnded(p: SessionEndedPayload) {
       setPhase('ended');
       setFinalData(p);
-      setLeaderboard(p.leaderboard);
+      setLeaderboard((prev) => {
+        setPrevLeaderboard(prev);
+        return p.leaderboard;
+      });
       setQuestions(p.questions);
       setTimer(null);
     }
@@ -923,9 +930,10 @@ export default function HostPage() {
             <div className="card card--lg">
               <Leaderboard
                 entries={leaderboard}
+                prevEntries={prevLeaderboard}
                 variant="projector"
                 showAll
-                title="🏆 Champions"
+                title="Champions"
                 celebrateKey="final"
               />
             </div>
@@ -1003,9 +1011,10 @@ export default function HostPage() {
             <div className="card card--lg stage-lb-card">
               <Leaderboard
                 entries={leaderboard}
+                prevEntries={prevLeaderboard}
                 variant="projector"
                 showAll
-                title="🏆 Standings"
+                title="Leaderboard"
                 celebrateKey={currentIndex}
               />
             </div>
