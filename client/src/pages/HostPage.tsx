@@ -19,6 +19,7 @@ import {
   ParticipantsUpdatedPayload,
 } from '../types';
 import QuestionForm from '../components/QuestionForm';
+import { QRCodeSVG } from 'qrcode.react';
 import QRCodeDisplay from '../components/QRCodeDisplay';
 import LiveBarChart from '../components/LiveBarChart';
 import TextResponseList from '../components/TextResponseList';
@@ -852,61 +853,108 @@ export default function HostPage() {
 
   // ─── Lobby ────────────────────────────────────────────────────────────────
   if (phase === 'lobby') return (
-    <div className="page">
+    <div className="page page--stage page--stage-lobby">
       {sessionNav}
-      <div className="main-content">
-        <div className="container--narrow" style={{ margin: '0 auto' }}>
-          <div className="stack stack-6">
-            <div className="text-center stack stack-2">
-              <h1 className="t-headline">Ready when you are</h1>
-              <p className="t-body-md text-secondary">
-                Students scan the code with a phone camera, or go to{' '}
-                <strong>{joinHost}/join</strong> on a laptop and type the code.
+      <main className="stage-main stage-lobby-main">
+        <div className="menti-lobby-grid">
+          {/* Left Column: Instructions, Big Code, Participants & Start button */}
+          <div className="menti-lobby-left">
+            <div className="menti-lobby-header">
+              <span className="badge badge-primary menti-lobby-badge">✨ Live Classroom Quiz</span>
+              <h1 className="menti-lobby-title">Ready when you are!</h1>
+              <p className="menti-lobby-subtitle">
+                Students can scan the QR code with their phone camera or join on a laptop:
               </p>
             </div>
 
-            <QRCodeDisplay url={joinUrl} code={code} />
-
-            <div className="row row-2" style={{ justifyContent: 'center' }}>
-              <button className="btn btn-secondary btn--sm" onClick={copyJoinLink} id="copy-link-btn">
-                {copied ? '✓ Copied' : '📋 Copy join link'}
-              </button>
+            {/* Join Details Box */}
+            <div className="menti-lobby-code-box">
+              <div className="menti-lobby-url-row">
+                <span className="menti-lobby-step-num">1</span>
+                <span>Go to <strong>{joinHost}/join</strong></span>
+              </div>
+              <div className="menti-lobby-code-row">
+                <span className="menti-lobby-step-num">2</span>
+                <span>Enter code:</span>
+                <span className="menti-lobby-code-val" aria-label={`Session code ${code}`}>
+                  {code.slice(0, 3)} {code.slice(3)}
+                </span>
+                <button
+                  className="btn btn-secondary btn--sm menti-lobby-copy-btn"
+                  onClick={copyJoinLink}
+                  id="copy-link-btn"
+                  title="Copy direct join link"
+                >
+                  {copied ? '✓ Copied!' : '📋 Copy link'}
+                </button>
+              </div>
             </div>
 
-            <div className="card stack stack-3 text-center" style={{ background: 'var(--surface-low)' }}>
-              <div className="row row-2" style={{ justifyContent: 'center' }}>
+            {/* Connected Participants Tally & Avatars */}
+            <div className="menti-lobby-participants-box">
+              <div className="menti-lobby-participants-header">
                 <span className="t-label-md">👥 In the room</span>
                 <span className="badge badge-primary">{participants.length}</span>
               </div>
-              {participants.length === 0 ? (
-                <p className="t-body-sm text-muted">Waiting for the first student to join with code {code}…</p>
-              ) : (
-                <div className="row row-2 row-wrap" style={{ justifyContent: 'center' }}>
-                  {participants.map((p) => (
-                    <span
-                      key={p.id}
-                      className="badge badge-neutral"
-                      style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', opacity: p.connected ? 1 : 0.5 }}
-                    >
-                      👤 {p.name}
-                    </span>
-                  ))}
-                </div>
-              )}
+              <div className="menti-lobby-participants-list">
+                {participants.length === 0 ? (
+                  <div className="menti-lobby-waiting">
+                    <span className="spinner spinner--sm" />
+                    <span>Waiting for students to join with code <strong>{code}</strong>…</span>
+                  </div>
+                ) : (
+                  <div className="menti-lobby-chips-wrap">
+                    {participants.map((p) => (
+                      <span
+                        key={p.id}
+                        className="menti-lobby-chip"
+                        style={{ opacity: p.connected ? 1 : 0.6 }}
+                      >
+                        👤 {p.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {error && <div className="alert alert-error">⚠ {error}</div>}
 
-            <div className="host-bar">
-              <button className="btn btn-ghost" onClick={newSession}>← Back to builder</button>
-              <div className="host-bar-spacer" />
-              <button className="btn btn-success btn--lg" onClick={start} id="start-session-btn">
-                ▶ Start · {questionCount} question{questionCount === 1 ? '' : 's'}
+            {/* Launch Action Bar */}
+            <div className="menti-lobby-actions">
+              <button className="btn btn-ghost" onClick={newSession} id="back-builder-btn">
+                ← Back to builder
+              </button>
+              <button
+                className="btn btn-success btn--lg menti-lobby-start-btn"
+                onClick={start}
+                id="start-session-btn"
+              >
+                ▶ Start Quiz · {questionCount} question{questionCount === 1 ? '' : 's'}
               </button>
             </div>
           </div>
+
+          {/* Right Column: QR Code Card */}
+          <div className="menti-lobby-right">
+            <div className="menti-lobby-qr-card">
+              <div className="menti-lobby-qr-frame">
+                <QRCodeSVG
+                  value={joinUrl}
+                  size={210}
+                  level="M"
+                  marginSize={2}
+                  bgColor="#ffffff"
+                  fgColor="#0F172A"
+                />
+              </div>
+              <div className="menti-lobby-qr-caption">
+                <span>📱 Scan with your phone camera to join instantly</span>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 
