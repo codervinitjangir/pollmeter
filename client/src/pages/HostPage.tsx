@@ -541,6 +541,22 @@ export default function HostPage() {
     setShowAI(true);
   }
 
+  function startNewScored() {
+    setEditing(null);
+    scrollToBuilder();
+  }
+
+  function startNewPoll() {
+    setEditing({
+      id: '',
+      type: 'mcq',
+      text: '',
+      options: ['Option 1', 'Option 2', 'Option 3', 'Option 4'],
+      timeLimitSeconds: 20,
+    });
+    scrollToBuilder();
+  }
+
   const connectedCount = participants.filter((p) => p.connected).length;
   const isLastQuestion = currentIndex >= questionCount - 1;
   const everyoneAnswered = connectedCount > 0 && answeredCount >= connectedCount;
@@ -784,7 +800,14 @@ export default function HostPage() {
               </div>
             </div>
 
-            <div className="menti-card-mini">
+            <div
+              className="menti-card-mini"
+              onClick={startNewScored}
+              style={{ cursor: 'pointer' }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && startNewScored()}
+            >
               <div className="menti-mini-badge">
                 <span style={{ color: '#6366F1', fontSize: '1.2rem' }}>◆</span>
                 <span>Scored quiz</span>
@@ -792,10 +815,17 @@ export default function HostPage() {
               <p className="menti-mini-desc">
                 Mark the right option — correct answers score 1000 plus a speed bonus.
               </p>
-              <button className="menti-mini-arrow" onClick={scrollToBuilder} aria-label="Build a scored quiz">→</button>
+              <button className="menti-mini-arrow" onClick={(e) => { e.stopPropagation(); startNewScored(); }} aria-label="Build a scored quiz">→</button>
             </div>
 
-            <div className="menti-card-mini">
+            <div
+              className="menti-card-mini"
+              onClick={startNewPoll}
+              style={{ cursor: 'pointer' }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && startNewPoll()}
+            >
               <div className="menti-mini-badge">
                 <span style={{ color: '#EC4899', fontSize: '1.2rem' }}>●</span>
                 <span>Poll</span>
@@ -803,7 +833,7 @@ export default function HostPage() {
               <p className="menti-mini-desc">
                 Leave the answer unmarked and the bars fill live. No scoring.
               </p>
-              <button className="menti-mini-arrow" onClick={scrollToBuilder} aria-label="Build a poll">→</button>
+              <button className="menti-mini-arrow" onClick={(e) => { e.stopPropagation(); startNewPoll(); }} aria-label="Build a poll">→</button>
             </div>
           </section>
 
@@ -850,7 +880,7 @@ export default function HostPage() {
               <div>
                 <h3 className="t-title" style={{ fontSize: '1.35rem' }}>Question builder</h3>
                 <p className="t-body-sm text-secondary">
-                  Scored multiple choice, unscored polls, or open text.
+                  Scored multiple choice, True / False, or live audience polls.
                 </p>
               </div>
               <button className="btn btn-ai btn--sm" onClick={() => openWithTopic('')} id="open-ai-builder-btn">

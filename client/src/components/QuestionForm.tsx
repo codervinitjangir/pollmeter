@@ -115,23 +115,52 @@ export default function QuestionForm({ onSave, onAdd, initial = null, onCancel }
     if (!initial) reset();
   }
 
-  const isGraded = type === 'mcq' && correctIndex != null && Boolean(options[correctIndex]?.trim());
+  function setTrueFalseMode() {
+    setType('mcq');
+    setOptions(['True', 'False']);
+    setCorrectIndex(0);
+  }
+
+  function setMcqMode() {
+    setType('mcq');
+    if (options.length < 4) {
+      setOptions(['', '', '', '']);
+    }
+  }
+
+  function setPollMode() {
+    setType('mcq');
+    setCorrectIndex(null);
+  }
+
+  const isTrueFalse = options.length === 2 && options[0] === 'True' && options[1] === 'False';
+  const isPoll = correctIndex === null;
 
   return (
     <form onSubmit={handleSubmit} className="qform" noValidate>
       <div className="qform-row">
-        <div className="seg" role="group" aria-label="Question type">
-          {(['mcq', 'open_text'] as QuestionType[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              className={`seg-btn${type === t ? ' is-active' : ''}`}
-              onClick={() => setType(t)}
-              aria-pressed={type === t}
-            >
-              {t === 'mcq' ? 'Multiple choice' : 'Open text'}
-            </button>
-          ))}
+        <div className="seg" role="group" aria-label="Question format">
+          <button
+            type="button"
+            className={`seg-btn${!isTrueFalse && !isPoll ? ' is-active' : ''}`}
+            onClick={setMcqMode}
+          >
+            Multiple choice
+          </button>
+          <button
+            type="button"
+            className={`seg-btn${isTrueFalse ? ' is-active' : ''}`}
+            onClick={setTrueFalseMode}
+          >
+            True / False
+          </button>
+          <button
+            type="button"
+            className={`seg-btn${isPoll && !isTrueFalse ? ' is-active' : ''}`}
+            onClick={setPollMode}
+          >
+            📊 Live Poll
+          </button>
         </div>
 
         <label className="qform-time">
@@ -210,17 +239,11 @@ export default function QuestionForm({ onSave, onAdd, initial = null, onCancel }
           )}
 
           <p className="qform-hint">
-            {isGraded
-              ? 'Scored: 1000 points for a correct answer, plus up to 500 for answering fast.'
-              : 'No correct answer marked — this stays a poll and will not affect the leaderboard.'}
+            {correctIndex != null && Boolean(options[correctIndex]?.trim())
+              ? '⚡ Scored: 1000 points for correct answer + up to 500 points speed bonus.'
+              : '📊 Live Poll: No correct answer marked — answers show live in Mentimeter bars (unscored).'}
           </p>
         </fieldset>
-      )}
-
-      {type === 'open_text' && (
-        <p className="qform-hint">
-          Open text answers appear on the screen as students send them. They are not scored.
-        </p>
       )}
 
       {error && (
