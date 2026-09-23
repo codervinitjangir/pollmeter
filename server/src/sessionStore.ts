@@ -48,6 +48,7 @@ export function createSession(questions: Question[]): Session {
     hostId: uuidv4(),
     questions,
     currentIndex: -1,
+    maxAskedIndex: -1,
     phase: 'lobby',
     participants: new Map(),
     responses: {},

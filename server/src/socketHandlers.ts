@@ -22,6 +22,7 @@ import {
 } from './sessionStore';
 import {
   Session,
+  Question,
   JoinSessionPayload,
   SubmitResponsePayload,
   HostCommandPayload,
@@ -114,8 +115,14 @@ function emitResults(io: Server, session: Session): void {
     aggregated: aggregateResults(session, question.id),
   });
 
-  // Reveal each student's own result only after the question is locked. This
-  // prevents the first fast answer from teaching the room the answer key.
+  emitPersonalFeedback(io, session, question);
+}
+
+/**
+ * Reveal each student's own result only after the question is locked. This
+ * prevents the first fast answer from teaching the room the answer key.
+ */
+function emitPersonalFeedback(io: Server, session: Session, question: Question): void {
   for (const participant of session.participants.values()) {
     const response = findResponse(session, question.id, participant.id);
     if (!response) continue;

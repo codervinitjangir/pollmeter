@@ -62,6 +62,13 @@ export interface Session {
   hostId: string;
   questions: Question[];
   currentIndex: number;          // -1 = lobby
+  /**
+   * Highest index actually put on screen. Navigating at or below it is a
+   * *review* of the recorded result, never a re-run — otherwise going back to
+   * discuss question 3 would re-open voting on it, and every student who
+   * already answered would tap into a rejection.
+   */
+  maxAskedIndex: number;
   phase: SessionPhase;
   participants: Map<string, ParticipantRecord>;  // participantId → record
   responses: Record<string, Response[]>;         // questionId → Response[]
