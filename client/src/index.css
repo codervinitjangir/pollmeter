@@ -93,16 +93,26 @@ body:has(.pm-landing) {
 #root { min-height: 100vh; display: flex; flex-direction: column; }
 
 /* ─── Typography ──────────────────────────────────────────────────────────── */
-.t-display   { font-size: clamp(2rem, 5vw, 3rem); font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; }
-.t-headline  { font-size: clamp(1.4rem, 3vw, 1.875rem); font-weight: 700; line-height: 1.2; letter-spacing: -0.015em; }
-.t-title     { font-size: 1.25rem; font-weight: 600; line-height: 1.3; }
+.t-display   { font-size: clamp(2rem, 5vw, 3rem); font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; overflow-wrap: break-word; word-break: break-word; }
+.t-headline  { font-size: clamp(1.3rem, 3vw, 1.875rem); font-weight: 700; line-height: 1.25; letter-spacing: -0.015em; overflow-wrap: break-word; word-break: break-word; }
+.t-title     { font-size: 1.25rem; font-weight: 600; line-height: 1.3; overflow-wrap: break-word; word-break: break-word; }
 .t-label-lg  { font-size: 0.9375rem; font-weight: 600; line-height: 1.4; }
 .t-label-md  { font-size: 0.8125rem; font-weight: 600; line-height: 1.35; letter-spacing: 0.01em; }
 .t-label-sm  { font-size: 0.6875rem; font-weight: 700; line-height: 1.3; letter-spacing: 0.06em; text-transform: uppercase; }
-.t-body-lg   { font-size: 1.125rem; font-weight: 400; line-height: 1.7; }
-.t-body-md   { font-size: 0.9375rem; font-weight: 400; line-height: 1.6; }
-.t-body-sm   { font-size: 0.8125rem; font-weight: 400; line-height: 1.55; }
+.t-body-lg   { font-size: 1.125rem; font-weight: 400; line-height: 1.7; overflow-wrap: break-word; word-break: break-word; }
+.t-body-md   { font-size: 0.9375rem; font-weight: 400; line-height: 1.6; overflow-wrap: break-word; word-break: break-word; }
+.t-body-sm   { font-size: 0.8125rem; font-weight: 400; line-height: 1.55; overflow-wrap: break-word; word-break: break-word; }
 .t-data      { font-size: 2.5rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.88em;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 0.12em 0.35em;
+  border-radius: 4px;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
 
 /* ─── Layout ──────────────────────────────────────────────────────────────── */
 .page {
@@ -465,7 +475,8 @@ select { cursor: pointer; appearance: none; background-image: url("data:image/sv
 /* ─── Audience option buttons ─────────────────────────────────────────────── */
 .option-btn {
   width: 100%;
-  padding: 1rem 1.25rem;
+  box-sizing: border-box;
+  padding: 0.875rem 1.15rem;
   background: var(--surface);
   border: 2px solid var(--border);
   border-radius: var(--r-md);
@@ -479,6 +490,9 @@ select { cursor: pointer; appearance: none; background-image: url("data:image/sv
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  max-width: 100%;
+  overflow: hidden;
+  min-height: 52px;
 }
 .option-btn:hover:not(:disabled) {
   border-color: var(--primary);
@@ -504,6 +518,26 @@ select { cursor: pointer; appearance: none; background-image: url("data:image/sv
   opacity: 0.7;
 }
 .option-btn:disabled { cursor: not-allowed; }
+
+.option-text {
+  flex: 1 1 0%;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  line-height: 1.35;
+  font-size: clamp(0.9rem, 2.5vw, 1.02rem);
+}
+
+.option-status {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 0.25rem;
+}
 
 /* ─── Join code display ───────────────────────────────────────────────────── */
 .join-code {
@@ -693,6 +727,30 @@ select { cursor: pointer; appearance: none; background-image: url("data:image/sv
   font-size: 0.9375rem;
   color: var(--text-primary);
   animation: slide-in 0.28s var(--ease);
+}
+
+/* ─── Open-text Answer Grid / Chips ───────────────────────────────────────── */
+.answer-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.answer-chip {
+  background: var(--surface-low);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 0.55rem 0.95rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  line-height: 1.4;
+  box-sizing: border-box;
 }
 
 /* ─── Leaderboard ─────────────────────────────────────────────────────────── */
@@ -914,13 +972,37 @@ hr, .divider { border: none; border-top: 1px solid var(--border); }
 
 /* ─── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 480px) {
-  .card { padding: 1rem; border-radius: var(--r-md); }
-  .card--lg { padding: 1.25rem; }
-  .main-content { padding: 1.25rem 1rem 3rem; }
-  .container { padding: 0 1rem; }
+  .card { padding: 0.95rem 0.85rem; border-radius: var(--r-md); }
+  .card--lg { padding: 1rem 0.85rem; }
+  .main-content { padding: 1rem 0.75rem 5rem; }
+  .container { padding: 0 0.5rem; }
+  .container--narrow { padding: 0 0.25rem; max-width: 100%; }
   .modal { padding: 1.25rem; border-radius: var(--r-lg); }
-  .btn--lg { padding: 0.875rem 1.5rem; }
-  .nav { padding: 0 1rem; }
+  .btn--lg { padding: 0.75rem 1.25rem; font-size: 0.92rem; }
+  .nav { padding: 0 0.85rem; height: 52px; }
+  .t-headline { font-size: 1.25rem; line-height: 1.25; }
+
+  /* Audience Options on Mobile */
+  .option-btn {
+    padding: 0.75rem 0.85rem;
+    gap: 0.6rem;
+    min-height: 48px;
+    border-radius: 10px;
+  }
+  .option-letter {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    font-size: 0.8rem;
+    border-radius: 7px;
+  }
+  .option-text {
+    font-size: 0.92rem;
+    line-height: 1.35;
+  }
+  .option-status {
+    font-size: 0.78rem;
+  }
 }
 
 /* ─── Classroom Podium ────────────────────────────────────────────────────── */
@@ -2682,12 +2764,6 @@ fieldset.field {
   align-content: center;
 }
 
-@media (max-width: 680px) {
-  .menti-stage-options {
-    grid-template-columns: 1fr;
-  }
-}
-
 .menti-stage-opt-card {
   display: flex;
   align-items: center;
@@ -2697,12 +2773,16 @@ fieldset.field {
   border: 1.5px solid;
   transition: transform 0.15s var(--ease);
   min-height: 46px;
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .menti-stage-opt-letter {
   flex-shrink: 0;
   width: 32px;
   height: 32px;
+  min-width: 32px;
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -2714,11 +2794,53 @@ fieldset.field {
 }
 
 .menti-stage-opt-text {
-  font-size: clamp(0.9rem, 1.3vw, 1.15rem);
+  font-size: clamp(0.88rem, 1.3vw, 1.15rem);
   font-weight: 600;
   color: var(--text-primary);
-  flex: 1;
+  flex: 1 1 0%;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
   line-height: 1.3;
+}
+
+@media (max-width: 680px) {
+  .menti-stage-options {
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
+  }
+  .menti-stage-opt-card {
+    padding: 0.45rem 0.75rem;
+    min-height: 42px;
+    gap: 0.6rem;
+  }
+  .menti-stage-opt-letter {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    font-size: 0.85rem;
+  }
+  .menti-stage-opt-text {
+    font-size: 0.88rem;
+    line-height: 1.3;
+  }
+  .menti-stage-card {
+    padding: 0.75rem 0.9rem;
+    gap: 0.5rem;
+  }
+  .menti-stage-question {
+    font-size: clamp(1.05rem, 4.2vw, 1.35rem);
+  }
+  .stage-main {
+    padding: 0.35rem 0.5rem 0.35rem;
+  }
+  .menti-stage-nav {
+    padding: 0 0.75rem;
+    height: 48px;
+  }
+  .menti-stage-nav-join {
+    font-size: 0.75rem;
+  }
 }
 
 .menti-stage-hidden-tally {

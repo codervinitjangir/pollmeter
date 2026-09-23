@@ -700,15 +700,15 @@ export default function JoinPage() {
                       <span className="option-letter" style={{ backgroundColor: color, color: '#fff', fontWeight: 800 }}>
                         {LETTERS[idx] ?? idx + 1}
                       </span>
-                      <span className="flex-1" style={{ textAlign: 'left', fontWeight: mine ? 700 : 500 }}>
+                      <span className="option-text flex-1" style={{ textAlign: 'left', fontWeight: mine ? 700 : 500 }}>
                         {opt}
                       </span>
                       {submitting && mine ? (
-                        <span className="spinner spinner--sm" style={{ width: 16, height: 16 }} />
+                        <span className="spinner spinner--sm option-status" style={{ width: 16, height: 16 }} />
                       ) : isKey ? (
-                        <span style={{ color: '#0ca30c', fontWeight: 800 }}>✓ Correct</span>
+                        <span className="option-status" style={{ color: '#0ca30c', fontWeight: 800 }}>✓ Correct</span>
                       ) : mine ? (
-                        <span style={{ color, fontWeight: 800 }}>✓</span>
+                        <span className="option-status" style={{ color, fontWeight: 800 }}>✓</span>
                       ) : null}
                     </button>
                   );
