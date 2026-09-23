@@ -272,7 +272,7 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
           <div className="field" style={{ flex: '1 1 100px' }}>
             <label className="field-label" htmlFor="ai-type">Format</label>
             <select id="ai-type" value={qtype} onChange={(e) => setQtype(e.target.value as QType)}>
-              <option value="mcq">Multiple Choice (MCQ)</option>
+              <option value="mcq">MCQ</option>
             </select>
           </div>
 
