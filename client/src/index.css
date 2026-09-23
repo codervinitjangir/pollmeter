@@ -3537,7 +3537,9 @@ fieldset.field {
   height: 100dvh;
   max-height: 100dvh;
   overflow: hidden !important;
-  background: var(--canvas, #0B0F19);
+  background: #FAFBFF;
+  display: flex;
+  flex-direction: column;
 }
 
 .stage-lobby-main {

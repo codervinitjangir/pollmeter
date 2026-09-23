@@ -941,11 +941,12 @@ export default function HostPage() {
               <div className="menti-lobby-qr-frame">
                 <QRCodeSVG
                   value={joinUrl}
-                  size={210}
+                  size={195}
                   level="M"
                   marginSize={2}
                   bgColor="#ffffff"
                   fgColor="#0F172A"
+                  style={{ width: '100%', height: 'auto', maxWidth: '195px', maxHeight: '195px' }}
                 />
               </div>
               <div className="menti-lobby-qr-caption">
