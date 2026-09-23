@@ -25,7 +25,7 @@ function getGroqKeys(): string[] {
 const GEMINI_MODEL = (process.env.GEMINI_MODEL ?? 'gemini-3.6-flash').trim();
 const FALLBACK_MODEL = 'gemini-flash-latest';
 const GROQ_MODEL = (process.env.GROQ_MODEL ?? 'qwen/qwen3.8-27b').trim();
-const REQUEST_TIMEOUT_MS = 45000;
+const REQUEST_TIMEOUT_MS = 12000;
 
 let currentKeyIndex = 0;
 let currentGroqKeyIndex = 0;
@@ -144,7 +144,7 @@ async function callGemini(model: string, prompt: string): Promise<unknown[] | nu
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             generationConfig: {
               temperature: 0.85,
-              maxOutputTokens: 4096,
+              maxOutputTokens: 2048,
               responseMimeType: 'application/json',
               responseSchema: RESPONSE_SCHEMA,
             },
@@ -477,9 +477,9 @@ export async function handleGenerateQuestions(req: Request, res: Response): Prom
       raw = await callGroq(GROQ_MODEL, prompt);
       usedModel = GROQ_MODEL;
       if (raw === null) {
-        console.warn(`[ai] model "${GROQ_MODEL}" not found, retrying with llama-3.1-70b-versatile`);
-        raw = await callGroq('llama-3.1-70b-versatile', prompt);
-        usedModel = 'llama-3.1-70b-versatile';
+        console.warn(`[ai] model "${GROQ_MODEL}" not found, retrying with openai/gpt-oss-120b`);
+        raw = await callGroq('openai/gpt-oss-120b', prompt);
+        usedModel = 'openai/gpt-oss-120b';
       }
     }
 

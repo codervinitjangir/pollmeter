@@ -34,6 +34,25 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
   const [source, setSource] = useState<{ source: string; model?: string; notice?: string } | null>(null);
   const [editing, setEditing] = useState<Question | null>(null);
   const [status, setStatus] = useState<AiStatus | null>(null);
+  const [loadStep, setLoadStep] = useState(0);
+
+  useEffect(() => {
+    if (!loading) {
+      setLoadStep(0);
+      return;
+    }
+    const timer = setInterval(() => {
+      setLoadStep((prev) => prev + 1);
+    }, 2200);
+    return () => clearInterval(timer);
+  }, [loading]);
+
+  const LOADING_MESSAGES = [
+    '✨ Analyzing topic & syllabus...',
+    '⚡ Crafting multiple-choice options & answers...',
+    '🔍 Verifying correctness & formatting...',
+    '🚀 Finalizing question set...',
+  ];
 
   // Report what is actually configured rather than claiming a specific vendor.
   useEffect(() => {
@@ -347,6 +366,24 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
                 </div>
               ))}
             </div>
+          </div>
+        )}
+        {loading && (
+          <div
+            className="row row-2"
+            style={{
+              background: '#EFF6FF',
+              border: '1.5px solid #BFDBFE',
+              borderRadius: '12px',
+              padding: '0.85rem 1.25rem',
+              alignItems: 'center',
+              animation: 'pop-in 0.3s var(--ease)',
+            }}
+          >
+            <span className="spinner spinner--sm" style={{ borderTopColor: '#1F69FF', width: 18, height: 18 }} />
+            <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#1E40AF' }}>
+              {LOADING_MESSAGES[Math.min(loadStep, LOADING_MESSAGES.length - 1)]}
+            </span>
           </div>
         )}
 
