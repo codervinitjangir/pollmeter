@@ -56,6 +56,44 @@ app.set('trust proxy', true);
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '256kb' }));
 
+// These endpoints can allocate memory or spend an external AI quota. Keep a
+// small dependency-free limiter in front of them; the classroom socket flow is
+// intentionally not limited by this HTTP limiter.
+function rateLimit(windowMs: number, maxRequests: number) {
+  const hits = new Map<string, { startedAt: number; count: number }>();
+
+  // Periodically clean up expired entries to prevent memory accumulation
+  const timer = setInterval(() => {
+    const now = Date.now();
+    for (const [key, record] of hits.entries()) {
+      if (now - record.startedAt >= windowMs) {
+        hits.delete(key);
+      }
+    }
+  }, Math.max(windowMs, 60_000));
+  timer.unref?.();
+
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const now = Date.now();
+    const key = req.ip || req.socket.remoteAddress || 'unknown';
+    const current = hits.get(key);
+    if (!current || now - current.startedAt >= windowMs) {
+      hits.set(key, { startedAt: now, count: 1 });
+      next();
+      return;
+    }
+    current.count += 1;
+    if (current.count > maxRequests) {
+      res.status(429).json({ error: 'Too many requests. Please try again shortly.' });
+      return;
+    }
+    next();
+  };
+}
+
+const sessionCreationLimiter = rateLimit(60_000, 30);
+const aiGenerationLimiter = rateLimit(60_000, 10);
+
 // ─── Question validation ──────────────────────────────────────────────────────
 
 const ALLOWED_TIME_LIMITS = [10, 15, 20, 30, 45, 60, 90, 120];
@@ -152,7 +190,7 @@ function validateQuestions(raw: unknown): ValidationResult {
 
 // ─── REST: Session management ─────────────────────────────────────────────────
 
-app.post('/api/sessions', (req: Request, res: Response) => {
+app.post('/api/sessions', sessionCreationLimiter, (req: Request, res: Response) => {
   const result = validateQuestions((req.body as { questions?: unknown })?.questions);
 
   if (!result.ok) {
@@ -186,7 +224,7 @@ app.get('/api/sessions/:code', (req: Request, res: Response) => {
 
 // ─── REST: AI question generation ─────────────────────────────────────────────
 
-app.post('/api/ai/generate-questions', handleGenerateQuestions);
+app.post('/api/ai/generate-questions', aiGenerationLimiter, handleGenerateQuestions);
 app.get('/api/ai/status', (_req, res) => res.json(getAiStatus()));
 
 // ─── REST: Network info for the join QR ───────────────────────────────────────
