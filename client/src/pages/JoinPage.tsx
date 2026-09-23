@@ -96,6 +96,7 @@ export default function JoinPage() {
   // listener effect on `nameInput` re-registered every handler on each keystroke.
   const pendingName = useRef('');
   const joinedRef = useRef(false);
+  const submittingRef = useRef(false);
 
   const persist = useCallback((next: StoredSession) => {
     identity.current = next;
@@ -119,6 +120,7 @@ export default function JoinPage() {
 
   /** Clears everything tied to the question currently on screen. */
   function resetForNewQuestion() {
+    submittingRef.current = false;
     setMyAnswer(null);
     setFeedback(null);
     setOpenTextInput('');
@@ -226,12 +228,14 @@ export default function JoinPage() {
     }
 
     function onResponseSubmitted(p: { questionId: string; value: string }) {
+      submittingRef.current = false;
       setSubmitting(false);
       setMyAnswer(p.value);
       setSubmitError('');
     }
 
     function onResponseFeedback(p: ResponseAcceptedPayload & { correctAnswer?: string }) {
+      submittingRef.current = false;
       setSubmitting(false);
       setFeedback(p);
       setMyAnswer(p.value);
@@ -264,6 +268,11 @@ export default function JoinPage() {
         identity.current = null;
       } else {
         setSubmitError(p.message);
+        // Roll back optimistic answer if server rejected the submission
+        if (submittingRef.current) {
+          setMyAnswer(null);
+          submittingRef.current = false;
+        }
       }
       setSubmitting(false);
     }
@@ -335,6 +344,7 @@ export default function JoinPage() {
     if (!answersOpen || submitting) return;
 
     setMyAnswer(value);        // optimistic, so the tap feels instant
+    submittingRef.current = true;
     setSubmitting(true);
     setSubmitError('');
     socket.emit('submit_response', {
