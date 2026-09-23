@@ -22,10 +22,10 @@ function getGroqKeys(): string[] {
   ].map(k => (k ?? '').trim()).filter(k => k.length > 20 && !PLACEHOLDER_KEYS.includes(k));
 }
 
-const GEMINI_MODEL = (process.env.GEMINI_MODEL ?? 'gemini-3.6-flash').trim();
-const FALLBACK_MODEL = 'gemini-flash-latest';
-const GROQ_MODEL = (process.env.GROQ_MODEL ?? 'openai/gpt-oss-20b').trim();
-const REQUEST_TIMEOUT_MS = 30000;
+const GEMINI_MODEL = (process.env.GEMINI_MODEL ?? 'gemini-2.0-flash').trim();
+const FALLBACK_MODEL = 'gemini-1.5-flash';
+const GROQ_MODEL = (process.env.GROQ_MODEL ?? 'llama3-70b-8192').trim();
+const REQUEST_TIMEOUT_MS = 45000;
 
 let currentKeyIndex = 0;
 let currentGroqKeyIndex = 0;
@@ -477,9 +477,9 @@ export async function handleGenerateQuestions(req: Request, res: Response): Prom
       raw = await callGroq(GROQ_MODEL, prompt);
       usedModel = GROQ_MODEL;
       if (raw === null) {
-        console.warn(`[ai] model "${GROQ_MODEL}" not found, retrying with openai/gpt-oss-120b`);
-        raw = await callGroq('openai/gpt-oss-120b', prompt);
-        usedModel = 'openai/gpt-oss-120b';
+        console.warn(`[ai] model "${GROQ_MODEL}" not found, retrying with llama-3.1-70b-versatile`);
+        raw = await callGroq('llama-3.1-70b-versatile', prompt);
+        usedModel = 'llama-3.1-70b-versatile';
       }
     }
 
