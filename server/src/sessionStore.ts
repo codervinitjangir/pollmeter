@@ -182,6 +182,7 @@ export function addOrRejoinParticipant(
     connected: true,
     sockets: new Set(),
     joinedAt: Date.now(),
+    lastGradedIndex: -1,
   };
   session.participants.set(record.id, record);
 
@@ -192,6 +193,8 @@ export function addOrRejoinParticipant(
     correctAnswers: 0,
     questionsAnswered: 0,
     rank: 0,
+    streak: 0,
+    bestStreak: 0,
   });
 
   return { ok: true, record, isRejoin: false };
@@ -348,6 +351,41 @@ function updateLeaderboardEntry(
   entry.totalScore += response.score;
   entry.questionsAnswered += 1;
   if (response.graded && response.isCorrect) entry.correctAnswers += 1;
+
+  updateStreak(session, participantId, entry, response);
+}
+
+/**
+ * Consecutive correct answers, counted over *graded* questions only.
+ *
+ * Ungraded polls are ignored outright — breaking someone's streak because a
+ * word cloud had no right answer would be nonsense. Skipping a graded question
+ * *does* break it: a streak you can keep by ducking the hard ones isn't a
+ * streak, which is why we remember the last graded index each participant
+ * answered and check whether anything gradeable went by in between.
+ */
+function updateStreak(
+  session: Session,
+  participantId: string,
+  entry: LeaderboardEntry,
+  response: Response
+): void {
+  if (!response.graded) return;
+
+  const record = session.participants.get(participantId);
+  if (!record) return;
+
+  const index = session.questions.findIndex((q) => q.id === response.questionId);
+  if (index < 0) return;
+
+  const skippedGraded = session.questions
+    .slice(record.lastGradedIndex + 1, index)
+    .some((q) => isGraded(q));
+
+  record.lastGradedIndex = index;
+
+  entry.streak = response.isCorrect ? (skippedGraded ? 1 : entry.streak + 1) : 0;
+  if (entry.streak > entry.bestStreak) entry.bestStreak = entry.streak;
 }
 
 // ─── Leaderboard ──────────────────────────────────────────────────────────────

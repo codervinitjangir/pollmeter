@@ -35,6 +35,13 @@ export interface LeaderboardEntry {
   correctAnswers: number;
   questionsAnswered: number;
   rank: number;
+  /**
+   * Consecutive correct answers, graded questions only. Optional on purpose:
+   * a client left open across a server restart would otherwise render `NaN`
+   * on the projector rather than simply omitting the badge.
+   */
+  streak?: number;
+  bestStreak?: number;
 }
 
 export type McqAggregated = Record<string, number>;

@@ -38,6 +38,10 @@ export interface LeaderboardEntry {
   correctAnswers: number;
   questionsAnswered: number;
   rank: number;
+  /** Consecutive correct answers right now, over graded questions only. */
+  streak: number;
+  /** Longest streak this session — survives a wrong answer, for the recap. */
+  bestStreak: number;
 }
 
 export interface Participant {
@@ -55,6 +59,12 @@ export interface ParticipantRecord {
   /** Live socket ids for this participant (a phone + a laptop both count). */
   sockets: Set<string>;
   joinedAt: number;
+  /**
+   * Index of the last graded question this participant answered, -1 for none.
+   * Server-side bookkeeping for the streak: it's how we notice someone skipped
+   * a graded question rather than answering it. Never broadcast.
+   */
+  lastGradedIndex: number;
 }
 
 export interface Session {

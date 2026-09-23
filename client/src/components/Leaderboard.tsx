@@ -122,6 +122,9 @@ function LbRow({
   const barPct = Math.max(3, (rawBarPct / 100) * maxBarLengthPct);
 
   const delta = entry.totalScore - prevScore;
+  // Optional on the wire, so treat a missing value as "no streak" rather than
+  // letting `undefined` reach the comparison.
+  const streak = entry.streak ?? 0;
   const color = getColor(entry.participantId);
   const avatar = getAvatar(entry.name);
   const cleanedName = cleanText(entry.name);
@@ -199,6 +202,14 @@ function LbRow({
                 {cleanedName}
               </span>
               {isMe && <span className="menti-lb-you-badge">You</span>}
+              {streak >= 3 && isSurgingOrSettled && (
+                <span
+                  className="menti-lb-streak-badge"
+                  aria-label={`${streak} correct answers in a row`}
+                >
+                  🔥 {streak}x
+                </span>
+              )}
               {hasClimbed && isSurgingOrSettled && (
                 <span className="menti-lb-climb-badge" aria-label={`Climbed ${rankDelta} spots`}>
                   ▲ +{rankDelta}

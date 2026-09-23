@@ -24,6 +24,7 @@ import QRCodeDisplay from '../components/QRCodeDisplay';
 import LiveBarChart from '../components/LiveBarChart';
 import TextResponseList from '../components/TextResponseList';
 import CountdownTimer from '../components/CountdownTimer';
+import { playCue, unlockAudio, isMuted, toggleMuted } from '../sounds';
 import Leaderboard from '../components/Leaderboard';
 import AIGenerateModal from '../components/AIGenerateModal';
 import { apiUrl } from '../api';
@@ -85,6 +86,10 @@ export default function HostPage() {
   // True when the host stepped back to review an already-answered question.
   // Suppresses the 2-second auto-advance so the mentor can explain at leisure.
   const [isReviewMode, setIsReviewMode] = useState(false);
+
+  // Projector sound. Host screen only — a hundred phones chiming out of sync
+  // would be noise, not atmosphere.
+  const [muted, setMuted] = useState(isMuted());
 
   const credentials = useRef<StoredHost | null>(null);
 
@@ -355,6 +360,9 @@ export default function HostPage() {
     (event: string, extra: Record<string, unknown> = {}) => {
       const c = credentials.current;
       if (!c) return;
+      // Presenter clicks are the user gesture browsers require before they will
+      // let a page make any sound at all.
+      unlockAudio();
       setError('');
       socket.emit(event, { code: c.code, hostId: c.hostId, ...extra });
     },
@@ -419,16 +427,60 @@ export default function HostPage() {
     return () => clearInterval(id);
   }, [phase, autoPaused, next]);
 
+  // ─── Projector audio cues ─────────────────────────────────────────────────
+  // Driven off the server phase, like everything else on this screen, so the
+  // sound can never disagree with what the room is looking at.
+  const prevPhase = useRef<SessionPhase | null>(null);
+  useEffect(() => {
+    if (!inSession) {
+      prevPhase.current = null;
+      return;
+    }
+    if (prevPhase.current === phase) return;
+    const from = prevPhase.current;
+    prevPhase.current = phase;
+    // No cue for the first phase we observe: on a mid-quiz refresh the host
+    // would otherwise be met with a fanfare for something already on screen.
+    if (from === null) return;
+
+    if (phase === 'question') playCue('start');
+    else if (phase === 'results') playCue('reveal');
+    else if (phase === 'leaderboard') playCue('leaderboard');
+    else if (phase === 'ended') playCue('podium');
+  }, [phase, inSession]);
+
+  // Final five seconds. Deliberately derived from the timer's own end time
+  // rather than a counter, and de-duped, so interval drift can't double-beep.
+  const lastTick = useRef(0);
+  useEffect(() => {
+    if (phase !== 'question' || !timer) return;
+    lastTick.current = 0;
+    const id = setInterval(() => {
+      const left = Math.ceil((timer.endsAt - Date.now()) / 1000);
+      if (left >= 1 && left <= 5 && left !== lastTick.current) {
+        lastTick.current = left;
+        playCue('tick');
+      }
+    }, 250);
+    return () => clearInterval(id);
+  }, [phase, timer]);
+
+  const toggleSound = useCallback(() => {
+    unlockAudio();
+    setMuted(toggleMuted());
+  }, []);
+
   // ─── Helpers ──────────────────────────────────────────────────────────────
   function exportResultsCsv() {
     if (leaderboard.length === 0) return;
-    const headers = ['Rank', 'Student Name', 'Total Score', 'Correct Answers', 'Questions Answered'];
+    const headers = ['Rank', 'Student Name', 'Total Score', 'Correct Answers', 'Questions Answered', 'Best Streak'];
     const rows = leaderboard.map((e) => [
       e.rank,
       `"${e.name.replace(/"/g, '""')}"`,
       e.totalScore,
       e.correctAnswers,
       e.questionsAnswered,
+      e.bestStreak ?? 0,
     ]);
     const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -1058,6 +1110,16 @@ export default function HostPage() {
               <button className="btn btn-secondary btn--lg" onClick={exportResultsCsv} id="export-csv-btn">
                 📥 Export CSV
               </button>
+              <button
+                className="btn btn-ghost"
+                onClick={toggleSound}
+                title={muted ? 'Unmute sound effects' : 'Mute sound effects'}
+                aria-label={muted ? 'Unmute sound effects' : 'Mute sound effects'}
+                aria-pressed={!muted}
+                id="mute-btn-final"
+              >
+                {muted ? '🔇' : '🔊'}
+              </button>
               <div className="host-bar-spacer" />
               <button className="btn btn-primary btn--lg" onClick={newSession} id="new-session-btn">
                 + New quiz
@@ -1261,6 +1323,17 @@ export default function HostPage() {
               </button>
             </div>
           )}
+
+          <button
+            className="btn btn-ghost"
+            onClick={toggleSound}
+            title={muted ? 'Unmute sound effects' : 'Mute sound effects'}
+            aria-label={muted ? 'Unmute sound effects' : 'Mute sound effects'}
+            aria-pressed={!muted}
+            id="mute-btn"
+          >
+            {muted ? '🔇' : '🔊'}
+          </button>
 
           <div className="host-bar-spacer" />
 
