@@ -25,7 +25,7 @@ import LiveBarChart from '../components/LiveBarChart';
 import TextResponseList from '../components/TextResponseList';
 import CountdownTimer from '../components/CountdownTimer';
 import { playCue, unlockAudio, isMuted, toggleMuted } from '../sounds';
-import Leaderboard, { OlympicPodium } from '../components/Leaderboard';
+import Leaderboard, { OlympicPodium, fire4CornerFireworks } from '../components/Leaderboard';
 import AIGenerateModal from '../components/AIGenerateModal';
 import { apiUrl } from '../api';
 import { cleanText } from '../cleanText';
@@ -448,7 +448,10 @@ export default function HostPage() {
     if (phase === 'question') playCue('start');
     else if (phase === 'results') playCue('reveal');
     else if (phase === 'leaderboard') playCue('leaderboard');
-    else if (phase === 'ended') playCue('podium');
+    else if (phase === 'ended') {
+      playCue('podium');
+      fire4CornerFireworks();
+    }
   }, [phase, inSession]);
 
   // Final five seconds. Deliberately derived from the timer's own end time
@@ -1158,7 +1161,15 @@ export default function HostPage() {
             {/* Sleek, compact celebration banner */}
             <div className="final-standings-bar">
               <div className="final-standings-title-wrap">
-                <span className="final-standings-crown">👑</span>
+                <span
+                  className="final-standings-crown"
+                  onClick={fire4CornerFireworks}
+                  role="button"
+                  title="Click to launch celebration fireworks! 🎉"
+                  style={{ cursor: 'pointer' }}
+                >
+                  👑
+                </span>
                 <div>
                   <h1 className="final-standings-heading">Final Standings</h1>
                   <p className="final-standings-subtitle">
@@ -1229,24 +1240,43 @@ export default function HostPage() {
               </div>
             </div>
 
-            {finalData?.questions.map((q, idx) => {
-              const agg = finalData.finalResults[q.id];
-              if (!agg) return null;
-              return (
-                <div key={q.id} className="card card--lg stack stack-4">
-                  <div className="row row-2">
-                    <span className="badge badge-neutral t-label-sm">Q{idx + 1}</span>
-                    <p className="t-title flex-1" style={{ fontSize: '1rem' }}>{cleanText(q.text)}</p>
+            {/* Question Breakdown Section - 2 cards per row */}
+            {finalData?.questions && finalData.questions.length > 0 && (
+              <div className="final-questions-section">
+                <div className="final-questions-header">
+                  <div className="final-questions-header-left">
+                    <span className="final-questions-icon">📊</span>
+                    <h2 className="final-questions-title">Questions Review</h2>
                   </div>
-                  <hr className="divider" />
-                  {q.type === 'mcq' ? (
-                    <LiveBarChart aggregated={agg as McqAggregated} correctAnswer={q.correctAnswer} />
-                  ) : (
-                    <TextResponseList responses={agg as TextAggregated} />
-                  )}
+                  <span className="final-questions-count">
+                    {finalData.questions.length} question{finalData.questions.length === 1 ? '' : 's'}
+                  </span>
                 </div>
-              );
-            })}
+
+                <div className="final-questions-grid">
+                  {finalData.questions.map((q, idx) => {
+                    const agg = finalData.finalResults[q.id];
+                    if (!agg) return null;
+                    return (
+                      <div key={q.id} className="final-question-card stack stack-3">
+                        <div className="final-question-card-head">
+                          <span className="badge badge-neutral t-label-sm">Q{idx + 1}</span>
+                          <p className="final-question-text">{cleanText(q.text)}</p>
+                        </div>
+                        <hr className="divider" style={{ margin: '0.25rem 0 0.5rem' }} />
+                        <div className="final-question-chart-wrap">
+                          {q.type === 'mcq' ? (
+                            <LiveBarChart aggregated={agg as McqAggregated} correctAnswer={q.correctAnswer} />
+                          ) : (
+                            <TextResponseList responses={agg as TextAggregated} />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="host-bar">
               <button className="btn btn-secondary btn--lg" onClick={exportResultsCsv} id="export-csv-btn">

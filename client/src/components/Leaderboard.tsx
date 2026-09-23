@@ -53,7 +53,118 @@ const BRONZE_STYLE: BarStyle = {
   glow: 'rgba(234, 88, 12, 0.35)',
 };
 
-const CONFETTI_COLORS = ['#F59E0B', '#10B981', '#3B82F6', '#EC4899', '#8B5CF6', '#F43F5E'];
+const CONFETTI_COLORS = ['#F59E0B', '#10B981', '#3B82F6', '#EC4899', '#8B5CF6', '#F43F5E', '#FFD700', '#06B6D4'];
+
+/**
+ * 4-Corner Celebration Cracker Fireworks
+ * Fires simultaneous explosive cannons from all 4 corners of the viewport
+ * + center starburst, followed by continuous celebratory waves.
+ */
+export function fire4CornerFireworks() {
+  const duration = 3200;
+  const animationEnd = Date.now() + duration;
+
+  // 1. Initial 4-Corner explosive cracker burst
+  // Bottom-Left Cannon -> shoots up & across
+  confetti({
+    particleCount: 80,
+    angle: 50,
+    spread: 75,
+    origin: { x: 0, y: 0.95 },
+    colors: CONFETTI_COLORS,
+    startVelocity: 65,
+    disableForReducedMotion: true,
+  });
+
+  // Bottom-Right Cannon -> shoots up & across
+  confetti({
+    particleCount: 80,
+    angle: 130,
+    spread: 75,
+    origin: { x: 1, y: 0.95 },
+    colors: CONFETTI_COLORS,
+    startVelocity: 65,
+    disableForReducedMotion: true,
+  });
+
+  // Top-Left Shower -> showers down & inward
+  confetti({
+    particleCount: 60,
+    angle: 310,
+    spread: 80,
+    origin: { x: 0, y: 0.05 },
+    colors: CONFETTI_COLORS,
+    startVelocity: 45,
+    gravity: 1.2,
+    disableForReducedMotion: true,
+  });
+
+  // Top-Right Shower -> showers down & inward
+  confetti({
+    particleCount: 60,
+    angle: 230,
+    spread: 80,
+    origin: { x: 1, y: 0.05 },
+    colors: CONFETTI_COLORS,
+    startVelocity: 45,
+    gravity: 1.2,
+    disableForReducedMotion: true,
+  });
+
+  // Center Grand Blast
+  confetti({
+    particleCount: 100,
+    spread: 360,
+    origin: { x: 0.5, y: 0.4 },
+    colors: CONFETTI_COLORS,
+    startVelocity: 45,
+    disableForReducedMotion: true,
+  });
+
+  // 2. Rolling celebratory waves from corners & top rain
+  const interval: ReturnType<typeof setInterval> = setInterval(() => {
+    const timeLeft = animationEnd - Date.now();
+    if (timeLeft <= 0) {
+      clearInterval(interval);
+      return;
+    }
+
+    const particleCount = 28;
+
+    // Left bottom corner
+    confetti({
+      particleCount,
+      angle: 55 + Math.random() * 20,
+      spread: 60,
+      origin: { x: Math.random() * 0.1, y: 0.85 + Math.random() * 0.1 },
+      colors: CONFETTI_COLORS,
+      startVelocity: 52,
+      disableForReducedMotion: true,
+    });
+
+    // Right bottom corner
+    confetti({
+      particleCount,
+      angle: 105 + Math.random() * 20,
+      spread: 60,
+      origin: { x: 0.9 + Math.random() * 0.1, y: 0.85 + Math.random() * 0.1 },
+      colors: CONFETTI_COLORS,
+      startVelocity: 52,
+      disableForReducedMotion: true,
+    });
+
+    // Top rain
+    confetti({
+      particleCount: 16,
+      spread: 100,
+      origin: { x: Math.random(), y: 0 },
+      colors: CONFETTI_COLORS,
+      startVelocity: 25,
+      gravity: 1.1,
+      disableForReducedMotion: true,
+    });
+  }, 220);
+}
 
 /** Mentimeter-style cute emoji avatars */
 const AVATARS = ['🎂', '🍔', '🕵️', '🤔', '🐻', '🍩', '🎅', '🦁', '🐯', '🛸', '🚀', '🌟', '🍕', '🍉', '🍌', '🦀'];
@@ -422,36 +533,16 @@ export default function Leaderboard({
     if (celebrated.current === celebrateKey) return;
     celebrated.current = celebrateKey;
 
-    confetti({
-      particleCount: 90,
-      spread: 90,
-      origin: { y: 0.5 },
-      colors: CONFETTI_COLORS,
-      disableForReducedMotion: true,
-    });
-
     if (celebrateKey === 'final') {
-      const end = Date.now() + 1500;
-      const frame = () => {
-        confetti({
-          particleCount: 20,
-          angle: 60,
-          spread: 60,
-          origin: { x: 0, y: 0.7 },
-          colors: CONFETTI_COLORS,
-        });
-        confetti({
-          particleCount: 20,
-          angle: 120,
-          spread: 60,
-          origin: { x: 1, y: 0.7 },
-          colors: CONFETTI_COLORS,
-        });
-        if (Date.now() < end) {
-          requestAnimationFrame(frame);
-        }
-      };
-      frame();
+      fire4CornerFireworks();
+    } else {
+      confetti({
+        particleCount: 85,
+        spread: 85,
+        origin: { y: 0.5 },
+        colors: CONFETTI_COLORS,
+        disableForReducedMotion: true,
+      });
     }
   }, [celebrateKey, entries.length, surgePhase]);
 
