@@ -1857,13 +1857,14 @@ fieldset.field {
   z-index: 20;
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
   flex-wrap: wrap;
-  padding: 0.75rem 1rem;
+  padding: 0.45rem 1rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-2);
+  flex-shrink: 0;
 }
 .host-bar-spacer { flex: 1 1 auto; }
 .host-bar .btn { flex: 0 0 auto; }
@@ -2346,14 +2347,15 @@ fieldset.field {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0 1.5rem;
-  height: 58px;
+  padding: 0 1.25rem;
+  height: 50px;
   background: #191C21;
   color: #fff;
   position: sticky;
   top: 0;
   z-index: 100;
   box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+  flex-shrink: 0;
 }
 
 .menti-stage-nav-brand {
@@ -2368,7 +2370,7 @@ fieldset.field {
 }
 
 .menti-stage-nav-join {
-  font-size: clamp(0.75rem, 1.5vw, 0.95rem);
+  font-size: clamp(0.75rem, 1.5vw, 0.92rem);
   color: rgba(255,255,255,0.7);
   text-align: center;
   flex: 1;
@@ -2386,7 +2388,7 @@ fieldset.field {
 .menti-stage-nav-right {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.45rem;
   flex-shrink: 0;
 }
 
@@ -2395,9 +2397,22 @@ fieldset.field {
   border: 1px solid rgba(255,255,255,0.15);
   border-radius: 9999px;
   padding: 0.2rem 0.65rem;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 600;
   color: rgba(255,255,255,0.85);
+}
+
+.menti-stage-chip--tally {
+  background: rgba(56, 189, 248, 0.16);
+  border-color: rgba(56, 189, 248, 0.38);
+  color: #38BDF8;
+  font-weight: 700;
+}
+
+.menti-stage-chip--complete {
+  background: rgba(74, 222, 128, 0.2);
+  border-color: rgba(74, 222, 128, 0.45);
+  color: #4ADE80;
 }
 
 .menti-stage-btn-ghost {
@@ -2520,23 +2535,86 @@ fieldset.field {
   letter-spacing: 0.01em;
 }
 
+/* ─── 1-Page Non-Scrollable Presentation Stage ─────────────────────────── */
+.page--stage {
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--canvas);
+}
+
+.stage-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0.45rem 1.25rem 0.45rem;
+  max-width: 1240px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+  gap: 0.45rem;
+  overflow: hidden;
+}
+
+/* ─── Slim stage progress strip ────────────────────────────────────────── */
+.stage-progress-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
+.stage-progress-labels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.stage-progress-bar {
+  height: 3px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.stage-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 9999px;
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* ─── Stage card (main question container) ──────────────────────────────── */
 .menti-stage-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-xl);
-  padding: 2rem 2.25rem;
+  padding: 1.1rem 1.5rem;
   box-shadow: var(--shadow-2);
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .menti-stage-q-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 1.5rem;
+  gap: 1.25rem;
+  flex-shrink: 0;
 }
 
 .menti-stage-q-body {
@@ -2544,11 +2622,11 @@ fieldset.field {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.2rem;
 }
 
 .menti-stage-q-num {
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -2556,9 +2634,9 @@ fieldset.field {
 }
 
 .menti-stage-question {
-  font-size: clamp(1.6rem, 3.5vw, 3.2rem);
+  font-size: clamp(1.2rem, 2.1vw, 2.05rem);
   font-weight: 800;
-  line-height: 1.2;
+  line-height: 1.25;
   letter-spacing: -0.02em;
   color: var(--text-primary);
 }
@@ -2568,7 +2646,7 @@ fieldset.field {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.35rem;
+  padding: 0.2rem;
   border-radius: 50%;
   background: rgba(56, 189, 248, 0.08);
 }
@@ -2580,8 +2658,8 @@ fieldset.field {
   background: var(--secondary-light);
   border: 1px solid rgba(16,185,129,0.3);
   border-radius: 9999px;
-  padding: 0.35rem 1rem;
-  font-size: 0.875rem;
+  padding: 0.3rem 0.85rem;
+  font-size: 0.82rem;
   font-weight: 700;
   color: var(--secondary-dark);
   flex-shrink: 0;
@@ -2591,60 +2669,95 @@ fieldset.field {
 .menti-stage-divider {
   height: 1px;
   background: var(--border);
+  flex-shrink: 0;
 }
 
 /* ─── Colorful Option Preview Cards (shown while scored MCQ is live) ─────── */
 .menti-stage-options {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.55rem;
+  flex: 1;
+  min-height: 0;
+  align-content: center;
+}
+
+@media (max-width: 680px) {
+  .menti-stage-options {
+    grid-template-columns: 1fr;
+  }
 }
 
 .menti-stage-opt-card {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 0.85rem 1.25rem;
+  gap: 0.75rem;
+  padding: 0.55rem 0.95rem;
   border-radius: var(--r-md);
   border: 1.5px solid;
   transition: transform 0.15s var(--ease);
+  min-height: 46px;
 }
 
 .menti-stage-opt-letter {
   flex-shrink: 0;
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 800;
   color: #fff;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.18);
 }
 
 .menti-stage-opt-text {
-  font-size: clamp(1rem, 2vw, 1.4rem);
+  font-size: clamp(0.9rem, 1.3vw, 1.15rem);
   font-weight: 600;
   color: var(--text-primary);
   flex: 1;
+  line-height: 1.3;
 }
 
 .menti-stage-hidden-tally {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.65rem 1rem;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
   border-radius: var(--r-md);
   background: var(--surface-low);
   border: 1px dashed var(--border);
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
-  margin-top: 0.25rem;
+  margin-top: 0.15rem;
 }
 
-.menti-stage-hidden-icon { font-size: 1.1rem; }
+.menti-stage-hidden-icon { font-size: 1rem; }
+
+/* ─── Leaderboard wrap on stage ─────────────────────────────────────────── */
+.stage-lb-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow: hidden;
+}
+
+.stage-lb-card {
+  background: var(--surface);
+  border-radius: var(--r-xl);
+  padding: 1.15rem 1.5rem;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
 
 /* ─── Correct answer banner ─────────────────────────────────────────────── */
 .menti-correct-banner {
@@ -2655,15 +2768,16 @@ fieldset.field {
   background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%);
   border: 1px solid rgba(16,185,129,0.35);
   border-radius: var(--r-lg);
-  padding: 0.85rem 1.5rem;
-  font-size: 1.05rem;
+  padding: 0.65rem 1.25rem;
+  font-size: 0.98rem;
   font-weight: 600;
   color: #065F46;
   animation: slide-in 0.3s var(--ease);
+  flex-shrink: 0;
 }
 
 .menti-correct-icon {
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   color: #059669;
 }
 
@@ -2671,16 +2785,19 @@ fieldset.field {
 .col-chart {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  padding: 1rem 0 0.5rem;
+  gap: 0.35rem;
+  padding: 0.25rem 0;
+  flex: 1;
+  min-height: 0;
+  justify-content: center;
 }
 
 .col-chart-bars {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  gap: clamp(0.6rem, 2vw, 2rem);
-  height: clamp(200px, 30vw, 360px);
+  gap: clamp(0.5rem, 1.8vw, 1.75rem);
+  height: clamp(130px, 24vh, 230px);
   padding: 0 0.5rem;
 }
 
@@ -3008,17 +3125,30 @@ fieldset.field {
   transition: width 0.7s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Projector: make everything bigger */
-.menti-lb-shell--projector .menti-lb-row {
-  padding: 0.85rem 1.25rem;
-  gap: 1rem;
+/* Projector: make everything bigger but responsive */
+.menti-lb-shell--projector {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
-.menti-lb-shell--projector .menti-lb-avatar { font-size: 1.8rem; }
-.menti-lb-shell--projector .menti-lb-rank { font-size: 1.5rem; min-width: 36px; }
-.menti-lb-shell--projector .menti-lb-name { font-size: 1.1rem; }
-.menti-lb-shell--projector .menti-lb-score { font-size: 1.25rem; }
-.menti-lb-shell--projector .menti-lb-track { height: 10px; }
-.menti-lb-shell--projector .menti-lb-title { font-size: 1.75rem; }
+.menti-lb-shell--projector .menti-lb-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+.menti-lb-shell--projector .menti-lb-row {
+  padding: 0.65rem 1rem;
+  gap: 0.85rem;
+}
+.menti-lb-shell--projector .menti-lb-avatar { font-size: 1.5rem; }
+.menti-lb-shell--projector .menti-lb-rank { font-size: 1.3rem; min-width: 32px; }
+.menti-lb-shell--projector .menti-lb-name { font-size: 1.05rem; }
+.menti-lb-shell--projector .menti-lb-score { font-size: 1.15rem; }
+.menti-lb-shell--projector .menti-lb-track { height: 9px; }
+.menti-lb-shell--projector .menti-lb-title { font-size: 1.45rem; }
 
 /* CountdownTimer improvements */
 .timer-ring-wrap--warning .timer-fill {

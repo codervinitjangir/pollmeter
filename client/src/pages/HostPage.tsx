@@ -467,6 +467,11 @@ export default function HostPage() {
         {questionCount > 0 && phase !== 'lobby' && (
           <span className="menti-stage-chip">Q {currentIndex + 1}/{questionCount}</span>
         )}
+        {phase === 'question' && (
+          <span className={`menti-stage-chip menti-stage-chip--tally${everyoneAnswered ? ' menti-stage-chip--complete' : ''}`}>
+            {everyoneAnswered ? '✔ All answered' : `${answeredCount}/${connectedCount || '—'} answered`}
+          </span>
+        )}
         <button
           className="menti-stage-btn-ghost"
           onClick={toggleFullscreen}
@@ -479,31 +484,6 @@ export default function HostPage() {
     </nav>
   );
 
-  /** Live answer tally strip — shown during active questions. */
-  const joinStrip = (
-    <div className={`menti-tally-strip${everyoneAnswered ? ' menti-tally-strip--complete' : ''}`}>
-      <div className="menti-tally-left">
-        <span className="menti-tally-icon" aria-hidden="true">📱</span>
-        <span className="menti-tally-url">
-          <strong>{joinHost}/join</strong>
-          {' · code '}
-          <strong className="menti-tally-code">{code}</strong>
-        </span>
-      </div>
-      <div className="menti-tally-right">
-        {everyoneAnswered ? (
-          <span className="menti-tally-complete">✔ Everyone answered!</span>
-        ) : (
-          <>
-            <span className="menti-tally-num">{answeredCount}</span>
-            <span className="menti-tally-sep">/</span>
-            <span className="menti-tally-total">{connectedCount || '—'}</span>
-            <span className="menti-tally-label">answered</span>
-          </>
-        )}
-      </div>
-    </div>
-  );
 
   // ─── Builder screen ───────────────────────────────────────────────────────
   if (!inSession) return (
@@ -961,210 +941,205 @@ export default function HostPage() {
   const gradedAndOpen = phase === 'question' && Boolean(currentQuestion?.correctAnswer);
 
   return (
-    <div className="page">
+    <div className="page page--stage">
       {sessionNav}
 
-      <div className="main-content">
-        <div className="container--wide" style={{ margin: '0 auto' }}>
-          <div className="stack stack-5">
-            {joinStrip}
-
-            <div className="stack stack-2">
-              <div className="row row-3" style={{ justifyContent: 'space-between' }}>
-                <span className="t-label-sm text-muted">
-                  QUESTION {currentIndex + 1} OF {questionCount}
-                </span>
-                <span className="t-label-sm text-muted">
-                  {Math.max(0, questionCount - currentIndex - 1)} to go
-                </span>
-              </div>
-              <div className="progress-bar">
-                <div
-                  className="progress-fill"
-                  style={{ width: `${questionCount ? ((currentIndex + 1) / questionCount) * 100 : 0}%` }}
-                />
-              </div>
-            </div>
-
-            {phase === 'leaderboard' ? (
-              <>
-                {/* Correct answer reveal banner */}
-                {correctAnswer && (
-                  <div className="menti-correct-banner">
-                    <span className="menti-correct-icon" aria-hidden="true">✔</span>
-                    <span>Correct answer: <strong>{correctAnswer}</strong></span>
-                  </div>
-                )}
-                {/* Racing leaderboard */}
-                <div className="card card--lg" style={{ background: 'var(--surface)', borderRadius: 'var(--r-xl)', padding: '1.75rem' }}>
-                  <Leaderboard
-                    entries={leaderboard}
-                    variant="projector"
-                    showAll
-                    title="🏆 Standings"
-                    celebrateKey={currentIndex}
-                  />
-                </div>
-              </>
-            ) : (
-              currentQuestion && (
-                <div className="menti-stage-card">
-                  {/* ─── Question header ─── */}
-                  <div className="menti-stage-q-header">
-                    <div className="menti-stage-q-body">
-                      <span className="menti-stage-q-num">
-                        Question {currentIndex + 1} of {questionCount}
-                      </span>
-                      <h1 className="menti-stage-question">{currentQuestion.text}</h1>
-                    </div>
-                    {/* Countdown timer */}
-                    {phase === 'question' && timer && (
-                      <div className="menti-stage-timer-wrap">
-                        <CountdownTimer
-                          endsAt={timer.endsAt}
-                          durationSeconds={timer.durationSeconds}
-                          size={130}
-                        />
-                      </div>
-                    )}
-                    {/* Results phase — no timer, show answered count */}
-                    {phase === 'results' && (
-                      <div className="menti-stage-reveal-badge">
-                        <span aria-hidden="true">👁</span> Results revealed
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="menti-stage-divider" />
-
-                  {/* ─── Content area ─── */}
-                  {currentQuestion.type === 'mcq' ? (
-                    gradedAndOpen && results == null ? (
-                      /* Scored question: show colorful option cards while hidden */
-                      <div className="menti-stage-options">
-                        {(currentQuestion.options ?? []).map((opt, idx) => {
-                          const COLORS = ['#38BDF8','#F43F5E','#34D399','#FBBF24','#A78BFA','#FB923C'];
-                          const color = COLORS[idx % COLORS.length];
-                          const LETTERS = ['A','B','C','D','E','F'];
-                          return (
-                            <div
-                              key={opt}
-                              className="menti-stage-opt-card"
-                              style={{
-                                background: `${color}18`,
-                                borderColor: `${color}60`,
-                                '--opt-color': color,
-                              } as React.CSSProperties}
-                            >
-                              <span
-                                className="menti-stage-opt-letter"
-                                style={{ background: color }}
-                              >
-                                {LETTERS[idx] ?? idx + 1}
-                              </span>
-                              <span className="menti-stage-opt-text">{opt}</span>
-                            </div>
-                          );
-                        })}
-                        {/* Hidden tally */}
-                        <div className="menti-stage-hidden-tally">
-                          <span className="menti-stage-hidden-icon" aria-hidden="true">🔒</span>
-                          <span>{answeredCount} student{answeredCount === 1 ? '' : 's'} answered — results hidden until closed</span>
-                        </div>
-                      </div>
-                    ) : (
-                      /* Poll open OR results revealed — show column chart */
-                      <LiveBarChart
-                        aggregated={(results ?? {}) as McqAggregated}
-                        correctAnswer={phase === 'results' ? correctAnswer : undefined}
-                        variant="projector"
-                      />
-                    )
-                  ) : (
-                    <TextResponseList
-                      responses={Array.isArray(results) ? (results as TextAggregated) : []}
-                      variant="projector"
-                    />
-                  )}
-                </div>
-              )
-            )}
-
-            {error && <div className="alert alert-error">⚠ {error}</div>}
-
-            {/* ─── Presenter controls ─────────────────────────────────────── */}
-            <div className="host-bar">
-              <button
-                className="btn btn-ghost"
-                onClick={previous}
-                disabled={currentIndex <= 0}
-                title="Re-run the previous question"
-              >
-                ← Previous
-              </button>
-
-              {phase === 'question' && (
-                <>
-                  <button className="btn btn-quiet" onClick={() => extendTime(15)} id="extend-time-btn">
-                    +15s
-                  </button>
-                  <span className="t-label-sm text-muted">
-                    {everyoneAnswered ? 'Everyone has answered' : 'Waiting for answers…'}
-                  </span>
-                </>
-              )}
-
-              {phase === 'leaderboard' && (
-                <div className="row row-2">
-                  <span className="chip">
-                    {isLastQuestion ? 'Finishing' : 'Next question'} in {autoAdvance}s
-                  </span>
-                  <button className="btn btn-ghost btn--sm" onClick={() => setAutoPaused((p) => !p)}>
-                    {autoPaused ? '▶ Resume' : '⏸ Pause'}
-                  </button>
-                </div>
-              )}
-
-              <div className="host-bar-spacer" />
-
-              <button className="btn btn-ghost" onClick={endSession} id="end-session-btn">
-                Finish early
-              </button>
-
-              {phase === 'question' && (
-                <button className="btn btn-primary btn--lg" onClick={lockAnswers} id="lock-answers-btn">
-                  🔒 Close &amp; show results
-                </button>
-              )}
-
-              {phase === 'results' && (
-                <>
-                  <button className="btn btn-secondary btn--lg" onClick={showLeaderboard} id="show-leaderboard-btn">
-                    🏆 Show leaderboard
-                  </button>
-                  <button
-                    className={`btn btn--lg ${isLastQuestion ? 'btn-danger' : 'btn-primary'}`}
-                    onClick={next}
-                    id="next-question-btn"
-                  >
-                    {isLastQuestion ? '🏁 Finish' : 'Next question →'}
-                  </button>
-                </>
-              )}
-
-              {phase === 'leaderboard' && (
-                <button
-                  className={`btn btn--lg ${isLastQuestion ? 'btn-danger' : 'btn-primary'}`}
-                  onClick={next}
-                  id="next-after-lb-btn"
-                >
-                  {isLastQuestion ? '🏁 Finish' : 'Next question →'}
-                </button>
-              )}
-            </div>
+      <main className="stage-main">
+        {/* Slim progress strip */}
+        <div className="stage-progress-strip">
+          <div className="stage-progress-labels">
+            <span className="stage-progress-q">
+              Question {currentIndex + 1} of {questionCount}
+            </span>
+            <span className="stage-progress-rem">
+              {Math.max(0, questionCount - currentIndex - 1)} to go
+            </span>
+          </div>
+          <div className="stage-progress-bar">
+            <div
+              className="stage-progress-fill"
+              style={{ width: `${questionCount ? ((currentIndex + 1) / questionCount) * 100 : 0}%` }}
+            />
           </div>
         </div>
-      </div>
+
+        {phase === 'leaderboard' ? (
+          <div className="stage-lb-wrap">
+            {/* Correct answer reveal banner */}
+            {correctAnswer && (
+              <div className="menti-correct-banner">
+                <span className="menti-correct-icon" aria-hidden="true">✔</span>
+                <span>Correct answer: <strong>{correctAnswer}</strong></span>
+              </div>
+            )}
+            {/* Racing leaderboard */}
+            <div className="card card--lg stage-lb-card">
+              <Leaderboard
+                entries={leaderboard}
+                variant="projector"
+                showAll
+                title="🏆 Standings"
+                celebrateKey={currentIndex}
+              />
+            </div>
+          </div>
+        ) : (
+          currentQuestion && (
+            <div className="menti-stage-card">
+              {/* ─── Question header ─── */}
+              <div className="menti-stage-q-header">
+                <div className="menti-stage-q-body">
+                  <span className="menti-stage-q-num">
+                    Question {currentIndex + 1} of {questionCount}
+                  </span>
+                  <h1 className="menti-stage-question">{currentQuestion.text}</h1>
+                </div>
+                {/* Countdown timer */}
+                {phase === 'question' && timer && (
+                  <div className="menti-stage-timer-wrap">
+                    <CountdownTimer
+                      endsAt={timer.endsAt}
+                      durationSeconds={timer.durationSeconds}
+                      size={82}
+                    />
+                  </div>
+                )}
+                {/* Results phase — no timer, show answered count */}
+                {phase === 'results' && (
+                  <div className="menti-stage-reveal-badge">
+                    <span aria-hidden="true">👁</span> Results revealed
+                  </div>
+                )}
+              </div>
+
+              <div className="menti-stage-divider" />
+
+              {/* ─── Content area ─── */}
+              {currentQuestion.type === 'mcq' ? (
+                gradedAndOpen && results == null ? (
+                  /* Scored question: show colorful option cards while hidden */
+                  <div className="menti-stage-options">
+                    {(currentQuestion.options ?? []).map((opt, idx) => {
+                      const COLORS = ['#38BDF8','#F43F5E','#34D399','#FBBF24','#A78BFA','#FB923C'];
+                      const color = COLORS[idx % COLORS.length];
+                      const LETTERS = ['A','B','C','D','E','F'];
+                      return (
+                        <div
+                          key={opt}
+                          className="menti-stage-opt-card"
+                          style={{
+                            background: `${color}18`,
+                            borderColor: `${color}60`,
+                            '--opt-color': color,
+                          } as React.CSSProperties}
+                        >
+                          <span
+                            className="menti-stage-opt-letter"
+                            style={{ background: color }}
+                          >
+                            {LETTERS[idx] ?? idx + 1}
+                          </span>
+                          <span className="menti-stage-opt-text">{opt}</span>
+                        </div>
+                      );
+                    })}
+                    {/* Hidden tally */}
+                    <div className="menti-stage-hidden-tally">
+                      <span className="menti-stage-hidden-icon" aria-hidden="true">🔒</span>
+                      <span>{answeredCount} student{answeredCount === 1 ? '' : 's'} answered — results hidden until closed</span>
+                    </div>
+                  </div>
+                ) : (
+                  /* Poll open OR results revealed — show column chart */
+                  <LiveBarChart
+                    aggregated={(results ?? {}) as McqAggregated}
+                    correctAnswer={phase === 'results' ? correctAnswer : undefined}
+                    variant="projector"
+                  />
+                )
+              ) : (
+                <TextResponseList
+                  responses={Array.isArray(results) ? (results as TextAggregated) : []}
+                  variant="projector"
+                />
+              )}
+            </div>
+          )
+        )}
+
+        {error && <div className="alert alert-error" style={{ margin: 0, padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}>⚠ {error}</div>}
+
+        {/* ─── Presenter controls ─────────────────────────────────────── */}
+        <div className="host-bar">
+          <button
+            className="btn btn-ghost"
+            onClick={previous}
+            disabled={currentIndex <= 0}
+            title="Re-run the previous question"
+          >
+            ← Previous
+          </button>
+
+          {phase === 'question' && (
+            <>
+              <button className="btn btn-quiet" onClick={() => extendTime(15)} id="extend-time-btn">
+                +15s
+              </button>
+              <span className="t-label-sm text-muted">
+                {everyoneAnswered ? 'Everyone has answered' : 'Waiting for answers…'}
+              </span>
+            </>
+          )}
+
+          {phase === 'leaderboard' && (
+            <div className="row row-2">
+              <span className="chip">
+                {isLastQuestion ? 'Finishing' : 'Next question'} in {autoAdvance}s
+              </span>
+              <button className="btn btn-ghost btn--sm" onClick={() => setAutoPaused((p) => !p)}>
+                {autoPaused ? '▶ Resume' : '⏸ Pause'}
+              </button>
+            </div>
+          )}
+
+          <div className="host-bar-spacer" />
+
+          <button className="btn btn-ghost" onClick={endSession} id="end-session-btn">
+            Finish early
+          </button>
+
+          {phase === 'question' && (
+            <button className="btn btn-primary btn--lg" onClick={lockAnswers} id="lock-answers-btn">
+              🔒 Close &amp; show results
+            </button>
+          )}
+
+          {phase === 'results' && (
+            <>
+              <button className="btn btn-secondary btn--lg" onClick={showLeaderboard} id="show-leaderboard-btn">
+                🏆 Show leaderboard
+              </button>
+              <button
+                className={`btn btn--lg ${isLastQuestion ? 'btn-danger' : 'btn-primary'}`}
+                onClick={next}
+                id="next-question-btn"
+              >
+                {isLastQuestion ? '🏁 Finish' : 'Next question →'}
+              </button>
+            </>
+          )}
+
+          {phase === 'leaderboard' && (
+            <button
+              className={`btn btn--lg ${isLastQuestion ? 'btn-danger' : 'btn-primary'}`}
+              onClick={next}
+              id="next-after-lb-btn"
+            >
+              {isLastQuestion ? '🏁 Finish' : 'Next question →'}
+            </button>
+          )}
+        </div>
+      </main>
 
       {reactions.map((r) => (
         <span
