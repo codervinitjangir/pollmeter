@@ -1,4 +1,5 @@
 import { McqAggregated } from '../types';
+import { cleanText } from '../cleanText';
 
 interface Props {
   aggregated: McqAggregated;
@@ -55,10 +56,11 @@ export default function LiveBarChart({
         <div className="col-chart-bars">
           {entries.map(([label, count], idx) => {
             const pct = hideValues ? 0 : (count / max) * 100;
-            const isCorrect = isRevealed && correctAnswer === label;
-            const isWrong = isRevealed && correctAnswer !== label;
+            const isCorrect = isRevealed && (correctAnswer === label || cleanText(correctAnswer) === cleanText(label));
+            const isWrong = isRevealed && !isCorrect;
             const share = total > 0 ? Math.round((count / total) * 100) : 0;
             const color = getColor(idx);
+            const cleaned = cleanText(label);
 
             return (
               <div
@@ -66,7 +68,7 @@ export default function LiveBarChart({
                 className={`col-item${isCorrect ? ' col-item--correct' : ''}${
                   isWrong ? ' col-item--wrong' : ''
                 }`}
-                aria-label={`Option ${LETTERS[idx]}: ${label}, ${count} of ${total} responses${
+                aria-label={`Option ${LETTERS[idx]}: ${cleaned}, ${count} of ${total} responses${
                   isCorrect ? ', Correct' : isWrong ? ', Incorrect' : ''
                 }`}
               >
@@ -122,9 +124,9 @@ export default function LiveBarChart({
                   </span>
                   <span
                     className={`col-label-text${isWrong ? ' col-label-text--dim' : ''}`}
-                    title={label}
+                    title={cleaned}
                   >
-                    {label}
+                    {cleaned}
                   </span>
                   {!hideValues && (
                     <span className="col-share">{share}%</span>
@@ -149,15 +151,16 @@ export default function LiveBarChart({
     );
   }
 
-  /* ── Horizontal bars (compact / mobile) ── */
+  /* ── Horizontal bars (compact / mobile / ended results) ── */
   return (
     <div className="bars" role="group" aria-label="Answer distribution">
       {entries.map(([label, count], idx) => {
         const share = total > 0 ? Math.round((count / total) * 100) : 0;
-        const width = (count / max) * 100;
-        const isCorrect = isRevealed && correctAnswer === label;
+        const fillPct = total > 0 ? (count / total) * 100 : 0;
+        const isCorrect = isRevealed && (correctAnswer === label || cleanText(correctAnswer) === cleanText(label));
         const isWrong = isRevealed && !isCorrect;
         const color = getColor(idx);
+        const cleaned = cleanText(label);
 
         return (
           <div
@@ -171,11 +174,20 @@ export default function LiveBarChart({
             </span>
 
             <div className="bar-body">
-              <div className="bar-label">
-                <span className="bar-text">{label}</span>
-                {isCorrect && (
-                  <span className="bar-status">
-                    <span aria-hidden="true">✔</span> Correct
+              <div className="bar-header">
+                <div className="bar-label">
+                  <span className="bar-text">{cleaned}</span>
+                  {isCorrect && (
+                    <span className="bar-status">
+                      <span aria-hidden="true">✔</span> Correct
+                    </span>
+                  )}
+                </div>
+
+                {!hideValues && (
+                  <span className="bar-stat">
+                    {count}
+                    <span className="bar-share"> · {share}%</span>
                   </span>
                 )}
               </div>
@@ -184,21 +196,15 @@ export default function LiveBarChart({
                 <div
                   className="bar-fill"
                   style={{
-                    width: hideValues ? '0%' : `${width}%`,
+                    width: hideValues ? '0%' : `${fillPct}%`,
                     background: isCorrect
                       ? 'linear-gradient(90deg, #4ADE80, #16A34A)'
                       : `linear-gradient(90deg, ${color.bar}, ${color.dark})`,
                     opacity: isWrong ? 0.45 : 1,
                   }}
                   role="img"
-                  aria-label={`${label}: ${count} of ${total} responses`}
+                  aria-label={`${cleaned}: ${count} of ${total} responses`}
                 />
-                {!hideValues && count > 0 && (
-                  <span className="bar-value" style={{ left: `${width}%` }}>
-                    {count}
-                    <span className="bar-share"> · {share}%</span>
-                  </span>
-                )}
               </div>
             </div>
           </div>

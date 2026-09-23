@@ -109,6 +109,7 @@ ${typeInstruction}
 ${syllabusBlock}
 Requirements:
 - Every question must be factually correct and unambiguous. One and only one option may be defensible as correct.
+- Write in clean, simple plain text. DO NOT use markdown backticks, asterisks, or code symbols in question text or options (e.g. write process.nextTick plainly, write Node.js without spaces).
 - Keep question text under 140 characters; it has to be readable from the back of a classroom.
 - Keep each option under 60 characters.
 - Distractors must be plausible to someone who half-remembers the material. No joke options, no "all of the above", no "none of the above".
@@ -278,6 +279,17 @@ function stripLabel(value: string): string {
   return value.trim().replace(/^\(?[A-Fa-f][).:]\s+/, '').trim();
 }
 
+function cleanAiText(raw: string): string {
+  return raw
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/`/g, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/\b([A-Za-z0-9_]+)\s+\.\s*([A-Za-z0-9_]+)\b/g, '$1.$2')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+}
+
 /**
  * A model that returns a correctAnswer not present in its own options would
  * create a question no student can get right, so those are dropped entirely.
@@ -290,7 +302,8 @@ function normalizeQuestions(raw: unknown[], timeLimitSeconds: number, limit: num
     if (typeof item !== 'object' || item === null) continue;
     const record = item as Record<string, unknown>;
 
-    const text = String(record.text ?? record.question ?? '').trim().slice(0, 300);
+    const rawText = String(record.text ?? record.question ?? '').trim().slice(0, 300);
+    const text = cleanAiText(rawText);
     if (!text) continue;
 
     const fingerprint = text.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -304,13 +317,13 @@ function normalizeQuestions(raw: unknown[], timeLimitSeconds: number, limit: num
     }
 
     const options = (Array.isArray(record.options) ? record.options : [])
-      .map((o) => stripLabel(String(o)).slice(0, 120))
+      .map((o) => cleanAiText(stripLabel(String(o))).slice(0, 120))
       .filter(Boolean);
 
     const unique = Array.from(new Set(options));
     if (unique.length < 2) continue;
 
-    const rawKey = stripLabel(String(record.correctAnswer ?? record.answer ?? ''));
+    const rawKey = cleanAiText(stripLabel(String(record.correctAnswer ?? record.answer ?? '')));
     // Find matching option (case-insensitive fallback)
     const matchingOption = unique.find(o => o.toLowerCase() === rawKey.toLowerCase()) ?? (unique.includes(rawKey) ? rawKey : null);
     if (!matchingOption) {

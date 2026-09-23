@@ -26,6 +26,7 @@ import CountdownTimer from '../components/CountdownTimer';
 import Leaderboard from '../components/Leaderboard';
 import AIGenerateModal from '../components/AIGenerateModal';
 import { apiUrl } from '../api';
+import { cleanText } from '../cleanText';
 
 /**
  * The projector laptop is the least reliable machine in the room — someone
@@ -936,7 +937,7 @@ export default function HostPage() {
                 <div key={q.id} className="card card--lg stack stack-4">
                   <div className="row row-2">
                     <span className="badge badge-neutral t-label-sm">Q{idx + 1}</span>
-                    <p className="t-title flex-1" style={{ fontSize: '1rem' }}>{q.text}</p>
+                    <p className="t-title flex-1" style={{ fontSize: '1rem' }}>{cleanText(q.text)}</p>
                   </div>
                   <hr className="divider" />
                   {q.type === 'mcq' ? (
@@ -995,7 +996,7 @@ export default function HostPage() {
             {correctAnswer && (
               <div className="menti-correct-banner">
                 <span className="menti-correct-icon" aria-hidden="true">✔</span>
-                <span>Correct answer: <strong>{correctAnswer}</strong></span>
+                <span>Correct answer: <strong>{cleanText(correctAnswer)}</strong></span>
               </div>
             )}
             {/* Racing leaderboard */}
@@ -1018,7 +1019,7 @@ export default function HostPage() {
                   <span className="menti-stage-q-num">
                     Question {currentIndex + 1} of {questionCount}
                   </span>
-                  <h1 className="menti-stage-question">{currentQuestion.text}</h1>
+                  <h1 className="menti-stage-question">{cleanText(currentQuestion.text)}</h1>
                 </div>
                 {/* Countdown timer */}
                 {phase === 'question' && timer && (
@@ -1065,7 +1066,7 @@ export default function HostPage() {
                           >
                             {LETTERS[idx] ?? idx + 1}
                           </span>
-                          <span className="menti-stage-opt-text">{opt}</span>
+                          <span className="menti-stage-opt-text">{cleanText(opt)}</span>
                         </div>
                       );
                     })}

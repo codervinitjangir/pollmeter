@@ -21,6 +21,7 @@ import CountdownTimer from '../components/CountdownTimer';
 import LiveBarChart from '../components/LiveBarChart';
 import TextResponseList from '../components/TextResponseList';
 import Leaderboard from '../components/Leaderboard';
+import { cleanText } from '../cleanText';
 
 const LS_KEY = 'pollsync_participant';
 
@@ -724,7 +725,7 @@ export default function JoinPage() {
                   <span className="badge badge-neutral t-label-sm">Poll · not scored</span>
                 )}
               </div>
-              <h2 className="t-headline" style={{ marginTop: '0.5rem' }}>{question.text}</h2>
+              <h2 className="t-headline" style={{ marginTop: '0.5rem' }}>{cleanText(question.text)}</h2>
             </div>
 
             {/* Answers */}
@@ -752,7 +753,7 @@ export default function JoinPage() {
                         {LETTERS[idx] ?? idx + 1}
                       </span>
                       <span className="option-text flex-1" style={{ textAlign: 'left', fontWeight: mine ? 700 : 500 }}>
-                        {opt}
+                        {cleanText(opt)}
                       </span>
                       {submitting && mine ? (
                         <span className="spinner spinner--sm option-status" style={{ width: 16, height: 16 }} />
@@ -809,7 +810,7 @@ export default function JoinPage() {
               <div className="locked-note">
                 <span aria-hidden="true">🔒</span>
                 <span>
-                  Answer locked in{myAnswer && !isMcq ? `: “${myAnswer}”` : ''}.{' '}
+                  Answer locked in{myAnswer && !isMcq ? `: “${cleanText(myAnswer)}”` : ''}.{' '}
                   {question.graded
                     ? 'Results appear when the timer ends.'
                     : 'Watch the screen for the room’s answers.'}
@@ -840,7 +841,7 @@ export default function JoinPage() {
                 </p>
                 {!feedback.isCorrect && correctAnswer && (
                   <p className="t-body-sm text-secondary">
-                    Correct answer: <strong>{correctAnswer}</strong>
+                    Correct answer: <strong>{cleanText(correctAnswer)}</strong>
                   </p>
                 )}
               </div>

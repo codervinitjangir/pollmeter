@@ -603,25 +603,27 @@ select { cursor: pointer; appearance: none; background-image: url("data:image/sv
 
 .bar-row {
   display: flex;
-  align-items: center;
-  gap: 0.7rem;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
   transition: opacity var(--duration) var(--ease);
 }
 /* After the reveal, the wrong options stay readable but stop competing. */
-.bar-row.is-dimmed { opacity: 0.55; }
+.bar-row.is-dimmed { opacity: 0.65; }
 
 .bar-key {
   flex: 0 0 auto;
-  width: 1.65rem;
-  height: 1.65rem;
+  width: 1.75rem;
+  height: 1.75rem;
   display: grid;
   place-items: center;
   border-radius: var(--r-xs);
   background: var(--surface-low);
   border: 1px solid var(--viz-gridline);
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 800;
   color: var(--text-secondary);
+  margin-top: 1px;
 }
 .bar-row.is-correct .bar-key {
   background: var(--viz-good);
@@ -629,59 +631,75 @@ select { cursor: pointer; appearance: none; background-image: url("data:image/sv
   color: #fff;
 }
 
-.bar-body { flex: 1 1 auto; min-width: 0; }
+.bar-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.bar-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
 
 .bar-label {
   display: flex;
   align-items: baseline;
+  flex-wrap: wrap;
   gap: 0.5rem;
-  margin-bottom: 0.2rem;
+  flex: 1;
+  min-width: 0;
 }
 .bar-text {
   font-size: 0.9375rem;
   font-weight: 600;
   color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.4;
 }
 .bar-status {
   flex: 0 0 auto;
-  font-size: 0.6875rem;
+  font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--viz-good);
+  background: #DCFCE7;
+  padding: 0.1rem 0.45rem;
+  border-radius: 9999px;
+  border: 1px solid #86EFAC;
 }
+
+.bar-stat {
+  flex: 0 0 auto;
+  font-size: 0.875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.bar-share { font-weight: 600; color: var(--text-muted); }
 
 .bar-track {
   position: relative;
-  height: 1.5rem;
+  height: 12px;
   background: var(--viz-track);
-  border-radius: var(--r-xs);
+  border-radius: 9999px;
+  overflow: hidden;
 }
 .bar-fill {
   height: 100%;
   min-width: 2px;
-  border-radius: var(--r-xs);
+  border-radius: 9999px;
   background: var(--viz-bar);
   transition: width 0.55s var(--ease);
 }
 .bar-row.is-correct .bar-fill { background: var(--viz-good); }
-
-/* Value sits at the bar tip, so the eye reads length and number in one stop. */
-.bar-value {
-  position: absolute;
-  top: 50%;
-  transform: translate(0.5rem, -50%);
-  font-size: 0.8125rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
-  white-space: nowrap;
-  pointer-events: none;
-}
-.bar-share { font-weight: 600; color: var(--text-muted); }
 
 .bars-total {
   margin-top: 0.15rem;
