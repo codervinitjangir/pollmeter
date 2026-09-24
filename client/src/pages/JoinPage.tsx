@@ -1072,92 +1072,99 @@ export default function JoinPage() {
               <h2 className="t-headline" style={{ marginTop: '0.5rem' }}>{cleanText(question.text)}</h2>
             </div>
 
-            {/* Reading Buffer Indicator */}
-            {isReadingBuffer && (
-              <div className="menti-read-buffer-banner">
-                <span className="menti-read-buffer-icon">📖</span>
-                <div className="menti-read-buffer-info">
-                  <strong className="menti-read-buffer-title">Read the question carefully</strong>
-                  <span className="menti-read-buffer-subtitle">Options unlock shortly — take your time to understand.</span>
+            {/* Reading Buffer State — options completely hidden during reading time */}
+            {isReadingBuffer ? (
+              <div className="menti-read-buffer-card">
+                <div className="menti-read-buffer-badge">
+                  <span className="menti-read-buffer-icon">📖</span>
+                  <span>READING TIME</span>
                 </div>
+                <h3 className="menti-read-buffer-title">Read the question carefully</h3>
+                <p className="menti-read-buffer-subtitle">
+                  Options unlock in <strong className="menti-read-buffer-countdown">{readSecondsLeft}s</strong>
+                </p>
+                <div className="menti-read-buffer-track">
+                  <div className="menti-read-buffer-fill" />
+                </div>
+                <span className="menti-read-buffer-hint">Options will appear here when the timer finishes. Get ready!</span>
               </div>
-            )}
+            ) : (
+              <>
+                {/* Answers */}
+                {isMcq && (
+                  <div className="stack stack-3" role="group" aria-label="Answer options">
+                    {(question.options ?? []).map((opt, idx) => {
+                      const mine = myAnswer === opt;
+                      const isKey = revealed && correctAnswer === opt;
+                      const color = OPTION_COLORS[idx % OPTION_COLORS.length];
+                      const locked = !answersOpen;
 
-            {/* Answers */}
-            {isMcq && (
-              <div className="stack stack-3" role="group" aria-label="Answer options">
-                {(question.options ?? []).map((opt, idx) => {
-                  const mine = myAnswer === opt;
-                  const isKey = revealed && correctAnswer === opt;
-                  const color = OPTION_COLORS[idx % OPTION_COLORS.length];
-                  const locked = !answersOpen;
+                      return (
+                        <button
+                          key={opt}
+                          className={`option-btn${mine ? ' selected is-mine' : ''}${
+                            locked && !mine ? ' is-locked' : ''
+                          }`}
+                          onClick={() => submitValue(opt)}
+                          disabled={locked}
+                          aria-pressed={mine}
+                          id={`option-${idx}`}
+                          style={mine ? { borderColor: color, boxShadow: `0 0 0 2px ${color}33` } : undefined}
+                        >
+                          <span className="option-letter" style={{ backgroundColor: color, color: '#fff', fontWeight: 800 }}>
+                            {LETTERS[idx] ?? idx + 1}
+                          </span>
+                          <span className="option-text flex-1" style={{ textAlign: 'left', fontWeight: mine ? 700 : 500 }}>
+                            {cleanText(opt)}
+                          </span>
+                          {submitting && mine ? (
+                            <span className="spinner spinner--sm option-status" style={{ width: 16, height: 16 }} />
+                          ) : isKey ? (
+                            <span className="option-status" style={{ color: '#0ca30c', fontWeight: 800 }}>✓ Correct</span>
+                          ) : mine ? (
+                            <span className="option-status" style={{ color, fontWeight: 800 }}>✓</span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
 
-                  return (
-                    <button
-                      key={opt}
-                      className={`option-btn${mine ? ' selected is-mine' : ''}${
-                        locked && !mine ? ' is-locked' : ''
-                      }`}
-                      onClick={() => submitValue(opt)}
-                      disabled={locked}
-                      aria-pressed={mine}
-                      id={`option-${idx}`}
-                      style={mine ? { borderColor: color, boxShadow: `0 0 0 2px ${color}33` } : undefined}
-                    >
-                      <span className="option-letter" style={{ backgroundColor: color, color: '#fff', fontWeight: 800 }}>
-                        {LETTERS[idx] ?? idx + 1}
-                      </span>
-                      <span className="option-text flex-1" style={{ textAlign: 'left', fontWeight: mine ? 700 : 500 }}>
-                        {cleanText(opt)}
-                      </span>
-                      {isReadingBuffer ? (
-                        <span className="option-status" style={{ color: '#64748B', fontSize: '0.82rem', fontWeight: 600 }}>🔒 Locked</span>
-                      ) : submitting && mine ? (
-                        <span className="spinner spinner--sm option-status" style={{ width: 16, height: 16 }} />
-                      ) : isKey ? (
-                        <span className="option-status" style={{ color: '#0ca30c', fontWeight: 800 }}>✓ Correct</span>
-                      ) : mine ? (
-                        <span className="option-status" style={{ color, fontWeight: 800 }}>✓</span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-
-                {answersOpen && (
-                  <p className="text-secondary text-center" style={{ fontSize: '0.85rem' }}>
-                    {question.graded
-                      ? '⚡ Tap to lock it in — answering faster earns up to +500 bonus'
-                      : 'Tap the option you agree with'}
-                  </p>
+                    {answersOpen && (
+                      <p className="text-secondary text-center" style={{ fontSize: '0.85rem' }}>
+                        {question.graded
+                          ? '⚡ Tap to lock it in — answering faster earns up to +500 bonus'
+                          : 'Tap the option you agree with'}
+                      </p>
+                    )}
+                  </div>
                 )}
-              </div>
-            )}
 
-            {!isMcq && answersOpen && (
-              <div className="field">
-                <label className="field-label" htmlFor="open-response">Your answer</label>
-                <textarea
-                  id="open-response"
-                  value={openTextInput}
-                  onChange={(e) => setOpenTextInput(e.target.value)}
-                  placeholder="Type your answer…"
-                  maxLength={300}
-                  disabled={submitting}
-                  rows={4}
-                />
-                <small style={{ textAlign: 'right', color: 'var(--text-muted)' }}>
-                  {openTextInput.length}/300
-                </small>
-                <button
-                  className="btn btn-primary btn--lg btn--full"
-                  onClick={submitOpenText}
-                  disabled={submitting || !openTextInput.trim()}
-                  id="submit-response-btn"
-                  style={{ marginTop: '0.75rem' }}
-                >
-                  {submitting ? '⏳ Sending…' : 'Submit answer'}
-                </button>
-              </div>
+                {!isMcq && answersOpen && (
+                  <div className="field">
+                    <label className="field-label" htmlFor="open-response">Your answer</label>
+                    <textarea
+                      id="open-response"
+                      value={openTextInput}
+                      onChange={(e) => setOpenTextInput(e.target.value)}
+                      placeholder="Type your answer…"
+                      maxLength={300}
+                      disabled={submitting}
+                      rows={4}
+                    />
+                    <small style={{ textAlign: 'right', color: 'var(--text-muted)' }}>
+                      {openTextInput.length}/300
+                    </small>
+                    <button
+                      className="btn btn-primary btn--lg btn--full"
+                      onClick={submitOpenText}
+                      disabled={submitting || !openTextInput.trim()}
+                      id="submit-response-btn"
+                      style={{ marginTop: '0.75rem' }}
+                    >
+                      {submitting ? '⏳ Sending…' : 'Submit answer'}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
 
             {submitError && <div className="alert alert-error" role="alert">⚠ {submitError}</div>}

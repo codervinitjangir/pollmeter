@@ -79,6 +79,25 @@ export default function HostPage() {
   const [prevLeaderboard, setPrevLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [finalData, setFinalData] = useState<SessionEndedPayload | null>(null);
 
+  // Dynamic Reading Buffer
+  const [readSecondsLeft, setReadSecondsLeft] = useState(0);
+
+  useEffect(() => {
+    if (!timer?.unlocksAt) {
+      setReadSecondsLeft(0);
+      return;
+    }
+    const update = () => {
+      const left = Math.max(0, Math.ceil((timer.unlocksAt! - Date.now()) / 1000));
+      setReadSecondsLeft(left);
+    };
+    update();
+    const id = setInterval(update, 100);
+    return () => clearInterval(id);
+  }, [timer?.unlocksAt]);
+
+  const isReadingTime = Boolean(phase === 'question' && timer?.unlocksAt && readSecondsLeft > 0);
+
   const [lanIp, setLanIp] = useState('');
   const [copied, setCopied] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -1400,9 +1419,9 @@ export default function HostPage() {
                     <span className="menti-stage-q-num">
                       Question {currentIndex + 1} of {questionCount}
                     </span>
-                    {timer?.unlocksAt && Date.now() < timer.unlocksAt && (
+                    {isReadingTime && (
                       <span className="badge badge-primary menti-read-badge">
-                        📖 Reading Time
+                        📖 Reading Time ({readSecondsLeft}s)
                       </span>
                     )}
                   </div>
@@ -1431,7 +1450,25 @@ export default function HostPage() {
               <div className="menti-stage-divider" />
 
               {/* ─── Content area ─── */}
-              {currentQuestion.type === 'mcq' ? (
+              {isReadingTime ? (
+                <div className="menti-stage-reading-card">
+                  <div className="menti-stage-reading-badge">
+                    <span className="menti-stage-reading-icon">📖</span>
+                    <span>READ THE QUESTION</span>
+                  </div>
+                  <h2 className="menti-stage-reading-title">
+                    Options unlock in <span className="menti-stage-reading-num">{readSecondsLeft}s</span>
+                  </h2>
+                  <p className="menti-stage-reading-sub">
+                    Focus on the question. Options will appear here and on your phones shortly!
+                  </p>
+                  <div className="menti-stage-reading-dots">
+                    <span className="reading-dot" />
+                    <span className="reading-dot" />
+                    <span className="reading-dot" />
+                  </div>
+                </div>
+              ) : currentQuestion.type === 'mcq' ? (
                 gradedAndOpen && results == null ? (
                   /* Scored question: show colorful option cards while hidden */
                   <div className="menti-stage-options">
