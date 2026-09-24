@@ -625,11 +625,25 @@ export default function JoinPage() {
         {connected && <span className="badge badge-live">Live</span>}
         {questionCount > 0 && <span className="chip">Q{currentIndex + 1}/{questionCount}</span>}
         {timer && phase === 'question' && (
-          <CountdownTimer
-            endsAt={timer.endsAt}
-            durationSeconds={timer.durationSeconds}
-            size={44}
-          />
+          isReadingBuffer ? (
+            <span
+              className="badge t-label-sm"
+              style={{
+                background: 'rgba(124, 58, 237, 0.12)',
+                color: '#7C3AED',
+                borderColor: 'rgba(124, 58, 237, 0.25)',
+                fontWeight: 700,
+              }}
+            >
+              📖 Reading
+            </span>
+          ) : (
+            <CountdownTimer
+              endsAt={timer.endsAt}
+              durationSeconds={timer.durationSeconds}
+              size={44}
+            />
+          )
         )}
       </div>
     </nav>
@@ -899,41 +913,91 @@ export default function JoinPage() {
               )}
             </div>
 
-            {/* Look at the big screen card */}
+            {/* Student's Meme Roast/Praise Verdict Card on Leaderboard */}
+            {feedback && feedback.graded && (() => {
+              const isSpeedy = feedback.isCorrect && feedback.score >= 1300;
+              const verdict = getVerdictQuote(feedback.isCorrect, isSpeedy, currentIndex);
+
+              return (
+                <div
+                  className={`student-verdict-card ${feedback.isCorrect ? 'verdict-correct' : 'verdict-wrong'}`}
+                  role="status"
+                >
+                  <div className="verdict-top-row">
+                    <span className="verdict-emoji">{feedback.isCorrect ? (isSpeedy ? '⚡' : '🎉') : '🙃'}</span>
+                    <span className="verdict-badge">{verdict.badge}</span>
+                  </div>
+
+                  <h3 className="verdict-quote">“{verdict.quote}”</h3>
+                  <p className="verdict-subtext">{verdict.subtext}</p>
+
+                  <div className="verdict-score-pill">
+                    {feedback.isCorrect ? (
+                      <>
+                        <span className="verdict-score-num">+{feedback.score.toLocaleString()}</span>
+                        <span className="verdict-score-label">pts {isSpeedy ? '🔥 Speed Bonus!' : 'earned'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="verdict-score-num" style={{ color: '#EF4444' }}>+0</span>
+                        <span className="verdict-score-label">pts · Agle pe phodenge! 💪</span>
+                      </>
+                    )}
+                  </div>
+
+                  {!feedback.isCorrect && correctAnswer && (
+                    <div className="verdict-correct-answer">
+                      <span className="verdict-ca-label">Correct answer:</span>
+                      <strong className="verdict-ca-text">{cleanText(correctAnswer)}</strong>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Poll verdict on leaderboard */}
+            {feedback && !feedback.graded && (() => {
+              const verdict = getVerdictQuote(true, false, currentIndex, true);
+              return (
+                <div className="student-verdict-card verdict-poll" role="status">
+                  <div className="verdict-top-row">
+                    <span className="verdict-emoji">🎙️</span>
+                    <span className="verdict-badge">{verdict.badge}</span>
+                  </div>
+                  <h3 className="verdict-quote">“{verdict.quote}”</h3>
+                  <p className="verdict-subtext">{verdict.subtext}</p>
+                </div>
+              );
+            })()}
+
+            {/* If missed the question */}
+            {!feedback && myAnswer == null && (
+              <div className="student-verdict-card verdict-missed" role="status">
+                <div className="verdict-top-row">
+                  <span className="verdict-emoji">⌛</span>
+                  <span className="verdict-badge">⏰ Time Out</span>
+                </div>
+                <h3 className="verdict-quote">“So gaye the kya bhai?!”</h3>
+                <p className="verdict-subtext">Agle sawal pe fingers alert rakhna! Comeback loading... 🚀</p>
+              </div>
+            )}
+
+            {/* Live screen racing indicator banner */}
             <div
-              className="card text-center stack stack-3"
+              className="row row-2"
               style={{
-                background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
-                color: '#F8FAFC',
-                padding: '1.75rem 1.25rem',
-                borderRadius: '20px',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2)',
+                justifyContent: 'center',
+                padding: '0.65rem 1.15rem',
+                background: 'rgba(15, 23, 42, 0.05)',
+                borderRadius: '9999px',
+                alignSelf: 'center',
+                marginTop: '0.25rem',
               }}
             >
-              <div style={{ fontSize: '2.25rem' }}>👀</div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: '#FFFFFF' }}>
-                Look up at the screen!
-              </h3>
-              <p style={{ fontSize: '0.9rem', color: '#94A3B8', margin: 0, lineHeight: 1.5 }}>
-                The live leaderboard is racing on your mentor&apos;s display.
-              </p>
-              <div
-                className="row row-2"
-                style={{
-                  justifyContent: 'center',
-                  padding: '0.5rem 0.9rem',
-                  background: 'rgba(56, 189, 248, 0.12)',
-                  borderRadius: '9999px',
-                  alignSelf: 'center',
-                  marginTop: '0.25rem',
-                }}
-              >
-                <span className="spinner spinner--sm" style={{ borderTopColor: '#38BDF8' }} />
-                <span style={{ fontSize: '0.82rem', color: '#38BDF8', fontWeight: 600 }}>
-                  Next question coming up shortly…
-                </span>
-              </div>
+              <span className="spinner spinner--sm" style={{ borderTopColor: 'var(--menti-blue)' }} />
+              <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                👀 Leaderboard racing on mentor&apos;s display · Next question soon
+              </span>
             </div>
           </div>
         </div>
@@ -1002,9 +1066,8 @@ export default function JoinPage() {
                 <span className="menti-read-buffer-icon">📖</span>
                 <div className="menti-read-buffer-info">
                   <strong className="menti-read-buffer-title">Read the question carefully</strong>
-                  <span className="menti-read-buffer-subtitle">Options unlock in {readSecondsLeft}s</span>
+                  <span className="menti-read-buffer-subtitle">Options unlock shortly — take your time to understand.</span>
                 </div>
-                <span className="menti-read-buffer-countdown">{readSecondsLeft}s</span>
               </div>
             )}
 

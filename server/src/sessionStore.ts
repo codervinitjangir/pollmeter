@@ -73,9 +73,8 @@ export function createSession(questions: Question[]): Session {
  */
 export function calculateReadTime(text: string): number {
   const words = text.trim().split(/\s+/).filter(Boolean).length;
-  if (words <= 7) return 3;
-  if (words <= 15) return 4;
-  if (words <= 25) return 5;
+  if (words <= 10) return 4;
+  if (words <= 20) return 5;
   return 6;
 }
 
