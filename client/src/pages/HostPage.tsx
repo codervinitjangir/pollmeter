@@ -29,6 +29,7 @@ import Leaderboard, { OlympicPodium, fire4CornerFireworks } from '../components/
 import AIGenerateModal from '../components/AIGenerateModal';
 import { apiUrl } from '../api';
 import { cleanText } from '../cleanText';
+import { getAvatar } from '../utils/avatars';
 
 /**
  * The projector laptop is the least reliable machine in the room — someone
@@ -1137,7 +1138,7 @@ export default function HostPage() {
                         className="menti-lobby-chip"
                         style={{ opacity: p.connected ? 1 : 0.6 }}
                       >
-                        👤 {p.name}
+                        <span style={{ marginRight: '0.35rem' }}>{getAvatar(p.name)}</span> {p.name}
                       </span>
                     ))}
                   </div>

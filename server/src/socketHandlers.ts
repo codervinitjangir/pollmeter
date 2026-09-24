@@ -36,7 +36,7 @@ import {
 /** Host-only broadcasts (participant names/ids) go to this room, never to students. */
 const hostRoom = (code: string) => `host:${code}`;
 
-const ALLOWED_REACTIONS = ['👍', '❤️', '👏', '🔥', '💡'];
+const ALLOWED_REACTIONS = ['👍', '❤️', '👏', '🔥', '💡', '🎉', '🤯', '😂'];
 const REACTION_WINDOW_MS = 3000;
 const REACTION_LIMIT = 5;
 

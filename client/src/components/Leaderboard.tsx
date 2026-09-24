@@ -2,6 +2,7 @@ import { useEffect, useRef, useMemo, useState } from 'react';
 import confetti from 'canvas-confetti';
 import { LeaderboardEntry } from '../types';
 import { cleanText } from '../cleanText';
+import { getAvatar } from '../utils/avatars';
 
 interface Props {
   entries: LeaderboardEntry[];
@@ -166,18 +167,9 @@ export function fire4CornerFireworks() {
   }, 220);
 }
 
-/** Mentimeter-style cute emoji avatars */
-const AVATARS = ['🎂', '🍔', '🕵️', '🤔', '🐻', '🍩', '🎅', '🦁', '🐯', '🛸', '🚀', '🌟', '🍕', '🍉', '🍌', '🦀'];
-
 /** Correct answers in a row before the 🔥 badge appears. Below this it would
  *  show on almost every row and stop meaning anything. */
 const STREAK_THRESHOLD = 3;
-
-function getAvatar(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash += name.charCodeAt(i);
-  return AVATARS[Math.abs(hash) % AVATARS.length];
-}
 
 /** Participant bar styling - deterministic per participant with metallic gold/silver/bronze for top ranks */
 function getBarStyle(participantId: string, rankIdx?: number): BarStyle {
@@ -558,6 +550,24 @@ export default function Leaderboard({
 
   const maxScore = Math.max(1, ...entries.map((e) => e.totalScore));
 
+  // Spotlight: Lucky winner & Backbenchers Club (top from bottom)
+  const { luckyWinner, backbenchers } = useMemo(() => {
+    if (entries.length < 3) return { luckyWinner: null, backbenchers: [] };
+
+    // Deterministic lucky pick that avoids top #1 if multiple participants exist
+    let seed = 0;
+    for (let i = 0; i < entries.length; i++) {
+      seed = (seed * 31 + entries[i].name.charCodeAt(0)) | 0;
+    }
+    const eligibleForLucky = entries.length > 1 ? entries.slice(1) : entries;
+    const lucky = eligibleForLucky[Math.abs(seed) % eligibleForLucky.length];
+
+    // Bottom 1 to 3 participants (top from the bottom)
+    const bottom = entries.slice(-3).reverse();
+
+    return { luckyWinner: lucky, backbenchers: bottom };
+  }, [entries]);
+
   if (entries.length === 0) {
     return (
       <p className="text-secondary text-center" style={{ padding: '2rem 0' }}>
@@ -621,6 +631,52 @@ export default function Leaderboard({
         <p className="text-muted text-center" style={{ fontSize: '0.85rem', marginTop: '0.75rem' }}>
           +{entries.length - visible.length} more participants
         </p>
+      )}
+
+      {/* Classroom Honours & Masti Spotlight */}
+      {entries.length >= 3 && (luckyWinner || backbenchers.length > 0) && (
+        <div className="menti-spotlight-wrap">
+          <div className="menti-spotlight-header">
+            <span className="menti-spotlight-header-badge">✨ Special Masti Honours</span>
+            <span className="menti-spotlight-header-note">Recognizing classroom legends beyond #1</span>
+          </div>
+
+          <div className="menti-spotlight-grid">
+            {/* 1. Kismat ka Sikandar (Platform Lucky Winner) */}
+            {luckyWinner && (
+              <div className="menti-spotlight-card menti-spotlight-card--lucky">
+                <div className="menti-spotlight-pill">🍀 Kismat Ka Sikandar</div>
+                <div className="menti-spotlight-body">
+                  <span className="menti-spotlight-avatar">{getAvatar(luckyWinner.name)}</span>
+                  <div className="menti-spotlight-details">
+                    <strong className="menti-spotlight-name">{cleanText(luckyWinner.name)}</strong>
+                    <p className="menti-spotlight-desc">Platform Lucky Pick 🎁 · Dil jeet liya!</p>
+                  </div>
+                </div>
+                <span className="menti-spotlight-footer">Points secondary hain, dil se winner! ❤️</span>
+              </div>
+            )}
+
+            {/* 2. Backbenchers Club (Top from Bottom) */}
+            {backbenchers.length > 0 && (
+              <div className="menti-spotlight-card menti-spotlight-card--backbenchers">
+                <div className="menti-spotlight-pill">👑 Backbenchers Club</div>
+                <div className="menti-spotlight-body">
+                  <span className="menti-spotlight-avatar">{getAvatar(backbenchers[0].name)}</span>
+                  <div className="menti-spotlight-details">
+                    <strong className="menti-spotlight-name">{cleanText(backbenchers[0].name)}</strong>
+                    <p className="menti-spotlight-desc">#1 from Bottom · Comeback Loading... 🔋</p>
+                  </div>
+                </div>
+                <span className="menti-spotlight-footer">
+                  {backbenchers.length > 1
+                    ? `Hall of Fame: ${backbenchers.map((b) => cleanText(b.name)).join(' · ')}`
+                    : 'Class ke asli rockstar! Agle round me phodenge! 🚀'}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

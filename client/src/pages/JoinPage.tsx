@@ -24,6 +24,9 @@ import LiveBarChart from '../components/LiveBarChart';
 import TextResponseList from '../components/TextResponseList';
 import Leaderboard from '../components/Leaderboard';
 import { cleanText } from '../cleanText';
+import { getAvatar } from '../utils/avatars';
+import { triggerHaptic } from '../utils/haptics';
+import { getVerdictQuote } from '../utils/verdictQuotes';
 
 const LS_KEY = 'pollsync_participant';
 
@@ -54,14 +57,6 @@ function loadStored(): StoredSession | null {
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 const OPTION_COLORS = ['#3952D3', '#25B57F', '#FF7A45', '#7C3AED', '#F59E0B', '#EF4444'];
-const AVATARS = ['🚀', '⚡', '🌟', '🎮', '🎯', '🦁', '🦊', '🐯', '🏀', '🦄', '🎓'];
-
-function getAvatar(name: string): string {
-  if (!name) return '🎓';
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash += name.charCodeAt(i);
-  return AVATARS[Math.abs(hash) % AVATARS.length] ?? '🎓';
-}
 
 export default function JoinPage() {
   // Join form
@@ -99,6 +94,7 @@ export default function JoinPage() {
   const [openTextInput, setOpenTextInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [localReactions, setLocalReactions] = useState<Array<{ id: string; emoji: string; left: number }>>([]);
 
   const identity = useRef<StoredSession | null>(null);
   // Read inside socket callbacks without making them a dependency — keying the
@@ -291,18 +287,20 @@ export default function JoinPage() {
       setMyAnswer(p.value);
       if (p.correctAnswer) setCorrectAnswer(p.correctAnswer);
 
-      if (p.isCorrect) {
-        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-          try { navigator.vibrate([45, 30, 50]); } catch {}
+      if (p.graded) {
+        if (p.isCorrect) {
+          triggerHaptic('correct');
+          try {
+            confetti({
+              particleCount: 45,
+              spread: 65,
+              origin: { y: 0.65 },
+              disableForReducedMotion: true,
+            });
+          } catch {}
+        } else {
+          triggerHaptic('wrong');
         }
-        try {
-          confetti({
-            particleCount: 35,
-            spread: 60,
-            origin: { y: 0.65 },
-            disableForReducedMotion: true,
-          });
-        } catch {}
       }
     }
 
@@ -532,9 +530,7 @@ export default function JoinPage() {
     if (!question || !identity.current) return;
     if (!answersOpen || submitting) return;
 
-    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-      try { navigator.vibrate(35); } catch {}
-    }
+    triggerHaptic('lock');
 
     setMyAnswer(value);        // optimistic, so the tap feels instant
     submittingRef.current = true;
@@ -557,6 +553,12 @@ export default function JoinPage() {
   }
 
   function sendReaction(emoji: string) {
+    triggerHaptic('reaction');
+    const id = Math.random().toString(36).slice(2);
+    const left = 20 + Math.random() * 60;
+    setLocalReactions((prev) => [...prev.slice(-5), { id, emoji, left }]);
+    setTimeout(() => setLocalReactions((prev) => prev.filter((r) => r.id !== id)), 2000);
+
     const code = sessionCode || identity.current?.code;
     if (code) socket.emit('send_reaction', { code, emoji });
   }
@@ -578,19 +580,34 @@ export default function JoinPage() {
   const myName = identity.current?.name || nameInput;
 
   const reactionsDock = (
-    <div className="reactions-dock" role="toolbar" aria-label="Classroom reactions">
-      {['👍', '❤️', '👏', '🔥', '💡'].map((emoji) => (
-        <button
-          key={emoji}
-          type="button"
-          className="reaction-btn"
-          onClick={() => sendReaction(emoji)}
-          title={`Send ${emoji} to the screen`}
+    <>
+      {localReactions.map((r) => (
+        <span
+          key={r.id}
+          className="floating-reaction"
+          style={{
+            left: `${r.left}%`,
+            animationDuration: '2s',
+          }}
+          aria-hidden="true"
         >
-          {emoji}
-        </button>
+          {r.emoji}
+        </span>
       ))}
-    </div>
+      <div className="reactions-dock" role="toolbar" aria-label="Classroom reactions">
+        {['🔥', '🎉', '🤯', '❤️', '👏', '😂'].map((emoji) => (
+          <button
+            key={emoji}
+            type="button"
+            className="reaction-btn"
+            onClick={() => sendReaction(emoji)}
+            title={`Send ${emoji} to the screen`}
+          >
+            {emoji}
+          </button>
+        ))}
+      </div>
+    </>
   );
 
   const topNav = (
@@ -1085,39 +1102,72 @@ export default function JoinPage() {
 
             {/* Nothing submitted and answers are closed */}
             {myAnswer == null && !answersOpen && (
-              <div className="locked-note">
-                <span aria-hidden="true">⌛</span>
-                <span>Answers are closed for this one. You can still score on the next question.</span>
+              <div className="student-verdict-card verdict-missed" role="status">
+                <div className="verdict-top-row">
+                  <span className="verdict-emoji">⌛</span>
+                  <span className="verdict-badge">⏰ Time Out</span>
+                </div>
+                <h3 className="verdict-quote">“So gaye the kya bhai?!”</h3>
+                <p className="verdict-subtext">Agle sawal pe fingers alert rakhna! Comeback loading... 🚀</p>
               </div>
             )}
 
             {/* Graded result, after reveal */}
-            {revealed && feedback && feedback.graded && (
-              <div
-                className={`alert ${feedback.isCorrect ? 'alert-success' : 'alert-error'} stack stack-2`}
-                style={{ padding: '1.25rem', textAlign: 'center' }}
-                role="status"
-              >
-                <div style={{ fontSize: '2.5rem' }}>{feedback.isCorrect ? '🎉' : '❌'}</div>
-                <p className="t-title">
-                  {feedback.isCorrect
-                    ? `Correct! +${feedback.score.toLocaleString()} pts`
-                    : 'Not this time · +0 pts'}
-                </p>
-                {!feedback.isCorrect && correctAnswer && (
-                  <p className="t-body-sm text-secondary">
-                    Correct answer: <strong>{cleanText(correctAnswer)}</strong>
-                  </p>
-                )}
-              </div>
-            )}
+            {revealed && feedback && feedback.graded && (() => {
+              const isSpeedy = feedback.isCorrect && feedback.score >= 1300;
+              const verdict = getVerdictQuote(feedback.isCorrect, isSpeedy, currentIndex);
 
-            {/* Poll / open-text result — no right answer, so no verdict */}
-            {revealed && feedback && !feedback.graded && (
-              <div className="alert alert-success" style={{ justifyContent: 'center' }} role="status">
-                ✓ Your answer was counted
-              </div>
-            )}
+              return (
+                <div
+                  className={`student-verdict-card ${feedback.isCorrect ? 'verdict-correct' : 'verdict-wrong'}`}
+                  role="status"
+                >
+                  <div className="verdict-top-row">
+                    <span className="verdict-emoji">{feedback.isCorrect ? (isSpeedy ? '⚡' : '🎉') : '🙃'}</span>
+                    <span className="verdict-badge">{verdict.badge}</span>
+                  </div>
+
+                  <h3 className="verdict-quote">“{verdict.quote}”</h3>
+                  <p className="verdict-subtext">{verdict.subtext}</p>
+
+                  <div className="verdict-score-pill">
+                    {feedback.isCorrect ? (
+                      <>
+                        <span className="verdict-score-num">+{feedback.score.toLocaleString()}</span>
+                        <span className="verdict-score-label">pts {isSpeedy ? '🔥 Speed Bonus!' : 'earned'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="verdict-score-num" style={{ color: '#EF4444' }}>+0</span>
+                        <span className="verdict-score-label">pts · Agle pe phodenge! 💪</span>
+                      </>
+                    )}
+                  </div>
+
+                  {!feedback.isCorrect && correctAnswer && (
+                    <div className="verdict-correct-answer">
+                      <span className="verdict-ca-label">Correct answer:</span>
+                      <strong className="verdict-ca-text">{cleanText(correctAnswer)}</strong>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Poll / open-text result — no right answer, so no single verdict */}
+            {revealed && feedback && !feedback.graded && (() => {
+              const verdict = getVerdictQuote(true, false, currentIndex, true);
+              return (
+                <div className="student-verdict-card verdict-poll" role="status">
+                  <div className="verdict-top-row">
+                    <span className="verdict-emoji">🎙️</span>
+                    <span className="verdict-badge">{verdict.badge}</span>
+                  </div>
+                  <h3 className="verdict-quote">“{verdict.quote}”</h3>
+                  <p className="verdict-subtext">{verdict.subtext}</p>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Distribution — withheld by the server while a graded question is open */}
