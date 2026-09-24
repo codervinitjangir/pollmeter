@@ -16,14 +16,29 @@ const SUPER_FAST_CORRECT: VerdictQuote[] = [
     subtext: 'Blink and you missed it! Top-tier reflexes. 💨',
   },
   {
+    badge: '👨‍🍳 Let Him Cook',
+    quote: 'Bro cooked and left zero crumbs!',
+    subtext: 'Lightning fast fingers! Maximum speed points unlocked. 🔥',
+  },
+  {
     badge: '🧠 Big Brain Energy',
     quote: 'Class topper alert! Dimag 5G se bhi tez!',
     subtext: 'Lightning fast and razor sharp. 🔥',
   },
   {
+    badge: '⚡ The Chosen One',
+    quote: 'Neo from The Matrix has entered the room!',
+    subtext: 'Dodging wrong options at light speed! 🕶️',
+  },
+  {
     badge: '🚀 Rocket Launch',
     quote: 'Sawāl aate hi dhuan nikaal diya!',
     subtext: 'Pure god-level reflexes! +Speed bonus locked. ✨',
+  },
+  {
+    badge: '🏃‍♂️ Speedrun World Record',
+    quote: 'Faster than light, smoother than butter!',
+    subtext: 'Speedrunning this quiz like a pro gamer! 🎮',
   },
   {
     badge: '⚡ Khatarnaak Reflexes',
@@ -44,14 +59,29 @@ const REGULAR_CORRECT: VerdictQuote[] = [
     subtext: 'Bilkul correct answer! Keep the streak rolling. 🏆',
   },
   {
+    badge: '👑 Common W',
+    quote: 'Certified Genius behavior detected!',
+    subtext: 'Flawless execution! Points deposited to your bag. 💰',
+  },
+  {
     badge: '👑 Mauj Kardi',
     quote: 'Wah bete wah! Full marks vibes chal rahi hain!',
     subtext: 'Clean hit! Points added to your total. 💯',
   },
   {
+    badge: '🧠 200 IQ Move',
+    quote: 'Harvard wants to know your location!',
+    subtext: 'Spot-on logic and razor-sharp accuracy. ✨',
+  },
+  {
     badge: '🌟 Sahi Pakde Hain',
     quote: 'Shabash champion! Teer seedha nishane pe!',
     subtext: 'Spot-on logic. You nailed this one! ✨',
+  },
+  {
+    badge: '🔥 Absolute Chad',
+    quote: 'Walked in, dropped facts, and took the points!',
+    subtext: 'Leaderboard pe aage badhne ka time! 📈',
   },
   {
     badge: '🔥 Guru Ho Ja Shuru',
@@ -62,6 +92,11 @@ const REGULAR_CORRECT: VerdictQuote[] = [
     badge: '🦁 Sher Aya',
     quote: 'Dhamakedar answer! Kya baat hai!',
     subtext: 'Perfect score for this question! 🍕',
+  },
+  {
+    badge: '🎯 Clean Sweep',
+    quote: 'Straight down the middle with zero hesitation!',
+    subtext: 'Keep that victory train moving! 🚂',
   },
   {
     badge: '🎩 Classy Move',
@@ -82,9 +117,19 @@ const WRONG_QUOTES: VerdictQuote[] = [
     subtext: 'Koi baat nahi, agle question me comeback pakka hai! 🔋',
   },
   {
+    badge: '💔 Emotional Damage',
+    quote: 'Task failed successfully!',
+    subtext: 'Shake it off! Your comeback starts on the next question. 🦁',
+  },
+  {
     badge: '🙃 Aayein?!',
     quote: 'Baigan answer de diya bhai!',
     subtext: 'Option thoda idhar udhar nikal gaya, agla apna hai! 🍆',
+  },
+  {
+    badge: '📉 Math Ain’t Mathing',
+    quote: 'Did you let your cat tap the screen?! 🐱',
+    subtext: 'Plot twist! The next question belongs to you. 🦾',
   },
   {
     badge: '🤦‍♂️ Dil Se Bura Laga',
@@ -92,9 +137,19 @@ const WRONG_QUOTES: VerdictQuote[] = [
     subtext: 'Don’t worry! Champions bounce back stronger. 🦁',
   },
   {
+    badge: '🫡 Mission Failed',
+    quote: 'We’ll get ’em next time, soldier!',
+    subtext: 'Don’t sweat it! True champions strike back. ⚡',
+  },
+  {
     badge: '💀 Tukka Fail',
     quote: 'Tukka hawa me gayab ho gaya!',
     subtext: 'Next question me full focus se maaro sixer! 🏏',
+  },
+  {
+    badge: '🥲 Trust Issues',
+    quote: 'Intuition took a short coffee break!',
+    subtext: 'Lock in on the next one and drop a sixer! 🏏',
   },
   {
     badge: '📉 Moye Moye',
@@ -138,6 +193,11 @@ const POLL_QUOTES: VerdictQuote[] = [
     badge: '✨ Great Perspective',
     quote: 'Aapka jawab screen pe chha gaya!',
     subtext: 'Watch the live distribution on the big screen! 📊',
+  },
+  {
+    badge: '🗳️ Democracy in Action',
+    quote: 'Your voice is officially on the board!',
+    subtext: 'Let’s see where the room stands on this. 🌐',
   },
 ];
 
