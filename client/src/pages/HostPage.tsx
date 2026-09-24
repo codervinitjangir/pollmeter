@@ -82,7 +82,7 @@ export default function HostPage() {
   const [lanIp, setLanIp] = useState('');
   const [copied, setCopied] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [reactions, setReactions] = useState<Array<{ id: string; emoji: string; drift: number }>>([]);
+  const [reactions, setReactions] = useState<Array<{ id: string; emoji: string; left: number; drift: number; duration: number }>>([]);
 
   // Auto-advance toggle: defaults to false (manual mode) so mentor has complete control
   const [autoAdvanceEnabled, setAutoAdvanceEnabled] = useState(() => {
@@ -252,9 +252,11 @@ export default function HostPage() {
     }
 
     function onReaction(p: { emoji: string; id: string }) {
-      const drift = (Math.random() - 0.5) * 80;
-      setReactions((prev) => [...prev.slice(-12), { id: p.id, emoji: p.emoji, drift }]);
-      setTimeout(() => setReactions((prev) => prev.filter((r) => r.id !== p.id)), 2500);
+      const left = 15 + Math.random() * 70;
+      const drift = (Math.random() - 0.5) * 50;
+      const duration = 2.2 + Math.random() * 0.5;
+      setReactions((prev) => [...prev.slice(-15), { id: p.id, emoji: p.emoji, left, drift, duration }]);
+      setTimeout(() => setReactions((prev) => prev.filter((r) => r.id !== p.id)), 2700);
     }
 
     function onError(p: { message: string }) {
@@ -1631,7 +1633,12 @@ export default function HostPage() {
         <span
           key={r.id}
           className="floating-reaction"
-          style={{ '--drift': `${r.drift}px` } as React.CSSProperties}
+          style={{
+            left: `${r.left}%`,
+            '--drift': `${r.drift}px`,
+            animationDuration: `${r.duration}s`,
+          } as React.CSSProperties}
+          aria-hidden="true"
         >
           {r.emoji}
         </span>

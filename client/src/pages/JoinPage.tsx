@@ -854,15 +854,17 @@ export default function JoinPage() {
 
   // ─── Leaderboard between questions ────────────────────────────────────────
   if (phase === 'leaderboard') {
-    const rank = myEntry?.rank;
-    const message =
-      rank === 1
+    const hasScore = (myEntry?.totalScore ?? 0) > 0;
+    const rank = hasScore ? myEntry?.rank : null;
+    const message = hasScore
+      ? rank === 1
         ? '🥇 You’re in 1st place!'
         : rank && rank <= 3
         ? '🥈 On the podium!'
         : rank && rank <= 5
         ? '🔥 Top 5 — keep going!'
-        : '⚡ Still in it. Next one counts.';
+        : '⚡ Still in it. Next one counts.'
+      : '⚡ Warming up! Score on the next question.';
 
     return (
       <div className="page">
@@ -879,7 +881,7 @@ export default function JoinPage() {
                 borderRadius: '20px',
               }}
             >
-              <div style={{ fontSize: '2.5rem' }}>{rank === 1 ? '👑' : rank && rank <= 3 ? '🥈' : '⚡'}</div>
+              <div style={{ fontSize: '2.5rem' }}>{hasScore && rank === 1 ? '👑' : hasScore && rank && rank <= 3 ? '🥈' : '⚡'}</div>
               <p className="t-headline" style={{ color: 'var(--menti-blue)', margin: 0 }}>{message}</p>
               {myEntry && (
                 <div className="stack stack-1">

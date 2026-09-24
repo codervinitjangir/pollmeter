@@ -272,8 +272,9 @@ function LbRow({
   // In 'surging' / 'settled', it transitions smoothly to 0px!
   const translateY = surgePhase === 'initial' ? rankDelta * slotHeight : 0;
 
-  const rankBadge =
-    surgePhase === 'settled'
+  const hasScore = entry.totalScore > 0 || animatedScore > 0;
+  const rankBadge = hasScore
+    ? surgePhase === 'settled'
       ? idx === 0
         ? '👑'
         : idx === 1
@@ -287,7 +288,8 @@ function LbRow({
       ? '🥈'
       : initialRank === 2
       ? '🥉'
-      : null;
+      : null
+    : null;
 
   return (
     <div
@@ -552,7 +554,7 @@ export default function Leaderboard({
 
   // Spotlight: Lucky winner & Backbenchers Club (top from bottom)
   const { luckyWinner, backbenchers } = useMemo(() => {
-    if (entries.length < 3) return { luckyWinner: null, backbenchers: [] };
+    if (entries.length < 2) return { luckyWinner: null, backbenchers: [] };
 
     // Deterministic lucky pick that avoids top #1 if multiple participants exist
     let seed = 0;
@@ -634,7 +636,7 @@ export default function Leaderboard({
       )}
 
       {/* Classroom Honours & Masti Spotlight */}
-      {entries.length >= 3 && (luckyWinner || backbenchers.length > 0) && (
+      {entries.length >= 2 && (luckyWinner || backbenchers.length > 0) && (
         <div className="menti-spotlight-wrap">
           <div className="menti-spotlight-header">
             <span className="menti-spotlight-header-badge">✨ Special Masti Honours</span>
