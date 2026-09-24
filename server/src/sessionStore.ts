@@ -307,7 +307,7 @@ export function addResponse(
   const answeredAt = Date.now();
   const isCorrect = graded ? question.correctAnswer === value : false;
   const score = graded
-    ? computeScore(question, isCorrect, answeredAt, session.timerStartedAt)
+    ? computeScore(question, isCorrect, answeredAt, session.unlocksAt ?? session.timerStartedAt)
     : 0;
 
   const response: Response = {

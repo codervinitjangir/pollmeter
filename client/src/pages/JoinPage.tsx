@@ -508,6 +508,16 @@ export default function JoinPage() {
   useEffect(() => {
     if (!joined || phase !== 'question') return;
 
+    // Start each question clean, otherwise one stray warning follows a student
+    // through the rest of the quiz.
+    setTabSwitchWarning(false);
+
+    // On a phone, `blur` fires when the on-screen keyboard opens or a
+    // notification slides in — neither is cheating, and accusing most of the
+    // room of it would be worse than missing a real tab switch.
+    // `visibilitychange` is accurate on both, so only laptops get `blur`.
+    const isTouch = navigator.maxTouchPoints > 0;
+
     function onVisibility() {
       if (document.hidden) {
         setTabSwitchWarning(true);
@@ -519,10 +529,10 @@ export default function JoinPage() {
     }
 
     document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('blur', onBlur);
+    if (!isTouch) window.addEventListener('blur', onBlur);
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
-      window.removeEventListener('blur', onBlur);
+      if (!isTouch) window.removeEventListener('blur', onBlur);
     };
   }, [joined, phase]);
 
