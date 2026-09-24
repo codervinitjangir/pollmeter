@@ -363,6 +363,10 @@ function updateLeaderboardEntry(
  * *does* break it: a streak you can keep by ducking the hard ones isn't a
  * streak, which is why we remember the last graded index each participant
  * answered and check whether anything gradeable went by in between.
+ *
+ * A latecomer starts at -1, so every question before they joined counts as
+ * skipped — their first correct answer opens a streak at 1 rather than
+ * inheriting credit for questions they never saw.
  */
 function updateStreak(
   session: Session,

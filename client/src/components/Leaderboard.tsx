@@ -169,6 +169,10 @@ export function fire4CornerFireworks() {
 /** Mentimeter-style cute emoji avatars */
 const AVATARS = ['🎂', '🍔', '🕵️', '🤔', '🐻', '🍩', '🎅', '🦁', '🐯', '🛸', '🚀', '🌟', '🍕', '🍉', '🍌', '🦀'];
 
+/** Correct answers in a row before the 🔥 badge appears. Below this it would
+ *  show on almost every row and stop meaning anything. */
+const STREAK_THRESHOLD = 3;
+
 function getAvatar(name: string): string {
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash += name.charCodeAt(i);
@@ -341,7 +345,7 @@ function LbRow({
                 {cleanedName}
               </span>
               {isMe && <span className="menti-lb-you-badge">You</span>}
-              {streak >= 3 && isSurgingOrSettled && (
+              {streak >= STREAK_THRESHOLD && isSurgingOrSettled && (
                 <span
                   className="menti-lb-streak-badge"
                   aria-label={`${streak} correct answers in a row`}

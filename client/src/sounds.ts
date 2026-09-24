@@ -13,6 +13,7 @@
  * to co-operate the quiz carries on in silence and nobody in the room notices.
  */
 
+/** Key is shared with the host page's toggle; '1' means silent. */
 const LS_KEY = 'pollsync_muted';
 
 export type SoundCue = 'start' | 'tick' | 'reveal' | 'leaderboard' | 'podium';
