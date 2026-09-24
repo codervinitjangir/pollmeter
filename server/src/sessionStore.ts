@@ -53,6 +53,7 @@ export function createSession(questions: Question[]): Session {
     participants: new Map(),
     responses: {},
     timerStartedAt: null,
+    unlocksAt: null,
     timerEndsAt: null,
     timerTimeout: null,
     leaderboard: new Map(),
@@ -64,6 +65,18 @@ export function createSession(questions: Question[]): Session {
 
   sessions.set(session.code, session);
   return session;
+}
+
+/**
+ * Calculates a dynamic reading-time buffer (3s to 6s) based on question word count.
+ * Shorter 1-line questions give 3s, longer scenario questions give up to 6s.
+ */
+export function calculateReadTime(text: string): number {
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  if (words <= 7) return 3;
+  if (words <= 15) return 4;
+  if (words <= 25) return 5;
+  return 6;
 }
 
 export function getSession(code: string): Session | undefined {

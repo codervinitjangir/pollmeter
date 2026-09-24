@@ -83,6 +83,7 @@ export interface Session {
   participants: Map<string, ParticipantRecord>;  // participantId → record
   responses: Record<string, Response[]>;         // questionId → Response[]
   timerStartedAt: number | null;
+  unlocksAt: number | null;
   timerEndsAt: number | null;
   timerTimeout: ReturnType<typeof setTimeout> | null;
   leaderboard: Map<string, LeaderboardEntry>;
@@ -150,6 +151,8 @@ export interface SessionStatePayload {
   responseCount: number;
   correctAnswer?: string;
   timerStartedAt: number | null;
+  unlocksAt?: number | null;
+  readTimeSeconds?: number | null;
   timerEndsAt: number | null;
   leaderboard: LeaderboardEntry[];
 }
@@ -163,6 +166,8 @@ export interface HostStatePayload {
   results: AggregatedResult | null;
   responseCount: number;
   timerStartedAt: number | null;
+  unlocksAt?: number | null;
+  readTimeSeconds?: number | null;
   timerEndsAt: number | null;
   leaderboard: LeaderboardEntry[];
   finalResults?: Record<string, AggregatedResult>;
@@ -173,6 +178,8 @@ export interface QuestionStartedPayload {
   index: number;
   questionCount: number;
   timerStartedAt: number;
+  unlocksAt?: number;
+  readTimeSeconds?: number;
   timerEndsAt: number;
 }
 

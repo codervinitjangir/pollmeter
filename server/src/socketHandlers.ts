@@ -17,6 +17,7 @@ import {
   toPublicQuestion,
   isGraded,
   sanitizeName,
+  calculateReadTime,
   LATE_GRACE_MS,
   MAX_ANSWER_LENGTH,
 } from './sessionStore';
@@ -163,13 +164,16 @@ function startQuestion(io: Server, session: Session, index: number): void {
     return;
   }
 
+  const readTimeSeconds = calculateReadTime(question.text);
   const startedAt = Date.now();
-  const endsAt = startedAt + question.timeLimitSeconds * 1000;
+  const unlocksAt = startedAt + readTimeSeconds * 1000;
+  const endsAt = unlocksAt + question.timeLimitSeconds * 1000;
 
   session.currentIndex = index;
   session.maxAskedIndex = Math.max(session.maxAskedIndex, index);
   session.phase = 'question';
   session.timerStartedAt = startedAt;
+  session.unlocksAt = unlocksAt;
   session.timerEndsAt = endsAt;
   touchSession(session);
 
@@ -178,6 +182,8 @@ function startQuestion(io: Server, session: Session, index: number): void {
     index,
     questionCount: session.questions.length,
     timerStartedAt: startedAt,
+    unlocksAt,
+    readTimeSeconds,
     timerEndsAt: endsAt,
   });
 
@@ -187,6 +193,8 @@ function startQuestion(io: Server, session: Session, index: number): void {
     question: toPublicQuestion(question),
     index,
     timerStartedAt: startedAt,
+    unlocksAt,
+    readTimeSeconds,
     questionCount: session.questions.length,
   });
 
@@ -194,24 +202,28 @@ function startQuestion(io: Server, session: Session, index: number): void {
     question,
     index,
     timerStartedAt: startedAt,
+    unlocksAt,
+    readTimeSeconds,
     questionCount: session.questions.length,
   });
 
   io.to(session.code).emit('timer_started', {
     startedAt,
+    unlocksAt,
+    readTimeSeconds,
     durationSeconds: question.timeLimitSeconds,
+    timerEndsAt: endsAt,
   });
 
   emitResponseCount(io, session);
 
-  // The only timer in the system. On expiry we lock answers and show results —
-  // we never chain into a second timeout the host is unable to cancel.
+  // Auto-expire answers and reveal distribution after reading buffer + question time
   session.timerTimeout = setTimeout(() => {
     const live = getSession(session.code);
     if (live && live.phase === 'question' && live.currentIndex === index) {
       lockAnswers(io, live);
     }
-  }, question.timeLimitSeconds * 1000);
+  }, (readTimeSeconds + question.timeLimitSeconds) * 1000);
 }
 
 /** question ──▶ results (answers closed, distribution + answer key revealed) */
@@ -220,6 +232,7 @@ function lockAnswers(io: Server, session: Session): void {
 
   clearSessionTimer(session);
   session.phase = 'results';
+  session.unlocksAt = null;
   session.timerEndsAt = Date.now();
   touchSession(session);
 
@@ -329,6 +342,8 @@ function buildStudentState(
     correctAnswer:
       revealed && question && isGraded(question) ? question.correctAnswer : undefined,
     timerStartedAt: session.timerStartedAt,
+    unlocksAt: session.unlocksAt,
+    readTimeSeconds: session.unlocksAt && session.timerStartedAt ? Math.round((session.unlocksAt - session.timerStartedAt) / 1000) : null,
     timerEndsAt: session.timerEndsAt,
     leaderboard: getLeaderboard(session),
   };
@@ -352,6 +367,8 @@ function buildHostState(session: Session): HostStatePayload {
     results,
     responseCount: question ? responseCount(session, question.id) : 0,
     timerStartedAt: session.timerStartedAt,
+    unlocksAt: session.unlocksAt,
+    readTimeSeconds: session.unlocksAt && session.timerStartedAt ? Math.round((session.unlocksAt - session.timerStartedAt) / 1000) : null,
     timerEndsAt: session.timerEndsAt,
     leaderboard: getLeaderboard(session),
     finalResults: session.phase === 'ended' ? buildFinalResults(session) : undefined,
@@ -582,6 +599,11 @@ export function registerSocketHandlers(io: Server, socket: Socket): void {
     const question = getCurrentQuestion(session);
     if (!question || question.id !== payload?.questionId) {
       socket.emit('error', { message: 'That question is no longer on screen.' });
+      return;
+    }
+
+    if (session.unlocksAt && Date.now() < session.unlocksAt) {
+      socket.emit('error', { message: 'Options are still locked for reading. Please wait.' });
       return;
     }
 

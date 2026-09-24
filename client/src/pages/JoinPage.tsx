@@ -82,7 +82,13 @@ export default function JoinPage() {
   const [answeredCount, setAnsweredCount] = useState(0);
   const [participantCount, setParticipantCount] = useState(0);
   const [correctAnswer, setCorrectAnswer] = useState<string | undefined>();
-  const [timer, setTimer] = useState<{ endsAt: number; durationSeconds: number } | null>(null);
+  const [timer, setTimer] = useState<{
+    endsAt: number;
+    durationSeconds: number;
+    startedAt?: number;
+    unlocksAt?: number | null;
+    readTimeSeconds?: number | null;
+  } | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [finalData, setFinalData] = useState<SessionEndedPayload | null>(null);
   const [connected, setConnected] = useState(socket.connected);
@@ -201,7 +207,13 @@ export default function JoinPage() {
       setNameInput(p.name || pendingName.current);
 
       if (p.question && p.timerEndsAt) {
-        setTimer({ endsAt: p.timerEndsAt, durationSeconds: p.question.timeLimitSeconds });
+        setTimer({
+          endsAt: p.timerEndsAt,
+          startedAt: p.timerStartedAt ?? undefined,
+          unlocksAt: p.unlocksAt,
+          readTimeSeconds: p.readTimeSeconds,
+          durationSeconds: p.question.timeLimitSeconds,
+        });
       } else {
         setTimer(null);
       }
@@ -214,7 +226,13 @@ export default function JoinPage() {
       setCurrentIndex(p.index);
       setQuestionCount(p.questionCount);
       setAnsweredCount(0);
-      setTimer({ endsAt: p.timerEndsAt, durationSeconds: p.question.timeLimitSeconds });
+      setTimer({
+        endsAt: p.timerEndsAt,
+        startedAt: p.timerStartedAt,
+        unlocksAt: p.unlocksAt,
+        readTimeSeconds: p.readTimeSeconds,
+        durationSeconds: p.question.timeLimitSeconds,
+      });
     }
 
     function onPhaseChanged(p: PhaseChangedPayload) {
@@ -435,7 +453,80 @@ export default function JoinPage() {
     doJoin(code, name, identity.current);
   }
 
-  const answersOpen = phase === 'question' && myAnswer == null;
+  // Dynamic Reading Buffer
+  const [readSecondsLeft, setReadSecondsLeft] = useState(0);
+
+  useEffect(() => {
+    if (!timer?.unlocksAt) {
+      setReadSecondsLeft(0);
+      return;
+    }
+    const update = () => {
+      const left = Math.max(0, Math.ceil((timer.unlocksAt! - Date.now()) / 1000));
+      setReadSecondsLeft(left);
+    };
+    update();
+    const id = setInterval(update, 150);
+    return () => clearInterval(id);
+  }, [timer?.unlocksAt]);
+
+  const isReadingBuffer = Boolean(timer?.unlocksAt && readSecondsLeft > 0);
+  const answersOpen = phase === 'question' && myAnswer == null && !isReadingBuffer;
+
+  // Student Laptop Anti-Cheat Shield
+  const [isDesktop] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth >= 768 && !('ontouchstart' in window && window.innerWidth < 1024);
+  });
+  const [isStudentFullscreen, setIsStudentFullscreen] = useState(false);
+  const [tabSwitchWarning, setTabSwitchWarning] = useState(false);
+
+  useEffect(() => {
+    function onFsChange() {
+      const isFs = Boolean(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement
+      );
+      setIsStudentFullscreen(isFs);
+    }
+    document.addEventListener('fullscreenchange', onFsChange);
+    document.addEventListener('webkitfullscreenchange', onFsChange);
+    document.addEventListener('mozfullscreenchange', onFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFsChange);
+      document.removeEventListener('webkitfullscreenchange', onFsChange);
+      document.removeEventListener('mozfullscreenchange', onFsChange);
+    };
+  }, []);
+
+  function enterStudentFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+  }
+
+  // Detect tab switch or window blur during question answering
+  useEffect(() => {
+    if (!joined || phase !== 'question') return;
+
+    function onVisibility() {
+      if (document.hidden) {
+        setTabSwitchWarning(true);
+      }
+    }
+
+    function onBlur() {
+      setTabSwitchWarning(true);
+    }
+
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('blur', onBlur);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('blur', onBlur);
+    };
+  }, [joined, phase]);
 
   function submitValue(value: string) {
     if (!question || !identity.current) return;
@@ -855,7 +946,25 @@ export default function JoinPage() {
 
       <div className="main-content">
         <div className="container--narrow stack stack-5" style={{ margin: '0 auto' }}>
-          <div className="card card--lg stack stack-5">
+          {tabSwitchWarning && phase === 'question' && (
+            <div className="tab-switch-banner">
+              <span>⚠️ Tab switch detected! Please keep your attention on the quiz.</span>
+              <button
+                className="btn btn-ghost btn--sm"
+                onClick={() => setTabSwitchWarning(false)}
+                style={{ color: '#92400E', fontWeight: 700 }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          <div
+            className="card card--lg stack stack-5 quiz-anti-select"
+            onContextMenu={(e) => e.preventDefault()}
+            onCopy={(e) => e.preventDefault()}
+            onDragStart={(e) => e.preventDefault()}
+          >
             <div className="stack stack-2">
               <div className="row row-2" style={{ justifyContent: 'space-between' }}>
                 <span className="badge badge-neutral t-label-sm">
@@ -869,6 +978,18 @@ export default function JoinPage() {
               </div>
               <h2 className="t-headline" style={{ marginTop: '0.5rem' }}>{cleanText(question.text)}</h2>
             </div>
+
+            {/* Reading Buffer Indicator */}
+            {isReadingBuffer && (
+              <div className="menti-read-buffer-banner">
+                <span className="menti-read-buffer-icon">📖</span>
+                <div className="menti-read-buffer-info">
+                  <strong className="menti-read-buffer-title">Read the question carefully</strong>
+                  <span className="menti-read-buffer-subtitle">Options unlock in {readSecondsLeft}s</span>
+                </div>
+                <span className="menti-read-buffer-countdown">{readSecondsLeft}s</span>
+              </div>
+            )}
 
             {/* Answers */}
             {isMcq && (
@@ -897,7 +1018,9 @@ export default function JoinPage() {
                       <span className="option-text flex-1" style={{ textAlign: 'left', fontWeight: mine ? 700 : 500 }}>
                         {cleanText(opt)}
                       </span>
-                      {submitting && mine ? (
+                      {isReadingBuffer ? (
+                        <span className="option-status" style={{ color: '#64748B', fontSize: '0.82rem', fontWeight: 600 }}>🔒 Locked</span>
+                      ) : submitting && mine ? (
                         <span className="spinner spinner--sm option-status" style={{ width: 16, height: 16 }} />
                       ) : isKey ? (
                         <span className="option-status" style={{ color: '#0ca30c', fontWeight: 800 }}>✓ Correct</span>
@@ -1032,6 +1155,27 @@ export default function JoinPage() {
       </div>
 
       {reactionsDock}
+
+      {/* Laptop / Desktop Fullscreen Anti-Cheat Overlay */}
+      {isDesktop && joined && phase === 'question' && !isStudentFullscreen && (
+        <div className="student-fs-guard-overlay">
+          <div className="student-fs-guard-card">
+            <span className="student-fs-guard-icon">🛡️</span>
+            <h2 className="student-fs-guard-title">Exam Mode Required</h2>
+            <p className="student-fs-guard-desc">
+              To ensure fair competition and prevent browser toolbars from assisting, laptop participants must remain in fullscreen mode.
+            </p>
+            <button
+              className="btn btn-primary btn--lg"
+              onClick={enterStudentFullscreen}
+              id="student-enter-fs-btn"
+              style={{ fontWeight: 800, padding: '0.75rem 2rem', borderRadius: '12px' }}
+            >
+              ⛶ Enter Fullscreen to Answer
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

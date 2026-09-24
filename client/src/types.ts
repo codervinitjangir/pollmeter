@@ -79,6 +79,8 @@ export interface SessionStatePayload {
   responseCount: number;
   correctAnswer?: string;
   timerStartedAt: number | null;
+  unlocksAt?: number | null;
+  readTimeSeconds?: number | null;
   timerEndsAt: number | null;
   leaderboard: LeaderboardEntry[];
 }
@@ -92,6 +94,8 @@ export interface HostStatePayload {
   results: AggregatedResult | null;
   responseCount: number;
   timerStartedAt: number | null;
+  unlocksAt?: number | null;
+  readTimeSeconds?: number | null;
   timerEndsAt: number | null;
   leaderboard: LeaderboardEntry[];
   finalResults?: Record<string, AggregatedResult>;
@@ -102,6 +106,8 @@ export interface QuestionStartedPayload {
   index: number;
   questionCount: number;
   timerStartedAt: number;
+  unlocksAt?: number;
+  readTimeSeconds?: number;
   timerEndsAt: number;
 }
 
@@ -112,9 +118,12 @@ export interface QuestionReviewedPayload {
   questionCount: number;
 }
 
-export interface QuestionChangedPayload {  question: Question;
+export interface QuestionChangedPayload {
+  question: Question;
   index: number;
   timerStartedAt: number;
+  unlocksAt?: number;
+  readTimeSeconds?: number;
   questionCount?: number;
 }
 
@@ -128,6 +137,8 @@ export interface ResultsUpdatedPayload {
 
 export interface TimerStartedPayload {
   startedAt: number;
+  unlocksAt?: number | null;
+  readTimeSeconds?: number | null;
   durationSeconds: number;
   questionId?: string;
   timerEndsAt?: number | null;

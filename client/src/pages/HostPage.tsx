@@ -67,7 +67,13 @@ export default function HostPage() {
   const [results, setResults] = useState<AggregatedResult | null>(null);
   const [answeredCount, setAnsweredCount] = useState(0);
   const [correctAnswer, setCorrectAnswer] = useState<string | undefined>();
-  const [timer, setTimer] = useState<{ endsAt: number; durationSeconds: number } | null>(null);
+  const [timer, setTimer] = useState<{
+    endsAt: number;
+    durationSeconds: number;
+    startedAt?: number;
+    unlocksAt?: number | null;
+    readTimeSeconds?: number | null;
+  } | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [prevLeaderboard, setPrevLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [finalData, setFinalData] = useState<SessionEndedPayload | null>(null);
@@ -77,7 +83,10 @@ export default function HostPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [reactions, setReactions] = useState<Array<{ id: string; emoji: string; drift: number }>>([]);
 
-  // Auto-advance off the leaderboard so the room keeps moving on its own.
+  // Auto-advance toggle: defaults to false (manual mode) so mentor has complete control
+  const [autoAdvanceEnabled, setAutoAdvanceEnabled] = useState(() => {
+    return localStorage.getItem('pollmeter_auto_advance') === 'true';
+  });
   const [autoAdvance, setAutoAdvance] = useState(5);
   const [autoPaused, setAutoPaused] = useState(false);
 
@@ -126,7 +135,13 @@ export default function HostPage() {
 
       const q = p.currentIndex >= 0 ? p.questions[p.currentIndex] : null;
       if (q && p.timerEndsAt && p.phase === 'question') {
-        setTimer({ endsAt: p.timerEndsAt, durationSeconds: q.timeLimitSeconds });
+        setTimer({
+          endsAt: p.timerEndsAt,
+          startedAt: p.timerStartedAt ?? undefined,
+          unlocksAt: p.unlocksAt,
+          readTimeSeconds: p.readTimeSeconds,
+          durationSeconds: q.timeLimitSeconds,
+        });
       } else {
         setTimer(null);
       }
@@ -165,9 +180,14 @@ export default function HostPage() {
       if (p.questionCount) setQuestionCount(p.questionCount);
       setResults(null);
       setAnsweredCount(0);
-      setCorrectAnswer(undefined);
+      const readSecs = p.readTimeSeconds ?? 3;
+      const unlocksAt = p.unlocksAt ?? (p.timerStartedAt + readSecs * 1000);
+      const endsAt = unlocksAt + p.question.timeLimitSeconds * 1000;
       setTimer({
-        endsAt: p.timerStartedAt + p.question.timeLimitSeconds * 1000,
+        endsAt,
+        startedAt: p.timerStartedAt,
+        unlocksAt,
+        readTimeSeconds: readSecs,
         durationSeconds: p.question.timeLimitSeconds,
       });
     }
@@ -407,7 +427,7 @@ export default function HostPage() {
     return () => clearInterval(id);
   }, [phase, resultsPaused, showLeaderboard]);
 
-  // ─── Auto-advance from the leaderboard (5s) ───────────────────────────────
+  // ─── Auto-advance from the leaderboard (manual by default) ────────────────
   useEffect(() => {
     if (phase !== 'leaderboard') return;
     setAutoAdvance(5);
@@ -415,7 +435,7 @@ export default function HostPage() {
   }, [phase, currentIndex]);
 
   useEffect(() => {
-    if (phase !== 'leaderboard' || autoPaused) return;
+    if (phase !== 'leaderboard' || !autoAdvanceEnabled || autoPaused) return;
     const id = setInterval(() => {
       setAutoAdvance((prev) => {
         if (prev <= 1) {
@@ -427,7 +447,22 @@ export default function HostPage() {
       });
     }, 1000);
     return () => clearInterval(id);
-  }, [phase, autoPaused, next]);
+  }, [phase, autoAdvanceEnabled, autoPaused, next]);
+
+  // Keyboard navigation for host: Space or ArrowRight to advance on leaderboard
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === ' ' || e.key === 'ArrowRight') {
+        if (phase === 'leaderboard') {
+          e.preventDefault();
+          next();
+        }
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [phase, next]);
 
   // ─── Projector audio cues ─────────────────────────────────────────────────
   // Driven off the server phase, like everything else on this screen, so the
@@ -1358,9 +1393,16 @@ export default function HostPage() {
               {/* ─── Question header ─── */}
               <div className="menti-stage-q-header">
                 <div className="menti-stage-q-body">
-                  <span className="menti-stage-q-num">
-                    Question {currentIndex + 1} of {questionCount}
-                  </span>
+                  <div className="row row-2" style={{ alignItems: 'center' }}>
+                    <span className="menti-stage-q-num">
+                      Question {currentIndex + 1} of {questionCount}
+                    </span>
+                    {timer?.unlocksAt && Date.now() < timer.unlocksAt && (
+                      <span className="badge badge-primary menti-read-badge">
+                        📖 Reading Time
+                      </span>
+                    )}
+                  </div>
                   <h1 className="menti-stage-question">{cleanText(currentQuestion.text)}</h1>
                 </div>
                 {/* Countdown timer */}
@@ -1368,6 +1410,8 @@ export default function HostPage() {
                   <div className="menti-stage-timer-wrap">
                     <CountdownTimer
                       endsAt={timer.endsAt}
+                      unlocksAt={timer.unlocksAt}
+                      startedAt={timer.startedAt}
                       durationSeconds={timer.durationSeconds}
                       size={82}
                     />
@@ -1484,17 +1528,51 @@ export default function HostPage() {
           )}
 
           {phase === 'leaderboard' && (
-            <div className="row row-2">
-              <span className="chip chip--pulse">
-                {isLastQuestion ? 'Finishing' : 'Next question'} in {autoAdvance}s
-              </span>
+            <div className="row row-2" style={{ alignItems: 'center', gap: '0.75rem' }}>
               <button
-                className="btn btn-ghost btn--sm"
-                onClick={() => setAutoPaused((p) => !p)}
-                title={autoPaused ? 'Resume countdown' : 'Pause countdown'}
+                className="btn btn-primary"
+                onClick={next}
+                id="leaderboard-next-btn"
+                style={{ fontWeight: 800, padding: '0.55rem 1.4rem', borderRadius: '10px' }}
               >
-                {autoPaused ? '▶ Resume' : '⏸ Pause'}
+                {isLastQuestion ? '🏆 View Final Standings' : 'Next Question ➔'}
               </button>
+
+              {autoAdvanceEnabled ? (
+                <div className="row row-2" style={{ alignItems: 'center', gap: '0.5rem' }}>
+                  <span className="chip chip--pulse">
+                    {isLastQuestion ? 'Finishing' : 'Next'} in {autoAdvance}s
+                  </span>
+                  <button
+                    className="btn btn-ghost btn--sm"
+                    onClick={() => setAutoPaused((p) => !p)}
+                    title={autoPaused ? 'Resume countdown' : 'Pause countdown'}
+                  >
+                    {autoPaused ? '▶ Resume' : '⏸ Pause'}
+                  </button>
+                  <button
+                    className="btn btn-ghost btn--sm"
+                    onClick={() => {
+                      setAutoAdvanceEnabled(false);
+                      localStorage.setItem('pollmeter_auto_advance', 'false');
+                    }}
+                    title="Switch to manual next button"
+                  >
+                    ⚡ Auto: ON
+                  </button>
+                </div>
+              ) : (
+                <button
+                  className="btn btn-ghost btn--sm"
+                  onClick={() => {
+                    setAutoAdvanceEnabled(true);
+                    localStorage.setItem('pollmeter_auto_advance', 'true');
+                  }}
+                  title="Enable automatic 5-second countdown"
+                >
+                  ⚡ Auto: OFF (Manual)
+                </button>
+              )}
             </div>
           )}
 
