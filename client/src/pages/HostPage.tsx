@@ -34,6 +34,7 @@ import { getAuthUser, getAuthToken, setStoredAuth, clearStoredAuth, AuthUser, fe
 import CollegeAuthModal from '../components/CollegeAuthModal';
 import MentorPinModal from '../components/MentorPinModal';
 import MentorQuizHistoryModal from '../components/MentorQuizHistoryModal';
+import { getActiveTheme, toggleTheme, Theme } from '../theme';
 
 /**
  * The projector laptop is the least reliable machine in the room — someone
@@ -73,6 +74,7 @@ export default function HostPage() {
   const builderRef = useRef<HTMLDivElement>(null);
   const mainPanelRef = useRef<HTMLDivElement>(null);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const [hostTheme, setHostTheme] = useState<Theme>(getActiveTheme());
   const [authUser, setAuthUser] = useState<AuthUser | null>(() => getAuthUser());
   const [showAuthModal, setShowAuthModal] = useState(() => !getAuthUser());
   const [showPinModal, setShowPinModal] = useState(() => {
@@ -949,7 +951,16 @@ export default function HostPage() {
           </div>
         </div>
 
-        <div className="menti-sidebar-footer">
+        <div className="menti-sidebar-footer" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+          <button
+            className="menti-nav-link"
+            onClick={() => setHostTheme(toggleTheme())}
+            title="Toggle Dark / Light Theme"
+            id="host-theme-toggle-btn"
+          >
+            <span>{hostTheme === 'dark' ? '☀️' : '🌙'}</span>
+            <span>{hostTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+          </button>
           <button className="menti-nav-link" onClick={() => setShowHowItWorks(true)}><span>📖</span> How it works</button>
         </div>
       </aside>
@@ -966,6 +977,14 @@ export default function HostPage() {
             />
           </div>
           <div className="menti-topbar-actions">
+            <button
+              className="pm-theme-toggle-btn"
+              onClick={() => setHostTheme(toggleTheme())}
+              title="Toggle Dark / Light Theme"
+              id="topbar-theme-toggle-btn"
+            >
+              {hostTheme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+            </button>
             {authUser ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                 {authUser.role === 'admin' && (

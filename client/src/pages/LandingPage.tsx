@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getActiveTheme, toggleTheme, Theme } from '../theme';
 
 export default function LandingPage() {
   const navigate = useNavigate();
   const [fastCode, setFastCode] = useState('');
+  const [theme, setCurrentTheme] = useState<Theme>(getActiveTheme());
 
   function handleFastJoin(e: React.FormEvent) {
     e.preventDefault();
@@ -35,6 +37,14 @@ export default function LandingPage() {
         </div>
 
         <div className="pm-landing-nav-actions">
+          <button
+            className="pm-theme-toggle-btn"
+            onClick={() => setCurrentTheme(toggleTheme())}
+            title="Toggle Dark / Light Mode"
+            id="theme-toggle-btn"
+          >
+            {theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode'}
+          </button>
           <button
             className="pm-landing-nav-btn pm-landing-nav-btn-secondary"
             onClick={() => navigate('/admin')}

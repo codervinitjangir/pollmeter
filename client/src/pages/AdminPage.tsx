@@ -17,6 +17,7 @@ import {
   AuditLogItem,
 } from '../auth';
 import CollegeAuthModal from '../components/CollegeAuthModal';
+import { getActiveTheme, toggleTheme, Theme } from '../theme';
 
 const POPULAR_DEPARTMENTS = [
   'School of Computing & Information Technology',
@@ -45,6 +46,7 @@ export default function AdminPage() {
   const navigate = useNavigate();
   const [authUser, setAuthUser] = useState<AuthUser | null>(() => getAuthUser());
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [adminTheme, setAdminTheme] = useState<Theme>(getActiveTheme());
 
   // Core Data
   const [overview, setOverview] = useState<UniversityOverview | null>(null);
@@ -328,6 +330,14 @@ export default function AdminPage() {
         </div>
 
         <div className="pm-admin-topbar-actions">
+          <button
+            className="pm-theme-toggle-btn"
+            onClick={() => setAdminTheme(toggleTheme())}
+            title="Toggle Dark / Light Theme"
+            id="admin-theme-toggle-btn"
+          >
+            {adminTheme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+          </button>
           <button
             className="pm-btn-mentor-switch"
             onClick={() => navigate('/dashboard')}
