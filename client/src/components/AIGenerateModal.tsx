@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Question, AiStatus } from '../types';
 import { apiUrl } from '../api';
 import QuestionForm from './QuestionForm';
@@ -16,11 +16,13 @@ type Mode = 'topic' | 'syllabus';
 /** Mirrors the server's own caps so the UI can't ask for something it will trim. */
 const MAX_COUNT = 20;
 const MAX_SYLLABUS = 4000;
+const MAX_FOCUS = 200;
 
 export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }: Props) {
   const [mode, setMode] = useState<Mode>('topic');
   const [topic, setTopic] = useState(initialTopic);
   const [syllabus, setSyllabus] = useState('');
+  const [focus, setFocus] = useState('');
   const [audience, setAudience] = useState('');
   const [count, setCount] = useState(5);
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
@@ -83,6 +85,7 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
         body: JSON.stringify({
           topic: t,
           syllabus: mode === 'syllabus' ? s : '',
+          focus: mode === 'syllabus' ? focus.trim() : '',
           audience: audience.trim(),
           count,
           difficulty,
@@ -126,6 +129,28 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
       onClose();
     }
   }
+
+  /**
+   * The complaint from mentors was about distribution, not correctness: a set
+   * that quietly drew eighteen of twenty questions from unit one still looked
+   * fine read question by question. Tallying the sections surfaces that in one
+   * line, before the quiz reaches a projector.
+   */
+  const coverage = useMemo(() => {
+    if (!preview || preview.length === 0) return [];
+    const tally = new Map<string, number>();
+    for (const q of preview) {
+      const section = q.covers?.trim();
+      if (!section) continue;
+      tally.set(section, (tally.get(section) ?? 0) + 1);
+    }
+    return Array.from(tally.entries()).sort((a, b) => b[1] - a[1]);
+  }, [preview]);
+
+  // One section owning more than half the set is the exact failure mentors
+  // described, so say so plainly rather than leaving them to count badges.
+  const lopsided =
+    preview !== null && coverage.length > 1 && coverage[0][1] > preview.length / 2;
 
   const subtitle = !status
     ? 'Checking what is configured…'
@@ -238,6 +263,28 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
           </div>
         )}
 
+        {mode === 'syllabus' && (
+          <div className="field">
+            <div className="row row-2" style={{ justifyContent: 'space-between' }}>
+              <label className="field-label" htmlFor="ai-focus">
+                Narrow it down <span className="text-muted">(optional)</span>
+              </label>
+              <span className="t-body-sm text-muted">only this part gets used</span>
+            </div>
+            <input
+              id="ai-focus"
+              type="text"
+              value={focus}
+              maxLength={MAX_FOCUS}
+              onChange={(e) => setFocus(e.target.value)}
+              placeholder='e.g. "Unit 3 only", "chapters 1-2", "skip the history section"'
+            />
+            <p className="t-body-sm text-muted" style={{ marginTop: '0.3rem' }}>
+              Leave this empty and questions are spread evenly across every section you pasted.
+            </p>
+          </div>
+        )}
+
         <div className="field">
           <label className="field-label" htmlFor="ai-audience">Who is the class? <span className="text-muted">(optional)</span></label>
           <input
@@ -269,11 +316,18 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
             </select>
           </div>
 
+          {/*
+            This was a <select> holding a single option, which reads as a broken
+            control — a mentor clicks it expecting choices and nothing opens.
+            Generation is deliberately MCQ-only (open text carries no answer key,
+            so it cannot score and would silently flatten the leaderboard), so
+            state that as a fact instead of dressing it up as a choice.
+          */}
           <div className="field" style={{ flex: '1 1 100px' }}>
-            <label className="field-label" htmlFor="ai-type">Format</label>
-            <select id="ai-type" value={qtype} onChange={(e) => setQtype(e.target.value as QType)}>
-              <option value="mcq">MCQ</option>
-            </select>
+            <span className="field-label">Format</span>
+            <div className="ai-static-field" title="Generated questions are always multiple choice so they can be scored">
+              MCQ · scored
+            </div>
           </div>
 
           <div className="field" style={{ flex: '1 1 80px' }}>
@@ -318,6 +372,27 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
               </p>
             )}
 
+            {coverage.length > 0 && (
+              <div className={`ai-coverage${lopsided ? ' ai-coverage--lopsided' : ''}`}>
+                <span className="t-label-sm">
+                  {lopsided ? '⚠ Uneven spread' : '📊 Spread across your material'}
+                </span>
+                <div className="row row-2 row-wrap" style={{ marginTop: '0.35rem' }}>
+                  {coverage.map(([section, n]) => (
+                    <span key={section} className="badge badge-neutral t-label-sm">
+                      {section} · {n}
+                    </span>
+                  ))}
+                </div>
+                {lopsided && (
+                  <p className="t-body-sm" style={{ margin: '0.4rem 0 0' }}>
+                    Over half the set comes from one section. Regenerate, or use
+                    “Narrow it down” to pick the part you actually taught.
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="stack stack-3" style={{ maxHeight: 280, overflowY: 'auto', paddingRight: '0.25rem' }}>
               {preview.map((q, i) => (
                 <div key={q.id} className="card card--sm row row-3" style={{ alignItems: 'flex-start' }}>
@@ -333,6 +408,11 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
                       ) : (
                         <span className="badge badge-neutral t-label-sm">Poll</span>
                       )}
+                      {q.covers && (
+                        <span className="badge badge-primary t-label-sm" title="Section this question came from">
+                          📖 {q.covers}
+                        </span>
+                      )}
                     </div>
                     <p className="t-body-sm text-primary" style={{ fontWeight: 600 }}>{q.text}</p>
                     {q.options && (
@@ -340,6 +420,14 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
                         {q.options
                           .map((o) => (o === q.correctAnswer ? `✓ ${o}` : o))
                           .join(' · ')}
+                      </p>
+                    )}
+                    {/* The model's case for its own answer key. A wrong key
+                        almost always arrives with visibly thin reasoning, so
+                        this turns a skim into an actual check. */}
+                    {q.why && (
+                      <p className="ai-why t-body-sm">
+                        <span aria-hidden="true">💡</span> {q.why}
                       </p>
                     )}
                   </div>

@@ -20,7 +20,6 @@ import {
 } from '../types';
 import QuestionForm from '../components/QuestionForm';
 import { QRCodeSVG } from 'qrcode.react';
-import QRCodeDisplay from '../components/QRCodeDisplay';
 import LiveBarChart from '../components/LiveBarChart';
 import TextResponseList from '../components/TextResponseList';
 import CountdownTimer from '../components/CountdownTimer';
@@ -62,6 +61,17 @@ export default function HostPage() {
   // Live session state — all server-authoritative.
   const [phase, setPhase] = useState<SessionPhase>('lobby');
   const [participants, setParticipants] = useState<Participant[]>([]);
+  /**
+   * A student who joined mid-quiz used to be invisible to the mentor: the roster
+   * rendered only on the lobby screen, and someone on 0 points sits well below
+   * the top-10 leaderboard cut. The server was broadcasting them correctly all
+   * along — nothing on the presenter screen drew them. These back an always-on
+   * head count plus a short-lived toast per genuinely new arrival.
+   */
+  const [showRoster, setShowRoster] = useState(false);
+  const [joinAlerts, setJoinAlerts] = useState<{ id: string; name: string }[]>([]);
+  const knownParticipantIds = useRef<Set<string>>(new Set());
+  const phaseRef = useRef<SessionPhase>('lobby');
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [questionCount, setQuestionCount] = useState(0);
@@ -268,6 +278,28 @@ export default function HostPage() {
 
     function onParticipants(p: ParticipantsUpdatedPayload) {
       setParticipants(p.participants);
+
+      // Anyone whose id we haven't seen before is a real arrival. A student
+      // reconnecting after their phone slept keeps the same id, so wifi churn
+      // correctly stays silent instead of toasting the same name all lesson.
+      const known = knownParticipantIds.current;
+      const arrivals = p.participants.filter((x) => !known.has(x.id));
+      for (const x of p.participants) known.add(x.id);
+
+      // The lobby already lists everyone by name, so announcing there is noise.
+      if (arrivals.length === 0 || phaseRef.current === 'lobby') return;
+
+      // Cap the burst: a coach class filing in at once shouldn't bury the
+      // presenter controls under a column of toasts.
+      const alerts = arrivals.slice(0, 3).map((x) => ({
+        id: `${x.id}-${Date.now()}`,
+        name: x.name,
+      }));
+      setJoinAlerts((prev) => [...prev, ...alerts]);
+      window.setTimeout(() => {
+        const expired = new Set(alerts.map((a) => a.id));
+        setJoinAlerts((prev) => prev.filter((a) => !expired.has(a.id)));
+      }, 4500);
     }
 
     function onReaction(p: { emoji: string; id: string }) {
@@ -420,6 +452,12 @@ export default function HostPage() {
   const previous = useCallback(() => send('host_previous'), [send]);
   const extendTime = useCallback((seconds: number) => send('host_extend_time', { seconds }), [send]);
   const endSession = useCallback(() => send('host_end'), [send]);
+
+  // `onParticipants` is registered once at mount, so it can't read `phase` from
+  // state without going stale. Mirror it into a ref instead.
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
 
   // ─── Auto-advance from results to leaderboard (2s) ────────────────────────
   useEffect(() => {
@@ -1292,6 +1330,7 @@ export default function HostPage() {
                     limit={10}
                     title=""
                     celebrateKey="final"
+                    isFinal={true}
                   />
                 </div>
               </div>
@@ -1522,6 +1561,65 @@ export default function HostPage() {
 
         {error && <div className="alert alert-error" style={{ margin: 0, padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}>⚠ {error}</div>}
 
+        {/* Latecomers announce themselves here — the top-10 board can't show a
+            student on 0 points, and the mentor needs to know they're in. */}
+        {joinAlerts.length > 0 && (
+          <div className="host-join-toasts" aria-live="polite">
+            {joinAlerts.map((a) => (
+              <div key={a.id} className="host-join-toast">
+                <span aria-hidden="true">{getAvatar(a.name)}</span>
+                <strong>{a.name}</strong> joined
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Full roster, on demand, in every phase — not just the lobby. */}
+        {showRoster && (
+          <div className="host-roster-panel" role="region" aria-label="Students in the room">
+            <div className="host-roster-panel-head">
+              <strong>
+                👥 {participants.length} in the room
+                {participants.some((p) => !p.connected) && (
+                  <span className="text-muted" style={{ fontWeight: 500 }}>
+                    {' '}· {participants.filter((p) => p.connected).length} connected
+                  </span>
+                )}
+              </strong>
+              <button
+                className="btn btn-ghost btn--sm"
+                onClick={() => setShowRoster(false)}
+                aria-label="Close roster"
+              >
+                ✕
+              </button>
+            </div>
+            {participants.length === 0 ? (
+              <p className="text-muted" style={{ margin: 0, fontSize: '0.85rem' }}>
+                Nobody has joined yet. Students join with code <strong>{code}</strong>.
+              </p>
+            ) : (
+              <div className="menti-lobby-chips-wrap">
+                {participants.map((p) => (
+                  <span
+                    key={p.id}
+                    className="menti-lobby-chip"
+                    style={{ opacity: p.connected ? 1 : 0.55 }}
+                    title={
+                      p.connected
+                        ? 'Connected'
+                        : 'Disconnected — phone asleep, or wifi dropped. Their score is safe.'
+                    }
+                  >
+                    <span style={{ marginRight: '0.35rem' }}>{getAvatar(p.name)}</span> {p.name}
+                    {!p.connected && <span style={{ marginLeft: '0.3rem' }}>💤</span>}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ─── Presenter controls ─────────────────────────────────────── */}
         <div className="host-bar">
           <button
@@ -1615,6 +1713,19 @@ export default function HostPage() {
               )}
             </div>
           )}
+
+          <button
+            className={`btn btn-ghost host-roster-pill${
+              showRoster ? ' host-roster-pill--open' : ''
+            }`}
+            onClick={() => setShowRoster((v) => !v)}
+            title="Students in the room — includes anyone who joined mid-quiz"
+            aria-label={`${participants.length} students in the room. Show roster.`}
+            aria-expanded={showRoster}
+            id="roster-btn"
+          >
+            👥 {participants.length}
+          </button>
 
           <button
             className="btn btn-ghost"

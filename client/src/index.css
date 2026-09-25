@@ -2017,6 +2017,85 @@ fieldset.field {
   box-shadow: var(--shadow-2);
   flex-shrink: 0;
 }
+
+/* ─── Live roster & mid-quiz arrivals ─────────────────────────────────────── */
+/*
+ * A student who joins at question 3 has 0 points, so a top-10 board can never
+ * show them. That makes this head count the only honest signal that the room
+ * grew, which is why it stays in the control strip through every phase rather
+ * than living on the lobby screen the mentor has already left behind.
+ */
+.host-roster-pill {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.host-roster-pill--open {
+  background: var(--surface-mid);
+  color: var(--menti-blue);
+}
+
+.host-roster-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2);
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.host-roster-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/*
+ * Toasts sit just above the control strip, never over the projected stage: the
+ * class is watching that area, and a name popping up mid-question is a
+ * distraction at best. `pointer-events: none` keeps them from ever swallowing a
+ * click meant for the presenter controls underneath.
+ */
+.host-join-toasts {
+  position: sticky;
+  bottom: 4.5rem;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding: 0 1rem;
+  pointer-events: none;
+}
+
+.host-join-toast {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  background: var(--menti-green-light);
+  color: var(--menti-green-dark);
+  border: 1px solid var(--menti-green);
+  box-shadow: var(--shadow-1);
+  animation: joinToastIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes joinToastIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.94); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .host-join-toast { animation: none; }
+}
 .host-bar-spacer { flex: 1 1 auto; }
 .host-bar .btn { flex: 0 0 auto; }
 
@@ -2117,6 +2196,60 @@ fieldset.field {
 .ai-source--ai   { background: var(--menti-green-light); color: #166534; }
 .ai-source--bank { background: #FEF3C7; color: #92400E; }
 .ai-syllabus { font-family: var(--font); min-height: 96px; resize: vertical; }
+
+/*
+ * A settled fact, shaped like the inputs beside it so the row still reads as a
+ * single group — but flat and unfocusable, so nobody waits for a menu that was
+ * never going to open.
+ */
+.ai-static-field {
+  display: flex;
+  align-items: center;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--r-sm);
+  background: var(--surface-low);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ─── Generated-set review: coverage & answer-key justification ───────────── */
+/*
+ * Reading twenty generated questions one by one does not reveal that eighteen
+ * of them came from the same unit — which is the failure mentors actually hit.
+ * The tally below turns that into a single glance, and goes amber when one
+ * section owns more than half the set.
+ */
+.ai-coverage {
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--r-sm);
+  background: var(--surface-low);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.ai-coverage--lopsided {
+  background: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #FCD34D;
+}
+
+/*
+ * The model's one-line case for its own answer key. Set apart from the options
+ * with a rule rather than a box: it's a footnote for the mentor, and must never
+ * compete with the question text it sits under.
+ */
+.ai-why {
+  margin: 0.15rem 0 0;
+  padding-left: 0.55rem;
+  border-left: 2px solid var(--border);
+  color: var(--text-muted);
+  font-style: italic;
+  line-height: 1.5;
+}
 
 
 /* ─── Modern 1-Page Light Mentimeter Landing Page ────────────────────────── */
@@ -2769,11 +2902,13 @@ fieldset.field {
 }
 
 .menti-stage-q-body {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
+  max-width: calc(100% - 100px);
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  overflow: hidden;
 }
 
 .menti-stage-q-num {
@@ -2790,10 +2925,14 @@ fieldset.field {
   line-height: 1.25;
   letter-spacing: -0.02em;
   color: var(--text-primary);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  hyphens: auto;
 }
 
 .menti-stage-timer-wrap {
   flex-shrink: 0;
+  margin-left: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5354,6 +5493,83 @@ fieldset.field {
   padding: 0.35rem 0.65rem;
   border-radius: 8px;
   border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+/* ─── Question Form: Poll Enhancements & Templates ───────────────────────── */
+.poll-mode-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #F5F3FF;
+  border: 1px solid #DDD6FE;
+  color: #5B21B6;
+  padding: 0.65rem 1rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.poll-templates-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.85rem;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 0.75rem 0.9rem;
+}
+
+.poll-templates-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748B;
+}
+
+.poll-templates-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.poll-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #FFFFFF;
+  border: 1.5px solid #CBD5E1;
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.15s var(--ease);
+}
+
+.poll-chip-btn:hover {
+  border-color: #6366F1;
+  color: #4F46E5;
+  background: #EEF2FF;
+  transform: translateY(-1px);
+}
+
+.poll-chip-btn.is-active {
+  background: #4F46E5;
+  border-color: #4F46E5;
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
+}
+
+.qform-hint--poll {
+  background: #F5F3FF;
+  border: 1px solid #DDD6FE;
+  color: #6D28D9;
+  padding: 0.6rem 0.85rem;
+  border-radius: 10px;
 }
 
 

@@ -17,6 +17,7 @@ interface Props {
   showAll?: boolean;
   limit?: number;
   celebrateKey?: string | number;
+  isFinal?: boolean;
 }
 
 interface BarStyle {
@@ -461,6 +462,7 @@ export default function Leaderboard({
   celebrateKey,
   showPodium,
   isPodium,
+  isFinal = false,
 }: Props) {
   const isProjector = variant === 'projector';
   const celebrated = useRef<string | number | undefined>(undefined);
@@ -635,8 +637,8 @@ export default function Leaderboard({
         </p>
       )}
 
-      {/* Classroom Honours & Masti Spotlight */}
-      {entries.length >= 2 && (luckyWinner || backbenchers.length > 0) && (
+      {/* Classroom Honours & Masti Spotlight — ONLY on final leaderboard */}
+      {(isFinal || celebrateKey === 'final') && entries.length >= 2 && (luckyWinner || backbenchers.length > 0) && (
         <div className="menti-spotlight-wrap">
           <div className="menti-spotlight-header">
             <span className="menti-spotlight-header-badge">✨ Special Masti Honours</span>

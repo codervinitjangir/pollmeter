@@ -9,6 +9,22 @@ export interface Question {
   options?: string[];          // Only for MCQ
   correctAnswer?: string;      // MCQ + answer key = graded quiz question
   timeLimitSeconds: number;
+  /**
+   * Review metadata, set only by AI generation and only for the mentor's eyes.
+   *
+   * `covers` is the syllabus section the question came from — the mentor's
+   * complaint was that generated sets silently clustered on one unit, and a
+   * label per question makes that visible at a glance instead of requiring them
+   * to read all twenty and notice.
+   *
+   * `why` is the model's one-line justification for the answer key. A mentor
+   * skimming a set can't otherwise tell a confident wrong key from a right one,
+   * and hallucinated answers tend to arrive with visibly weak reasoning.
+   *
+   * Neither is forwarded by `toPublicQuestion`, so students never receive them.
+   */
+  covers?: string;
+  why?: string;
 }
 
 /**

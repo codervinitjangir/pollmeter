@@ -533,11 +533,11 @@ export function registerSocketHandlers(io: Server, socket: Socket): void {
     const session = getSession(code);
 
     if (!session) {
-      socket.emit('error', { message: `No session found with code ${code}.` });
+      socket.emit('error', { message: `No session found with code ${code}.`, fatal: true });
       return;
     }
     if (session.phase === 'ended') {
-      socket.emit('error', { message: 'This session has already finished.' });
+      socket.emit('error', { message: 'This session has already finished.', fatal: true });
       return;
     }
 
@@ -578,14 +578,23 @@ export function registerSocketHandlers(io: Server, socket: Socket): void {
       return;
     }
 
+    // `fatal` from here down means "the thing you belong to no longer exists",
+    // which is what a student sees after a server redeploy wipes the in-memory
+    // store. It is deliberately NOT set on the `!participantId` branch above:
+    // that one also fires in the brief window between a socket reconnecting and
+    // its automatic re-join landing, and the re-join will fix it on its own.
+    // Tagging that case would strand a student over a race they never saw.
     const session = getSession(code);
     if (!session) {
-      socket.emit('error', { message: 'Session not found.' });
+      socket.emit('error', { message: 'Session not found.', fatal: true });
       return;
     }
 
     if (!session.participants.has(participantId)) {
-      socket.emit('error', { message: 'Your participant session is no longer valid. Please rejoin.' });
+      socket.emit('error', {
+        message: 'Your participant session is no longer valid. Please rejoin.',
+        fatal: true,
+      });
       return;
     }
 

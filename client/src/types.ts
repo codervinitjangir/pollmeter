@@ -7,6 +7,14 @@ export interface Question {
   options?: string[];
   correctAnswer?: string;
   timeLimitSeconds: number;
+  /**
+   * Mentor-facing review metadata from AI generation. `covers` is the syllabus
+   * section the question was drawn from, `why` is the model's one-line case for
+   * the answer key. Both optional: hand-written questions have neither, and a
+   * model that ignores the fields costs a label rather than the question.
+   */
+  covers?: string;
+  why?: string;
 }
 
 /** What a student's browser is allowed to know — never carries the answer key. */

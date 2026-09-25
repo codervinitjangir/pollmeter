@@ -146,12 +146,24 @@ export default function QuestionForm({ onSave, onAdd, initial = null, onCancel }
     }
   }
 
-  function setPollMode() {
+  function setPollMode(template?: 'yes_no' | 'agree_disagree' | 'rating' | 'custom') {
     setFormat('poll');
     setType('mcq');
     setCorrectIndex(null);
-    if (options.length === 2 && options[0] === 'True' && options[1] === 'False') {
-      setOptions(['', '', '', '']);
+    if (template === 'yes_no') {
+      setOptions(['Yes', 'No']);
+    } else if (template === 'agree_disagree') {
+      setOptions(['Agree', 'Neutral', 'Disagree']);
+    } else if (template === 'rating') {
+      setOptions(['1 ★', '2 ★', '3 ★', '4 ★', '5 ★']);
+    } else if (template === 'custom') {
+      setOptions(['Option A', 'Option B', 'Option C', 'Option D']);
+    } else {
+      if (options.length === 2 && options[0] === 'True' && options[1] === 'False') {
+        setOptions(['Yes', 'No']);
+      } else if (options.length < 2) {
+        setOptions(['Yes', 'No']);
+      }
     }
   }
 
@@ -164,19 +176,19 @@ export default function QuestionForm({ onSave, onAdd, initial = null, onCancel }
             className={`seg-btn${format === 'mcq' ? ' is-active' : ''}`}
             onClick={setMcqMode}
           >
-            Multiple choice
+            ⚡ Multiple choice
           </button>
           <button
             type="button"
             className={`seg-btn${format === 'true_false' ? ' is-active' : ''}`}
             onClick={setTrueFalseMode}
           >
-            True / False
+            ⚖️ True / False
           </button>
           <button
             type="button"
             className={`seg-btn${format === 'poll' ? ' is-active' : ''}`}
-            onClick={setPollMode}
+            onClick={() => setPollMode()}
           >
             📊 Live Poll
           </button>
@@ -194,12 +206,56 @@ export default function QuestionForm({ onSave, onAdd, initial = null, onCancel }
         </label>
       </div>
 
+      {format === 'poll' && (
+        <div className="poll-templates-wrap">
+          <span className="poll-templates-label">Quick Poll Templates:</span>
+          <div className="poll-templates-chips">
+            <button
+              type="button"
+              className={`poll-chip-btn ${options.length === 2 && options[0] === 'Yes' && options[1] === 'No' ? 'is-active' : ''}`}
+              onClick={() => setPollMode('yes_no')}
+            >
+              👍 Yes / No
+            </button>
+            <button
+              type="button"
+              className={`poll-chip-btn ${options.length === 3 && options[0] === 'Agree' ? 'is-active' : ''}`}
+              onClick={() => setPollMode('agree_disagree')}
+            >
+              🤝 Agree / Disagree
+            </button>
+            <button
+              type="button"
+              className={`poll-chip-btn ${options.length === 5 && options[0] === '1 ★' ? 'is-active' : ''}`}
+              onClick={() => setPollMode('rating')}
+            >
+              ⭐ 1 to 5 Stars
+            </button>
+            <button
+              type="button"
+              className={`poll-chip-btn ${!(options.length === 2 && options[0] === 'Yes') && !(options.length === 3 && options[0] === 'Agree') && !(options.length === 5 && options[0] === '1 ★') ? 'is-active' : ''}`}
+              onClick={() => setPollMode('custom')}
+            >
+              ✏️ Custom Choices
+            </button>
+          </div>
+        </div>
+      )}
+
       <label className="field">
-        <span className="field-label">Question</span>
+        <span className="field-label">
+          {format === 'poll' ? 'Poll Question / Prompt' : 'Question'}
+        </span>
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="e.g. Which scheduling algorithm can starve long jobs?"
+          placeholder={
+            format === 'poll'
+              ? 'e.g. Do you think AI will replace human programmers in 5 years?'
+              : format === 'true_false'
+              ? 'e.g. In JavaScript, arrays are objects under the hood.'
+              : 'e.g. Which scheduling algorithm can starve long jobs?'
+          }
           maxLength={300}
           rows={2}
         />
@@ -208,7 +264,15 @@ export default function QuestionForm({ onSave, onAdd, initial = null, onCancel }
       {type === 'mcq' && (
         <fieldset className="field">
           <legend className="field-label">
-            Options <span className="field-note">select the correct one to make it a scored quiz question</span>
+            {format === 'poll' ? (
+              <>
+                Poll Choices <span className="field-note">Audience voting options (unscored)</span>
+              </>
+            ) : (
+              <>
+                Options <span className="field-note">select the correct one to make it a scored quiz question</span>
+              </>
+            )}
           </legend>
 
           <div className="opt-list">
@@ -223,19 +287,21 @@ export default function QuestionForm({ onSave, onAdd, initial = null, onCancel }
                     type="text"
                     value={option}
                     onChange={(e) => updateOption(idx, e.target.value)}
-                    placeholder={`Option ${LETTERS[idx]}`}
+                    placeholder={format === 'poll' ? `Choice ${LETTERS[idx]}` : `Option ${LETTERS[idx]}`}
                     maxLength={120}
                   />
-                  <button
-                    type="button"
-                    className={`opt-mark${isCorrect ? ' is-correct' : ''}`}
-                    onClick={() => setCorrectIndex(isCorrect ? null : idx)}
-                    disabled={!selectable}
-                    aria-pressed={isCorrect}
-                    title={isCorrect ? 'This is the correct answer' : 'Mark as correct'}
-                  >
-                    {isCorrect ? '✓ Correct' : 'Mark'}
-                  </button>
+                  {format !== 'poll' && (
+                    <button
+                      type="button"
+                      className={`opt-mark${isCorrect ? ' is-correct' : ''}`}
+                      onClick={() => setCorrectIndex(isCorrect ? null : idx)}
+                      disabled={!selectable}
+                      aria-pressed={isCorrect}
+                      title={isCorrect ? 'This is the correct answer' : 'Mark as correct'}
+                    >
+                      {isCorrect ? '✓ Correct' : 'Mark'}
+                    </button>
+                  )}
                   {options.length > MIN_OPTIONS && (
                     <button
                       type="button"
@@ -257,10 +323,12 @@ export default function QuestionForm({ onSave, onAdd, initial = null, onCancel }
             </button>
           )}
 
-          <p className="qform-hint">
-            {correctIndex != null && Boolean(options[correctIndex]?.trim())
+          <p className={format === 'poll' ? 'qform-hint qform-hint--poll' : 'qform-hint'}>
+            {format === 'poll'
+              ? '📊 Live Audience Poll: No correct answer — students vote freely, and live response bars show instantly on the projector.'
+              : correctIndex != null && Boolean(options[correctIndex]?.trim())
               ? '⚡ Scored: 1000 points for correct answer + up to 500 points speed bonus.'
-              : '📊 Live Poll: No correct answer marked — answers show live in Mentimeter bars (unscored).'}
+              : '📊 Unscored Question: No correct answer marked — answers show live in Mentimeter bars.'}
           </p>
         </fieldset>
       )}
@@ -277,8 +345,10 @@ export default function QuestionForm({ onSave, onAdd, initial = null, onCancel }
             Cancel
           </button>
         )}
-        <button type="submit" className="btn btn-primary">
-          {initial ? 'Save changes' : 'Add question'}
+        <button type="submit" className={`btn ${format === 'poll' ? 'btn-secondary' : 'btn-primary'}`}>
+          {initial
+            ? format === 'poll' ? 'Save poll' : 'Save question'
+            : format === 'poll' ? '➕ Add live poll' : '➕ Add quiz question'}
         </button>
       </div>
     </form>

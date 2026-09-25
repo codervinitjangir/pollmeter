@@ -94,6 +94,15 @@ export default function JoinPage() {
   const [openTextInput, setOpenTextInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  /**
+   * Set when the server says the session — or our place in it — no longer
+   * exists. In practice that means the backend restarted (a redeploy or crash
+   * clears the in-memory store) while phones were still on a question screen.
+   * Until now that error landed in `submitError`: one small line under a
+   * question that still looked live, re-fired on every reconnect attempt, with
+   * no way forward. A dead session has to say so and offer a way back in.
+   */
+  const [sessionLost, setSessionLost] = useState('');
   const [localReactions, setLocalReactions] = useState<Array<{ id: string; emoji: string; left: number }>>([]);
 
   const identity = useRef<StoredSession | null>(null);
@@ -333,12 +342,28 @@ export default function JoinPage() {
       }
     }
 
-    function onError(p: { message: string }) {
+    function onError(p: { message: string; fatal?: boolean }) {
       if (joinTimeoutRef.current) {
         clearTimeout(joinTimeoutRef.current);
         joinTimeoutRef.current = null;
       }
       setJoining(false);
+
+      // `fatal` while already joined is the server-restart case. Tear the stored
+      // identity down: it names a session that no longer exists, so leaving it
+      // in place makes `onConnect` re-request it on every reconnect and refire
+      // this same error for as long as the student keeps the tab open.
+      if (p.fatal && joinedRef.current) {
+        joinedRef.current = false;
+        submittingRef.current = false;
+        localStorage.removeItem(LS_KEY);
+        identity.current = null;
+        setSessionLost(p.message || 'This session is no longer available.');
+        setTimer(null);
+        setSubmitting(false);
+        return;
+      }
+
       if (!joinedRef.current) {
         setJoinError(p.message || 'Unable to join session.');
         // A stale identity from a finished session must not block a fresh join.
@@ -658,6 +683,52 @@ export default function JoinPage() {
       </div>
     </nav>
   );
+
+  // ─── Session vanished under us ────────────────────────────────────────────
+  // Checked before every other screen: when this is set, whatever the student
+  // was looking at is stale, and a stale question screen invites them to keep
+  // tapping answers that can never land.
+  if (sessionLost) {
+    return (
+      <div className="menti-join-canvas">
+        <main className="menti-join-center">
+          <div style={{ fontSize: '3rem', lineHeight: 1 }} aria-hidden="true">📴</div>
+          <div>
+            <h1 className="menti-join-title">This session has closed</h1>
+            <p className="menti-join-subtitle">{sessionLost}</p>
+          </div>
+          <p className="t-body-sm text-muted" style={{ maxWidth: '26rem', textAlign: 'center' }}>
+            Your mentor may have restarted it. Check the screen at the front for a
+            code — if it&rsquo;s a new one, join again below.
+          </p>
+          <button
+            type="button"
+            className="menti-btn-join"
+            id="rejoin-btn"
+            onClick={() => {
+              setSessionLost('');
+              setJoined(false);
+              setPhase('lobby');
+              setQuestion(null);
+              setResults(null);
+              setLeaderboard([]);
+              setFinalData(null);
+              resetForNewQuestion();
+            }}
+          >
+            Join again
+          </button>
+        </main>
+
+        {/* Deliberately promises nothing about the score. A restart clears the
+            server's in-memory store, so "your answers were saved" would be a
+            comforting lie in exactly the case that brings a student here. */}
+        <footer className="menti-join-footer">
+          Ask your mentor for the current code if this keeps happening.
+        </footer>
+      </div>
+    );
+  }
 
   // ─── Join screen ──────────────────────────────────────────────────────────
   if (!joined) {
@@ -1182,8 +1253,8 @@ export default function JoinPage() {
               </div>
             )}
 
-            {/* Nothing submitted and answers are closed */}
-            {myAnswer == null && !answersOpen && (
+            {/* Nothing submitted and question has ended / revealed */}
+            {revealed && myAnswer == null && (
               <div className="student-verdict-card verdict-missed" role="status">
                 <div className="verdict-top-row">
                   <span className="verdict-emoji">⌛</span>
