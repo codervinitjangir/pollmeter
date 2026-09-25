@@ -32,8 +32,24 @@ export function isDomainAllowed(email: string): boolean {
   return allowed.some((d) => domain === d || domain.endsWith(`.${d}`));
 }
 
+export function isAdminEmail(email: string): boolean {
+  const clean = email.toLowerCase().trim();
+  const defaultAdmins = [
+    'vinit.p25@medhaviskillsuniversity.edu.in',
+    'vinit.p25@medhaviskillsunivercity.edu.in',
+    'vinit@medhaviskillsuniversity.edu.in',
+    'vinit@medhaviskillsunivercity.edu.in',
+  ];
+  const adminList = (process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return [...defaultAdmins, ...adminList].includes(clean);
+}
+
 export function isMentorEmail(email: string): boolean {
   const clean = email.toLowerCase().trim();
+  if (isAdminEmail(clean)) return true;
   const defaultMentors = [
     'vinit.p25@medhaviskillsuniversity.edu.in',
     'vinit.p25@medhaviskillsunivercity.edu.in',
@@ -112,9 +128,10 @@ export async function authenticateGoogleUser(credential: string): Promise<{
   const collegeDomain = info.email.split('@')[1];
   let role: 'student' | 'mentor' | 'admin' = existing?.role ?? 'student';
 
-  // If email is explicitly in mentor list, grant mentor role
-  if (isMentorEmail(info.email)) {
-    role = 'mentor';
+  if (isAdminEmail(info.email)) {
+    role = 'admin';
+  } else if (isMentorEmail(info.email) || existing?.role === 'mentor' || existing?.role === 'admin') {
+    role = existing?.role === 'admin' ? 'admin' : 'mentor';
   }
 
   const userRecord: User = {
@@ -153,8 +170,10 @@ export async function authenticateDevDemoUser(email: string, realName?: string):
   const collegeDomain = cleanEmail.split('@')[1];
   let role: 'student' | 'mentor' | 'admin' = existing?.role ?? 'student';
 
-  if (isMentorEmail(cleanEmail)) {
-    role = 'mentor';
+  if (isAdminEmail(cleanEmail)) {
+    role = 'admin';
+  } else if (isMentorEmail(cleanEmail) || existing?.role === 'mentor' || existing?.role === 'admin') {
+    role = existing?.role === 'admin' ? 'admin' : 'mentor';
   }
 
   const userRecord: User = {
@@ -304,6 +323,18 @@ export function requireMentor(req: AuthenticatedRequest, res: Response, next: Ne
       res.status(403).json({
         error: 'Mentor privileges required. Enter your Faculty Security PIN to access host features.',
         needsPin: true,
+      });
+      return;
+    }
+    next();
+  });
+}
+
+export function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+  requireAuth(req, res, () => {
+    if (!req.user || req.user.role !== 'admin') {
+      res.status(403).json({
+        error: 'University Administrator privileges required to access this resource.',
       });
       return;
     }

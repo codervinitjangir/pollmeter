@@ -43,13 +43,14 @@ function generateCode(): string {
 
 export function createSession(
   questions: Question[],
-  meta?: { topic?: string; hostEmail?: string; hostName?: string }
+  meta?: { topic?: string; subject?: string; hostEmail?: string; hostName?: string }
 ): Session {
   const now = Date.now();
   const session: Session = {
     code: generateCode(),
     hostId: uuidv4(),
     topic: meta?.topic,
+    subject: meta?.subject,
     hostEmail: meta?.hostEmail,
     hostName: meta?.hostName,
     questions,

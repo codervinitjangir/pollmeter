@@ -94,6 +94,7 @@ export interface Session {
   code: string;
   hostId: string;
   topic?: string;
+  subject?: string;
   hostEmail?: string;
   hostName?: string;
   questions: Question[];

@@ -22,6 +22,11 @@ import {
   getQuizDetails,
   getStudentQuizzes,
   setUserRole,
+  getAllFaculty,
+  addOrUpdateFaculty,
+  removeFaculty,
+  getUniversityOverview,
+  searchStudents,
 } from './db';
 import {
   getAllowedDomains,
@@ -33,6 +38,7 @@ import {
   isMentorEmail,
   requireAuth,
   requireMentor,
+  requireAdmin,
   AuthenticatedRequest,
   verifyToken,
 } from './auth';
@@ -215,6 +221,7 @@ app.post('/api/sessions', sessionCreationLimiter, async (req: Request, res: Resp
   const body = req.body as {
     questions?: unknown;
     topic?: string;
+    subject?: string;
     hostEmail?: string;
     hostName?: string;
   };
@@ -237,9 +244,11 @@ app.post('/api/sessions', sessionCreationLimiter, async (req: Request, res: Resp
   }
 
   const topic = body?.topic?.trim() || (result.questions[0]?.text ? `Quiz: ${result.questions[0].text.slice(0, 40)}...` : 'Classroom Quiz');
+  const subject = body?.subject?.trim() || 'General';
 
   const session = createSession(result.questions, {
     topic,
+    subject,
     hostEmail: hostEmail || 'mentor@medhaviskillsuniversity.edu.in',
     hostName: hostName || 'Faculty Mentor',
   });
@@ -249,6 +258,7 @@ app.post('/api/sessions', sessionCreationLimiter, async (req: Request, res: Resp
       id: session.code,
       code: session.code,
       topic,
+      subject,
       hostEmail: session.hostEmail || 'mentor@medhaviskillsuniversity.edu.in',
       hostName: session.hostName,
       questionCount: session.questions.length,
@@ -260,12 +270,13 @@ app.post('/api/sessions', sessionCreationLimiter, async (req: Request, res: Resp
     console.error('[db] Error pre-saving session to DB:', err);
   }
 
-  console.log(`[session] created ${session.code} with ${result.questions.length} question(s) [${topic}]`);
+  console.log(`[session] created ${session.code} with ${result.questions.length} question(s) [${topic}] [${subject}]`);
   res.status(201).json({
     code: session.code,
     hostId: session.hostId,
     questions: session.questions,
     topic,
+    subject,
   });
 });
 
@@ -416,6 +427,85 @@ app.get('/api/student/quizzes', requireAuth, async (req: AuthenticatedRequest, r
     res.json({ history });
   } catch (err) {
     res.status(500).json({ error: 'Failed to retrieve student quizzes.' });
+  }
+});
+
+// ─── REST: University Administration (Admin Only) ───────────────────────────
+
+app.get('/api/admin/overview', requireAdmin, async (_req: AuthenticatedRequest, res: Response) => {
+  try {
+    const overview = await getUniversityOverview();
+    res.json(overview);
+  } catch (err) {
+    console.error('[admin] Failed to fetch university overview:', err);
+    res.status(500).json({ error: 'Failed to fetch university overview.' });
+  }
+});
+
+app.get('/api/admin/faculty', requireAdmin, async (_req: AuthenticatedRequest, res: Response) => {
+  try {
+    const faculty = await getAllFaculty();
+    res.json({ faculty });
+  } catch (err) {
+    console.error('[admin] Failed to fetch faculty list:', err);
+    res.status(500).json({ error: 'Failed to fetch faculty list.' });
+  }
+});
+
+app.post('/api/admin/faculty', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { email, realName, department, subject, role } = req.body as {
+      email?: string;
+      realName?: string;
+      department?: string;
+      subject?: string;
+      role?: 'mentor' | 'admin';
+    };
+
+    if (!email || !realName) {
+      res.status(400).json({ error: 'Faculty email and full name are required.' });
+      return;
+    }
+
+    const faculty = await addOrUpdateFaculty({
+      email,
+      realName,
+      department,
+      subject,
+      role: role || 'mentor',
+    });
+    console.log(`[admin] Faculty ${email} added/updated by ${req.user?.email}`);
+    res.json({ success: true, faculty });
+  } catch (err) {
+    console.error('[admin] Failed to add/update faculty:', err);
+    res.status(500).json({ error: 'Failed to save faculty record.' });
+  }
+});
+
+app.delete('/api/admin/faculty/:email', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { email } = req.params;
+    if (!email) {
+      res.status(400).json({ error: 'Faculty email is required.' });
+      return;
+    }
+    const success = await removeFaculty(email);
+    console.log(`[admin] Faculty ${email} removed/demoted by ${req.user?.email}`);
+    res.json({ success });
+  } catch (err) {
+    console.error('[admin] Failed to remove faculty:', err);
+    res.status(500).json({ error: 'Failed to remove faculty member.' });
+  }
+});
+
+app.get('/api/admin/students', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const q = (req.query.q as string) || '';
+    const students = await searchStudents(q);
+    res.json({ students });
+  } catch (err) {
+    console.error('[admin] Failed to search students:', err);
+    res.status(500).json({ error: 'Failed to search student audit data.' });
   }
 });
 

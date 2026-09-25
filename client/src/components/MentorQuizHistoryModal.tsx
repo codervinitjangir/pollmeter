@@ -254,7 +254,12 @@ export default function MentorQuizHistoryModal({ isOpen, onClose }: Props) {
                     <div className="pm-quiz-card-left">
                       <span className="pm-quiz-card-code">#{q.code}</span>
                       <div>
-                        <h4 className="pm-quiz-card-topic">{q.topic || 'Classroom Quiz'}</h4>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <h4 className="pm-quiz-card-topic">{q.topic || 'Classroom Quiz'}</h4>
+                          <span className="pm-subject-badge" style={{ fontSize: '0.72rem', padding: '0.15rem 0.5rem' }}>
+                            {q.subject || 'General'}
+                          </span>
+                        </div>
                         <span className="pm-quiz-card-date">
                           📅 {new Date(q.createdAt).toLocaleDateString()} at{' '}
                           {new Date(q.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

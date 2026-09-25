@@ -56,6 +56,7 @@ export default function HostPage() {
   const [error, setError] = useState('');
   const [showAI, setShowAI] = useState(false);
   const [aiInitialTopic, setAiInitialTopic] = useState('');
+  const [quizSubject, setQuizSubject] = useState('Full Stack Web Development');
   const [activeNav, setActiveNav] = useState('home');
   const [searchQuery, setSearchQuery] = useState('');
   const [editing, setEditing] = useState<Question | null>(null);
@@ -466,6 +467,7 @@ export default function HostPage() {
         body: JSON.stringify({
           questions,
           topic,
+          subject: quizSubject || 'General',
           hostEmail: authUser.email,
           hostName: authUser.realName,
         }),
@@ -892,6 +894,23 @@ export default function HostPage() {
             >
               <span>📊</span> Past Quizzes &amp; Reports
             </button>
+            {authUser?.role === 'admin' && (
+              <a
+                href="/admin"
+                className="menti-nav-link"
+                style={{
+                  background: '#EFF6FF',
+                  color: '#1D4ED8',
+                  fontWeight: 700,
+                  border: '1px solid #BFDBFE',
+                  borderRadius: '10px',
+                  marginTop: '0.4rem',
+                  textDecoration: 'none',
+                }}
+              >
+                <span>🏛️</span> University Admin
+              </a>
+            )}
           </nav>
 
           <div className="menti-nav-group">
@@ -926,8 +945,27 @@ export default function HostPage() {
           <div className="menti-topbar-actions">
             {authUser ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                {authUser.role === 'admin' && (
+                  <a
+                    href="/admin"
+                    className="btn btn--sm"
+                    style={{
+                      background: 'linear-gradient(135deg, #1E40AF, #3B82F6)',
+                      color: '#FFFFFF',
+                      fontWeight: 700,
+                      textDecoration: 'none',
+                      borderRadius: '8px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      boxShadow: '0 2px 8px rgba(30, 64, 175, 0.25)',
+                    }}
+                  >
+                    🏛️ Admin Console
+                  </a>
+                )}
                 <span className="pm-auth-profile-badge">
-                  🎓 {authUser.realName} {authUser.role === 'mentor' || authUser.role === 'admin' ? '(Faculty)' : ''}
+                  🎓 {authUser.realName} {authUser.role === 'admin' ? '(Admin)' : '(Faculty)'}
                 </span>
                 <button
                   type="button"
@@ -1248,6 +1286,84 @@ export default function HostPage() {
                         </div>
                       </div>
                     ))}
+                  </div>
+
+                  <div
+                    style={{
+                      background: '#F8FAFC',
+                      border: '1px solid #E2E8F0',
+                      borderRadius: '16px',
+                      padding: '1.1rem 1.25rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.85rem',
+                      marginTop: '1.25rem',
+                      marginBottom: '1rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1E293B', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>📚</span> Subject &amp; Academic Course Tag
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600 }}>
+                        Auto-grouped in student transcripts
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '0.85rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: '0.3rem' }}>
+                          Academic Subject
+                        </label>
+                        <select
+                          className="input"
+                          style={{
+                            width: '100%',
+                            fontSize: '0.85rem',
+                            padding: '0.5rem 0.75rem',
+                            borderRadius: '10px',
+                            background: '#FFFFFF',
+                            border: '1px solid #CBD5E1',
+                            fontWeight: 600,
+                            color: '#0F172A',
+                          }}
+                          value={quizSubject}
+                          onChange={(e) => setQuizSubject(e.target.value)}
+                        >
+                          <option value="Full Stack Web Development">Full Stack Web Development</option>
+                          <option value="Operating Systems">Operating Systems</option>
+                          <option value="Data Structures & Algorithms">Data Structures &amp; Algorithms</option>
+                          <option value="Database Management Systems">Database Management Systems</option>
+                          <option value="Computer Networks & Security">Computer Networks &amp; Security</option>
+                          <option value="Artificial Intelligence & ML">Artificial Intelligence &amp; ML</option>
+                          <option value="Cloud Computing & DevOps">Cloud Computing &amp; DevOps</option>
+                          <option value="Software Engineering & Agile">Software Engineering &amp; Agile</option>
+                          <option value="General Technical Aptitude">General Technical Aptitude</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: '0.3rem' }}>
+                          Quiz Topic / Unit Name
+                        </label>
+                        <input
+                          type="text"
+                          className="input"
+                          style={{
+                            width: '100%',
+                            fontSize: '0.85rem',
+                            padding: '0.5rem 0.75rem',
+                            borderRadius: '10px',
+                            background: '#FFFFFF',
+                            border: '1px solid #CBD5E1',
+                            color: '#0F172A',
+                          }}
+                          placeholder="e.g. Unit 3: React State Management"
+                          value={aiInitialTopic}
+                          onChange={(e) => setAiInitialTopic(e.target.value)}
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   {error && <div className="alert alert-error">⚠ {error}</div>}

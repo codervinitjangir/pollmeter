@@ -9,6 +9,8 @@ export interface User {
   realName: string;
   role: 'student' | 'mentor' | 'admin';
   collegeDomain: string;
+  department?: string;
+  subject?: string;
   picture?: string;
   createdAt: string;
 }
@@ -17,6 +19,7 @@ export interface QuizSessionRecord {
   id: string;
   code: string;
   topic: string;
+  subject?: string;
   hostEmail: string;
   hostName?: string;
   questionCount: number;
@@ -131,10 +134,14 @@ export async function initDb(): Promise<void> {
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           );
 
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS department VARCHAR(160);
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS subject VARCHAR(160);
+
           CREATE TABLE IF NOT EXISTS quiz_sessions (
             id VARCHAR(64) PRIMARY KEY,
             code VARCHAR(20) NOT NULL,
             topic VARCHAR(255) NOT NULL,
+            subject VARCHAR(160) DEFAULT 'General',
             host_email VARCHAR(160) NOT NULL,
             host_name VARCHAR(160),
             question_count INT DEFAULT 0,
@@ -143,6 +150,8 @@ export async function initDb(): Promise<void> {
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             ended_at TIMESTAMP WITH TIME ZONE
           );
+
+          ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS subject VARCHAR(160) DEFAULT 'General';
 
           CREATE TABLE IF NOT EXISTS session_participants (
             id VARCHAR(64) PRIMARY KEY,
@@ -194,14 +203,27 @@ export async function initDb(): Promise<void> {
 export async function upsertUser(user: User): Promise<User> {
   if (usePostgres && pool) {
     const res = await pool.query(
-      `INSERT INTO users (id, email, real_name, role, college_domain, picture, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO users (id, email, real_name, role, college_domain, department, subject, picture, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        ON CONFLICT (email) DO UPDATE
        SET real_name = EXCLUDED.real_name,
            picture = EXCLUDED.picture,
-           college_domain = EXCLUDED.college_domain
-       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", picture, created_at as "createdAt"`,
-      [user.id, user.email.toLowerCase(), user.realName, user.role, user.collegeDomain, user.picture ?? null, user.createdAt]
+           college_domain = EXCLUDED.college_domain,
+           department = COALESCE(EXCLUDED.department, users.department),
+           subject = COALESCE(EXCLUDED.subject, users.subject),
+           role = CASE WHEN users.role = 'admin' THEN 'admin' ELSE EXCLUDED.role END
+       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, created_at as "createdAt"`,
+      [
+        user.id,
+        user.email.toLowerCase(),
+        user.realName,
+        user.role,
+        user.collegeDomain,
+        user.department ?? null,
+        user.subject ?? null,
+        user.picture ?? null,
+        user.createdAt,
+      ]
     );
     return res.rows[0];
   }
@@ -211,6 +233,8 @@ export async function upsertUser(user: User): Promise<User> {
     existing.realName = user.realName;
     existing.picture = user.picture ?? existing.picture;
     existing.collegeDomain = user.collegeDomain;
+    existing.department = user.department ?? existing.department;
+    existing.subject = user.subject ?? existing.subject;
     saveLocalDb();
     return existing;
   }
@@ -224,7 +248,7 @@ export async function getUserByEmail(email: string): Promise<User | null> {
   const cleanEmail = email.toLowerCase().trim();
   if (usePostgres && pool) {
     const res = await pool.query(
-      `SELECT id, email, real_name as "realName", role, college_domain as "collegeDomain", picture, created_at as "createdAt"
+      `SELECT id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, created_at as "createdAt"
        FROM users WHERE LOWER(email) = $1`,
       [cleanEmail]
     );
@@ -238,7 +262,7 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 export async function getUserById(id: string): Promise<User | null> {
   if (usePostgres && pool) {
     const res = await pool.query(
-      `SELECT id, email, real_name as "realName", role, college_domain as "collegeDomain", picture, created_at as "createdAt"
+      `SELECT id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, created_at as "createdAt"
        FROM users WHERE id = $1`,
       [id]
     );
@@ -253,7 +277,7 @@ export async function setUserRole(email: string, role: 'mentor' | 'student' | 'a
   if (usePostgres && pool) {
     const res = await pool.query(
       `UPDATE users SET role = $1 WHERE LOWER(email) = $2
-       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", picture, created_at as "createdAt"`,
+       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, created_at as "createdAt"`,
       [role, cleanEmail]
     );
     return res.rows[0] ?? null;
@@ -271,15 +295,17 @@ export async function setUserRole(email: string, role: 'mentor' | 'student' | 'a
 export async function saveQuizSession(session: QuizSessionRecord): Promise<void> {
   if (usePostgres && pool) {
     await pool.query(
-      `INSERT INTO quiz_sessions (id, code, topic, host_email, host_name, question_count, participant_count, questions, created_at, ended_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO quiz_sessions (id, code, topic, subject, host_email, host_name, question_count, participant_count, questions, created_at, ended_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (id) DO UPDATE
        SET participant_count = EXCLUDED.participant_count,
-           ended_at = EXCLUDED.ended_at`,
+           ended_at = EXCLUDED.ended_at,
+           subject = COALESCE(EXCLUDED.subject, quiz_sessions.subject)`,
       [
         session.id,
         session.code,
         session.topic,
+        session.subject || 'General',
         session.hostEmail.toLowerCase(),
         session.hostName ?? null,
         session.questionCount,
@@ -527,4 +553,208 @@ export async function getStudentQuizzes(studentEmail: string): Promise<Array<{
   }
 
   return out.sort((a, b) => new Date(b.session.createdAt).getTime() - new Date(a.session.createdAt).getTime());
+}
+
+// ─── Admin & University Management ──────────────────────────────────────────
+
+export async function getAllFaculty(): Promise<User[]> {
+  if (usePostgres && pool) {
+    const res = await pool.query(
+      `SELECT id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, created_at as "createdAt"
+       FROM users
+       WHERE role IN ('mentor', 'admin')
+       ORDER BY real_name ASC`
+    );
+    return res.rows;
+  }
+
+  return Object.values(localDb.users)
+    .filter((u) => u.role === 'mentor' || u.role === 'admin')
+    .sort((a, b) => a.realName.localeCompare(b.realName));
+}
+
+export async function addOrUpdateFaculty(data: {
+  email: string;
+  realName: string;
+  department?: string;
+  subject?: string;
+  role?: 'mentor' | 'admin';
+}): Promise<User> {
+  const cleanEmail = data.email.toLowerCase().trim();
+  const collegeDomain = cleanEmail.split('@')[1] || 'medhaviskillsuniversity.edu.in';
+  const role = data.role || 'mentor';
+
+  if (usePostgres && pool) {
+    const res = await pool.query(
+      `INSERT INTO users (id, email, real_name, role, college_domain, department, subject, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+       ON CONFLICT (email) DO UPDATE
+       SET real_name = EXCLUDED.real_name,
+           role = CASE WHEN users.role = 'admin' THEN 'admin' ELSE EXCLUDED.role END,
+           department = COALESCE(EXCLUDED.department, users.department),
+           subject = COALESCE(EXCLUDED.subject, users.subject)
+       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, created_at as "createdAt"`,
+      [uuidv4(), cleanEmail, data.realName, role, collegeDomain, data.department ?? null, data.subject ?? null]
+    );
+    return res.rows[0];
+  }
+
+  const existing = Object.values(localDb.users).find((u) => u.email.toLowerCase() === cleanEmail);
+  if (existing) {
+    existing.realName = data.realName;
+    if (existing.role !== 'admin') existing.role = role;
+    existing.department = data.department ?? existing.department;
+    existing.subject = data.subject ?? existing.subject;
+    saveLocalDb();
+    return existing;
+  }
+
+  const newUser: User = {
+    id: uuidv4(),
+    email: cleanEmail,
+    realName: data.realName,
+    role,
+    collegeDomain,
+    department: data.department,
+    subject: data.subject,
+    createdAt: new Date().toISOString(),
+  };
+  localDb.users[newUser.id] = newUser;
+  saveLocalDb();
+  return newUser;
+}
+
+export async function removeFaculty(email: string): Promise<boolean> {
+  const cleanEmail = email.toLowerCase().trim();
+  if (usePostgres && pool) {
+    const res = await pool.query(
+      `UPDATE users SET role = 'student' WHERE LOWER(email) = $1 AND role != 'admin' RETURNING id`,
+      [cleanEmail]
+    );
+    return (res.rowCount ?? 0) > 0;
+  }
+
+  const user = Object.values(localDb.users).find((u) => u.email.toLowerCase() === cleanEmail);
+  if (user && user.role !== 'admin') {
+    user.role = 'student';
+    saveLocalDb();
+    return true;
+  }
+  return false;
+}
+
+export async function getUniversityOverview(): Promise<{
+  totalMentors: number;
+  totalStudents: number;
+  totalQuizzes: number;
+  totalResponses: number;
+  subjects: Array<{ subject: string; count: number }>;
+  recentQuizzes: QuizSessionRecord[];
+}> {
+  if (usePostgres && pool) {
+    const mentorRes = await pool.query(`SELECT COUNT(*)::int as count FROM users WHERE role IN ('mentor', 'admin')`);
+    const studentRes = await pool.query(`SELECT COUNT(*)::int as count FROM users WHERE role = 'student'`);
+    const quizRes = await pool.query(`SELECT COUNT(*)::int as count FROM quiz_sessions`);
+    const respRes = await pool.query(`SELECT COUNT(*)::int as count FROM student_responses`);
+    const subjectRes = await pool.query(`
+      SELECT COALESCE(subject, 'General') as subject, COUNT(*)::int as count
+      FROM quiz_sessions
+      GROUP BY COALESCE(subject, 'General')
+      ORDER BY count DESC
+    `);
+    const recentRes = await pool.query(`
+      SELECT id, code, topic, COALESCE(subject, 'General') as subject, host_email as "hostEmail", host_name as "hostName",
+             question_count as "questionCount", participant_count as "participantCount", created_at as "createdAt", ended_at as "endedAt"
+      FROM quiz_sessions
+      ORDER BY created_at DESC
+      LIMIT 10
+    `);
+
+    return {
+      totalMentors: mentorRes.rows[0]?.count ?? 0,
+      totalStudents: studentRes.rows[0]?.count ?? 0,
+      totalQuizzes: quizRes.rows[0]?.count ?? 0,
+      totalResponses: respRes.rows[0]?.count ?? 0,
+      subjects: subjectRes.rows,
+      recentQuizzes: recentRes.rows,
+    };
+  }
+
+  const allUsers = Object.values(localDb.users);
+  const totalMentors = allUsers.filter((u) => u.role === 'mentor' || u.role === 'admin').length;
+  const totalStudents = allUsers.filter((u) => u.role === 'student').length;
+  const allSessions = Object.values(localDb.sessions);
+  const totalQuizzes = allSessions.length;
+  const totalResponses = localDb.responses.length;
+
+  const subjectCounts: Record<string, number> = {};
+  for (const s of allSessions) {
+    const sub = s.subject || 'General';
+    subjectCounts[sub] = (subjectCounts[sub] || 0) + 1;
+  }
+  const subjects = Object.entries(subjectCounts).map(([subject, count]) => ({ subject, count }));
+
+  const recentQuizzes = [...allSessions]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 10);
+
+  return {
+    totalMentors,
+    totalStudents,
+    totalQuizzes,
+    totalResponses,
+    subjects,
+    recentQuizzes,
+  };
+}
+
+export async function searchStudents(query?: string): Promise<Array<{
+  email: string;
+  realName: string;
+  quizCount: number;
+  avgScore: number;
+  lastQuizDate?: string;
+}>> {
+  const cleanQ = query?.toLowerCase().trim() ?? '';
+
+  if (usePostgres && pool) {
+    const res = await pool.query(`
+      SELECT p.email, p.real_name as "realName",
+             COUNT(DISTINCT p.session_id)::int as "quizCount",
+             ROUND(AVG(p.final_score))::int as "avgScore",
+             MAX(p.joined_at) as "lastQuizDate"
+      FROM session_participants p
+      WHERE ($1 = '' OR LOWER(p.email) LIKE '%' || $1 || '%' OR LOWER(p.real_name) LIKE '%' || $1 || '%')
+      GROUP BY p.email, p.real_name
+      ORDER BY "quizCount" DESC, "avgScore" DESC
+      LIMIT 100
+    `, [cleanQ]);
+    return res.rows;
+  }
+
+  const studentMap = new Map<string, { email: string; realName: string; scores: number[]; lastDate: string }>();
+  for (const p of localDb.participants) {
+    if (cleanQ && !p.email.toLowerCase().includes(cleanQ) && !p.realName.toLowerCase().includes(cleanQ)) {
+      continue;
+    }
+    const existing = studentMap.get(p.email.toLowerCase()) || {
+      email: p.email.toLowerCase(),
+      realName: p.realName,
+      scores: [],
+      lastDate: p.joinedAt,
+    };
+    existing.scores.push(p.finalScore);
+    if (new Date(p.joinedAt).getTime() > new Date(existing.lastDate).getTime()) {
+      existing.lastDate = p.joinedAt;
+    }
+    studentMap.set(p.email.toLowerCase(), existing);
+  }
+
+  return Array.from(studentMap.values()).map((s) => ({
+    email: s.email,
+    realName: s.realName,
+    quizCount: s.scores.length,
+    avgScore: Math.round(s.scores.reduce((a, b) => a + b, 0) / (s.scores.length || 1)),
+    lastQuizDate: s.lastDate,
+  })).sort((a, b) => b.quizCount - a.quizCount);
 }

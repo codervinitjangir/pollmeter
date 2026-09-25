@@ -220,3 +220,129 @@ export async function fetchStudentQuizzes(): Promise<any[]> {
   const data = await res.json();
   return data.history || [];
 }
+
+// ─── University Administration API ──────────────────────────────────────────
+
+export interface FacultyMember {
+  id: string;
+  email: string;
+  realName: string;
+  role: 'mentor' | 'admin';
+  collegeDomain: string;
+  department?: string;
+  subject?: string;
+  picture?: string;
+  createdAt: string;
+}
+
+export interface UniversityOverview {
+  totalMentors: number;
+  totalStudents: number;
+  totalQuizzes: number;
+  totalResponses: number;
+  subjects: Array<{ subject: string; count: number }>;
+  recentQuizzes: any[];
+}
+
+export interface StudentAuditItem {
+  email: string;
+  realName: string;
+  quizCount: number;
+  avgScore: number;
+  lastQuizDate?: string;
+}
+
+export async function fetchAdminOverview(): Promise<UniversityOverview> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Administrator authentication required');
+
+  const res = await fetch(apiUrl('/api/admin/overview'), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to fetch university overview');
+  }
+
+  return await res.json();
+}
+
+export async function fetchAdminFaculty(): Promise<FacultyMember[]> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Administrator authentication required');
+
+  const res = await fetch(apiUrl('/api/admin/faculty'), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to fetch faculty list');
+  }
+
+  const data = await res.json();
+  return data.faculty || [];
+}
+
+export async function addAdminFaculty(payload: {
+  email: string;
+  realName: string;
+  department?: string;
+  subject?: string;
+  role?: 'mentor' | 'admin';
+}): Promise<FacultyMember> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Administrator authentication required');
+
+  const res = await fetch(apiUrl('/api/admin/faculty'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to add or update faculty member');
+  }
+
+  return data.faculty;
+}
+
+export async function removeAdminFaculty(email: string): Promise<boolean> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Administrator authentication required');
+
+  const res = await fetch(apiUrl(`/api/admin/faculty/${encodeURIComponent(email)}`), {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to remove faculty member');
+  }
+
+  return data.success;
+}
+
+export async function searchStudentAudit(q?: string): Promise<StudentAuditItem[]> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Administrator authentication required');
+
+  const url = q ? apiUrl(`/api/admin/students?q=${encodeURIComponent(q)}`) : apiUrl('/api/admin/students');
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to search students');
+  }
+
+  const data = await res.json();
+  return data.students || [];
+}

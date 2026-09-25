@@ -340,6 +340,7 @@ async function persistEndedSession(session: Session, leaderboard: LeaderboardEnt
       id: session.code,
       code: session.code,
       topic: session.topic || (session.questions[0]?.text ? `Quiz: ${session.questions[0].text.slice(0, 40)}...` : 'Classroom Quiz'),
+      subject: session.subject || 'General',
       hostEmail: session.hostEmail || 'mentor@medhaviskillsuniversity.edu.in',
       hostName: session.hostName,
       questionCount: session.questions.length,

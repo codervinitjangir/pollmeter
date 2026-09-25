@@ -3,6 +3,7 @@ import LandingPage from './pages/LandingPage';
 import HostPage from './pages/HostPage';
 import JoinPage from './pages/JoinPage';
 import LegalPage from './pages/LegalPage';
+import AdminPage from './pages/AdminPage';
 
 export default function App() {
   return (
@@ -10,6 +11,9 @@ export default function App() {
       <Routes>
         {/* Landing page */}
         <Route path="/" element={<LandingPage />} />
+
+        {/* University Admin Console */}
+        <Route path="/admin" element={<AdminPage />} />
 
         {/* Teacher dashboard */}
         <Route path="/dashboard" element={<HostPage />} />

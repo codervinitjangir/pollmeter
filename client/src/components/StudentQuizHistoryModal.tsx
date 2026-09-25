@@ -73,13 +73,16 @@ export default function StudentQuizHistoryModal({ isOpen, currentUser, onClose }
                       <span className="pm-rank-pill pm-rank-gold">
                         Rank #{participant.rank || '-'}
                       </span>
-                      <div>
-                        <h4 className="pm-quiz-card-topic">{session.topic}</h4>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <h4 className="pm-quiz-card-topic">{session.topic}</h4>
+                          <span className="pm-subject-badge" style={{ fontSize: '0.72rem', padding: '0.15rem 0.5rem' }}>
+                            {session.subject || 'General'}
+                          </span>
+                        </div>
                         <span className="pm-quiz-card-date">
-                          Played as <strong>"{participant.screenName}"</strong> on{' '}
+                          👨‍🏫 Mentor: <strong>{session.hostName || 'Faculty'}</strong> • Played as <strong>"{participant.screenName}"</strong> on{' '}
                           {new Date(session.createdAt).toLocaleDateString()}
                         </span>
-                      </div>
                     </div>
 
                     <div className="pm-student-card-stats">

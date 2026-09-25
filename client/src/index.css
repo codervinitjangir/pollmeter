@@ -6444,5 +6444,872 @@ fieldset.field {
   text-decoration: underline;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* ─── UNIVERSITY ADMIN CONSOLE (Stitch / Figma Modern EdTech Tokens) ─────── */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.pm-admin-layout {
+  min-height: 100vh;
+  background-color: #F8FAFC;
+  color: #0F172A;
+  font-family: var(--font);
+  display: flex;
+  flex-direction: column;
+}
+
+.pm-admin-toast {
+  position: fixed;
+  top: 1.5rem;
+  right: 1.5rem;
+  background: #10B981;
+  color: #FFFFFF;
+  padding: 0.75rem 1.25rem;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4);
+  z-index: 9999;
+  animation: pmSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pmSlideIn {
+  from { transform: translateY(-20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.pm-admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 2.5rem;
+  background: #FFFFFF;
+  border-bottom: 1px solid #E2E8F0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.pm-admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.pm-admin-crest {
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, #1E40AF 0%, #3B82F6 100%);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(30, 64, 175, 0.25);
+}
+
+.pm-admin-title {
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0F172A;
+}
+
+.pm-badge-admin-seal {
+  background: #EFF6FF;
+  color: #1D4ED8;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #BFDBFE;
+  letter-spacing: 0.05em;
+}
+
+.pm-admin-sub {
+  display: block;
+  font-size: 0.78rem;
+  color: #64748B;
+  font-weight: 500;
+}
+
+.pm-admin-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.pm-btn-mentor-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #F1F5F9;
+  color: #1E293B;
+  border: 1px solid #CBD5E1;
+  padding: 0.5rem 1rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pm-btn-mentor-switch:hover {
+  background: #E2E8F0;
+  border-color: #94A3B8;
+  transform: translateY(-1px);
+}
+
+.pm-admin-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-left: 1.25rem;
+  border-left: 1px solid #E2E8F0;
+}
+
+.pm-admin-avatar {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #10B981, #059669);
+  color: #FFFFFF;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.pm-admin-profile-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.pm-admin-profile-text strong {
+  font-size: 0.85rem;
+  color: #0F172A;
+}
+
+.pm-admin-profile-text small {
+  font-size: 0.72rem;
+  color: #64748B;
+}
+
+.pm-admin-signout-btn {
+  background: none;
+  border: none;
+  color: #EF4444;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+}
+
+.pm-admin-signout-btn:hover {
+  background: #FEF2F2;
+}
+
+/* ─── Admin Content ───────────────────────────────────────────────────────── */
+.pm-admin-content {
+  flex: 1;
+  max-width: 1380px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem 2.5rem 4rem;
+}
+
+/* ─── KPI Cards ───────────────────────────────────────────────────────────── */
+.pm-admin-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.75rem;
+}
+
+.pm-kpi-card {
+  background: #FFFFFF;
+  border-radius: 18px;
+  padding: 1.35rem 1.5rem;
+  border: 1px solid #E2E8F0;
+  display: flex;
+  align-items: flex-start;
+  gap: 1.1rem;
+  box-shadow: 0 4px 15px -2px rgba(0, 0, 0, 0.03);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pm-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.06);
+}
+
+.pm-kpi-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+.pm-kpi-card-blue .pm-kpi-icon-wrap {
+  background: #EFF6FF;
+  border: 1px solid #DBEAFE;
+}
+
+.pm-kpi-card-emerald .pm-kpi-icon-wrap {
+  background: #ECFDF5;
+  border: 1px solid #D1FAE5;
+}
+
+.pm-kpi-card-purple .pm-kpi-icon-wrap {
+  background: #F5F3FF;
+  border: 1px solid #EDE9FE;
+}
+
+.pm-kpi-card-amber .pm-kpi-icon-wrap {
+  background: #FFFBEB;
+  border: 1px solid #FEF3C7;
+}
+
+.pm-kpi-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.pm-kpi-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  color: #64748B;
+}
+
+.pm-kpi-val-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0.2rem 0;
+}
+
+.pm-kpi-number {
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #0F172A;
+}
+
+.pm-kpi-quick-action {
+  background: #EFF6FF;
+  color: #1D4ED8;
+  border: 1px solid #BFDBFE;
+  padding: 0.25rem 0.6rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pm-kpi-quick-action:hover {
+  background: #DBEAFE;
+}
+
+.pm-kpi-caption {
+  font-size: 0.75rem;
+  color: #94A3B8;
+  font-weight: 500;
+}
+
+/* ─── Active Subjects Section ─────────────────────────────────────────────── */
+.pm-admin-subjects-section {
+  background: #FFFFFF;
+  border-radius: 16px;
+  padding: 1rem 1.5rem;
+  border: 1px solid #E2E8F0;
+  margin-bottom: 1.75rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+}
+
+.pm-subjects-heading {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.pm-subject-tags-list {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.pm-subject-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  color: #1E293B;
+}
+
+.pm-subject-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3B82F6;
+}
+
+.pm-subject-count {
+  font-size: 0.72rem;
+  background: #E2E8F0;
+  color: #475569;
+  padding: 0.1rem 0.45rem;
+  border-radius: 9999px;
+  font-weight: 700;
+}
+
+/* ─── Tabs Bar ────────────────────────────────────────────────────────────── */
+.pm-admin-tabs-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.pm-admin-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #E2E8F0;
+  padding: 0.3rem;
+  border-radius: 12px;
+}
+
+.pm-admin-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  padding: 0.55rem 1rem;
+  border-radius: 9px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pm-admin-tab-btn.active {
+  background: #FFFFFF;
+  color: #0F172A;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.pm-tab-pill {
+  font-size: 0.72rem;
+  background: #F1F5F9;
+  color: #334155;
+  padding: 0.1rem 0.5rem;
+  border-radius: 9999px;
+  font-weight: 800;
+}
+
+.pm-admin-tab-btn.active .pm-tab-pill {
+  background: #EFF6FF;
+  color: #1D4ED8;
+}
+
+.pm-admin-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(31, 105, 255, 0.2);
+}
+
+/* ─── Panel Card & Tables ─────────────────────────────────────────────────── */
+.pm-admin-panel-card {
+  background: #FFFFFF;
+  border-radius: 20px;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.pm-panel-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.75rem;
+  border-bottom: 1px solid #F1F5F9;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.pm-search-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  padding: 0.55rem 1rem;
+  border-radius: 10px;
+  width: 100%;
+  max-width: 440px;
+}
+
+.pm-search-input-wrap input {
+  border: none;
+  background: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: #0F172A;
+  width: 100%;
+}
+
+.pm-search-clear {
+  background: none;
+  border: none;
+  color: #94A3B8;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.pm-table-count {
+  font-size: 0.82rem;
+  color: #64748B;
+}
+
+.pm-table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.pm-admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.pm-admin-table th {
+  padding: 0.85rem 1.75rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  color: #64748B;
+  background: #F8FAFC;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.pm-admin-table td {
+  padding: 1rem 1.75rem;
+  border-bottom: 1px solid #F1F5F9;
+  font-size: 0.88rem;
+  vertical-align: middle;
+}
+
+.pm-admin-table tbody tr:hover {
+  background-color: #F8FAFC;
+}
+
+/* Faculty Cell */
+.pm-faculty-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.pm-faculty-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.pm-faculty-name {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.pm-faculty-email {
+  display: block;
+  font-size: 0.78rem;
+  color: #64748B;
+}
+
+.pm-dept-text {
+  font-size: 0.82rem;
+  color: #334155;
+  font-weight: 600;
+}
+
+.pm-subject-badge {
+  display: inline-block;
+  background: #EFF6FF;
+  color: #1D4ED8;
+  border: 1px solid #BFDBFE;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.pm-role-pill {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: 8px;
+}
+
+.pm-role-admin {
+  background: #FAF5FF;
+  color: #6B21A8;
+  border: 1px solid #E9D5FF;
+}
+
+.pm-role-mentor {
+  background: #ECFDF5;
+  color: #065F46;
+  border: 1px solid #A7F3D0;
+}
+
+.pm-status-verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: #059669;
+  font-weight: 600;
+}
+
+.pm-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10B981;
+}
+
+.pm-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.pm-btn-icon-action {
+  background: #F1F5F9;
+  border: 1px solid #CBD5E1;
+  color: #1E293B;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pm-btn-icon-action:hover {
+  background: #E2E8F0;
+}
+
+.pm-action-danger {
+  color: #EF4444;
+  border-color: #FECACA;
+}
+
+.pm-action-danger:hover {
+  background: #FEF2F2;
+  border-color: #F87171;
+}
+
+/* Student Audit Cell Styles */
+.pm-student-name {
+  font-size: 0.92rem;
+  color: #0F172A;
+}
+
+.pm-student-email {
+  font-size: 0.8rem;
+  color: #475569;
+  background: #F1F5F9;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+
+.pm-count-badge {
+  display: inline-block;
+  background: #F1F5F9;
+  color: #334155;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.pm-score-pill {
+  display: inline-block;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.pm-score-high {
+  background: #ECFDF5;
+  color: #047857;
+  border: 1px solid #A7F3D0;
+}
+
+.pm-score-mid {
+  background: #EFF6FF;
+  color: #1D4ED8;
+  border: 1px solid #BFDBFE;
+}
+
+.pm-score-low {
+  background: #FFFBEB;
+  color: #B45309;
+  border: 1px solid #FDE68A;
+}
+
+.pm-date-text {
+  font-size: 0.8rem;
+  color: #64748B;
+}
+
+.pm-badge-standing {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #059669;
+}
+
+.pm-session-code-pill {
+  font-family: monospace;
+  font-size: 0.85rem;
+  font-weight: 800;
+  background: #F1F5F9;
+  color: #0F172A;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+}
+
+.pm-quiz-topic {
+  font-size: 0.92rem;
+  color: #0F172A;
+}
+
+.pm-mentor-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.pm-mentor-meta span {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #1E293B;
+}
+
+.pm-mentor-meta small {
+  font-size: 0.72rem;
+  color: #64748B;
+}
+
+/* ─── Add/Edit Faculty Modal ──────────────────────────────────────────────── */
+.pm-admin-modal-card {
+  background: #FFFFFF;
+  border-radius: 24px;
+  width: 100%;
+  max-width: 560px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  animation: pmModalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pmModalPop {
+  from { transform: scale(0.96); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.pm-admin-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 1.75rem;
+  border-bottom: 1px solid #E2E8F0;
+  background: #F8FAFC;
+}
+
+.pm-admin-modal-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0F172A;
+}
+
+.pm-admin-modal-sub {
+  font-size: 0.78rem;
+  color: #64748B;
+  margin-top: 0.15rem;
+}
+
+.pm-admin-modal-form {
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.pm-form-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.pm-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.pm-form-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.pm-form-hint {
+  font-size: 0.72rem;
+  color: #64748B;
+}
+
+.pm-input,
+.pm-select {
+  padding: 0.65rem 0.85rem;
+  border: 1.5px solid #CBD5E1;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.88rem;
+  color: #0F172A;
+  background: #FFFFFF;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.pm-input:focus,
+.pm-select:focus {
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.pm-role-select-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.pm-role-select-card {
+  border: 1.5px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  transition: all 0.15s ease;
+}
+
+.pm-role-select-card.selected {
+  border-color: #3B82F6;
+  background: #EFF6FF;
+}
+
+.pm-role-select-card strong {
+  display: block;
+  font-size: 0.82rem;
+  color: #0F172A;
+}
+
+.pm-role-select-card p {
+  font-size: 0.7rem;
+  color: #64748B;
+  margin: 0.2rem 0 0;
+  line-height: 1.35;
+}
+
+.pm-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid #F1F5F9;
+}
+
+/* ─── Locked Page Guards ──────────────────────────────────────────────────── */
+.pm-admin-locked-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: #F8FAFC;
+}
+
+.pm-admin-locked-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 24px;
+  padding: 3rem 2.5rem;
+  max-width: 520px;
+  text-align: center;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.pm-admin-locked-card h2 {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0F172A;
+}
+
+.pm-badge-role {
+  background: #F1F5F9;
+  border: 1px solid #CBD5E1;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: #334155;
+}
+
+
 
 
