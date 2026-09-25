@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100%" height="100%">
+  <defs>
+    <linearGradient id="pmBoltGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1D4ED8" />
+      <stop offset="60%" stop-color="#2563EB" />
+      <stop offset="100%" stop-color="#06B6D4" />
+    </linearGradient>
+    <linearGradient id="pmBarGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#2563EB" />
+      <stop offset="100%" stop-color="#38BDF8" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background container optional rounded card -->
+  <rect width="200" height="200" rx="44" fill="#FFFFFF" />
+
+  <!-- Pollmeter Rising Bars -->
+  <!-- Bar 1 (Short) -->
+  <rect x="72" y="125" width="16" height="35" rx="8" fill="url(#pmBarGrad)" />
+  <!-- Bar 2 (Medium) -->
+  <rect x="98" y="102" width="16" height="58" rx="8" fill="url(#pmBarGrad)" />
+  <!-- Bar 3 (Tall) -->
+  <rect x="124" y="80" width="16" height="80" rx="8" fill="url(#pmBarGrad)" />
+
+  <!-- Dynamic Lightning Bolt Spear -->
+  <path
+    d="M45 142 L78 68 L104 68 L88 94 L152 44 L114 116 L88 116 L102 96 Z"
+    fill="url(#pmBoltGrad)"
+    stroke="#FFFFFF"
+    stroke-width="3"
+    stroke-linejoin="round"
+  />
+</svg>
