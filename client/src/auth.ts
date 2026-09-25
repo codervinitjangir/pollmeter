@@ -82,6 +82,47 @@ export async function loginWithGoogleCredential(credential: string): Promise<{
   return data;
 }
 
+export async function sendCollegeOtp(email: string): Promise<{
+  success: boolean;
+  devCode?: string;
+}> {
+  const res = await fetch(apiUrl('/api/auth/otp/send'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to send verification code');
+  }
+
+  return data;
+}
+
+export async function verifyCollegeOtp(
+  email: string,
+  code: string,
+  realName?: string
+): Promise<{
+  token: string;
+  user: AuthUser;
+}> {
+  const res = await fetch(apiUrl('/api/auth/otp/verify'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code, realName }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Invalid verification code');
+  }
+
+  setStoredAuth(data.token, data.user);
+  return data;
+}
+
 export async function loginWithCollegeDemo(email: string, realName: string): Promise<{
   token: string;
   user: AuthUser;

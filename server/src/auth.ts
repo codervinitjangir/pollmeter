@@ -175,6 +175,74 @@ export async function authenticateDevDemoUser(email: string, realName?: string):
   return { token, user: savedUser };
 }
 
+// ─── OTP (One-Time Password) Verification ─────────────────────────────────────
+
+interface OtpRecord {
+  code: string;
+  expiresAt: number;
+  attempts: number;
+}
+
+const otpStore = new Map<string, OtpRecord>();
+
+export function sendCollegeOtp(email: string): { success: boolean; devCode?: string } {
+  const cleanEmail = email.toLowerCase().trim();
+  if (!isDomainAllowed(cleanEmail)) {
+    const allowed = getAllowedDomains().join(' or @');
+    throw new Error(`Domain not allowed. Email must end with @${allowed}`);
+  }
+
+  // Generate 6-digit code
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  otpStore.set(cleanEmail, {
+    code,
+    expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes expiry
+    attempts: 0,
+  });
+
+  console.log(`[auth-otp] Generated verification code for ${cleanEmail}: ${code}`);
+
+  const isSmtpConfigured = Boolean(process.env.RESEND_API_KEY || process.env.SMTP_HOST);
+  return {
+    success: true,
+    // Return devCode if SMTP not yet configured so teachers/students aren't stranded
+    devCode: isSmtpConfigured ? undefined : code,
+  };
+}
+
+export async function verifyCollegeOtp(
+  email: string,
+  code: string,
+  realName?: string
+): Promise<{ token: string; user: User }> {
+  const cleanEmail = email.toLowerCase().trim();
+  const record = otpStore.get(cleanEmail);
+
+  if (!record) {
+    throw new Error('No OTP request found for this email. Please request a new code.');
+  }
+
+  if (Date.now() > record.expiresAt) {
+    otpStore.delete(cleanEmail);
+    throw new Error('Verification code expired. Please request a new code.');
+  }
+
+  if (record.attempts >= 5) {
+    otpStore.delete(cleanEmail);
+    throw new Error('Too many invalid attempts. Please request a new code.');
+  }
+
+  if (record.code !== code.trim()) {
+    record.attempts++;
+    throw new Error('Incorrect 6-digit code. Please check and try again.');
+  }
+
+  // Code verified! Remove from pending store
+  otpStore.delete(cleanEmail);
+
+  return authenticateDevDemoUser(cleanEmail, realName);
+}
+
 export async function verifyAndPromoteMentorPin(email: string, pin: string): Promise<{
   token: string;
   user: User;

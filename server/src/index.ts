@@ -26,6 +26,8 @@ import {
   getAllowedDomains,
   authenticateGoogleUser,
   authenticateDevDemoUser,
+  sendCollegeOtp,
+  verifyCollegeOtp,
   verifyAndPromoteMentorPin,
   requireAuth,
   requireMentor,
@@ -316,6 +318,38 @@ app.post('/api/auth/demo', async (req: Request, res: Response) => {
   } catch (err) {
     console.warn('[auth] Demo login failed:', (err as Error).message);
     res.status(403).json({ error: (err as Error).message });
+  }
+});
+
+app.post('/api/auth/otp/send', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body as { email?: string };
+    if (!email) {
+      res.status(400).json({ error: 'Please enter your college email address.' });
+      return;
+    }
+    const result = sendCollegeOtp(email);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+app.post('/api/auth/otp/verify', async (req: Request, res: Response) => {
+  try {
+    const { email, code, realName } = req.body as {
+      email?: string;
+      code?: string;
+      realName?: string;
+    };
+    if (!email || !code) {
+      res.status(400).json({ error: 'Email and 6-digit verification code are required.' });
+      return;
+    }
+    const result = await verifyCollegeOtp(email, code, realName);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
   }
 });
 
