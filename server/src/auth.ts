@@ -1,0 +1,236 @@
+import jwt from 'jsonwebtoken';
+import { Request, Response, NextFunction } from 'express';
+import { User, getUserByEmail, upsertUser, setUserRole } from './db';
+import { v4 as uuidv4 } from 'uuid';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'pollmeter_jwt_secret_medhavi_2026_secured';
+const DEFAULT_DOMAINS = ['medhaviskillsuniversity.edu.in', 'medhaviskillsunivercity.edu.in'];
+const DEFAULT_MENTOR_PIN = process.env.MENTOR_PIN || 'medhavi2026';
+
+export interface JwtPayload {
+  id: string;
+  email: string;
+  realName: string;
+  role: 'student' | 'mentor' | 'admin';
+  picture?: string;
+}
+
+export function getAllowedDomains(): string[] {
+  const custom = process.env.ALLOWED_COLLEGE_DOMAINS;
+  if (!custom) return DEFAULT_DOMAINS;
+  return custom
+    .split(',')
+    .map((d) => d.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+export function isDomainAllowed(email: string): boolean {
+  const clean = email.toLowerCase().trim();
+  const domain = clean.split('@')[1];
+  if (!domain) return false;
+  const allowed = getAllowedDomains();
+  return allowed.some((d) => domain === d || domain.endsWith(`.${d}`));
+}
+
+export function isMentorEmail(email: string): boolean {
+  const clean = email.toLowerCase().trim();
+  const mentorList = (process.env.MENTOR_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return mentorList.includes(clean);
+}
+
+export function generateToken(payload: JwtPayload): string {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' });
+}
+
+export function verifyToken(token: string): JwtPayload | null {
+  try {
+    return jwt.verify(token, JWT_SECRET) as JwtPayload;
+  } catch {
+    return null;
+  }
+}
+
+export async function verifyGoogleCredential(credential: string): Promise<{
+  sub: string;
+  email: string;
+  name: string;
+  picture?: string;
+  hd?: string;
+}> {
+  const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
+  if (!res.ok) {
+    const errorBody = await res.text().catch(() => '');
+    throw new Error(`Google token validation failed (${res.status}): ${errorBody}`);
+  }
+
+  const data = (await res.json()) as {
+    sub?: string;
+    email?: string;
+    email_verified?: string | boolean;
+    name?: string;
+    picture?: string;
+    hd?: string;
+  };
+
+  const isVerified = data.email_verified === 'true' || data.email_verified === true;
+  if (!data.email || !isVerified) {
+    throw new Error('Google email is unverified or missing.');
+  }
+
+  return {
+    sub: data.sub || uuidv4(),
+    email: data.email.toLowerCase().trim(),
+    name: data.name?.trim() || data.email.split('@')[0],
+    picture: data.picture,
+    hd: data.hd,
+  };
+}
+
+export async function authenticateGoogleUser(credential: string): Promise<{
+  token: string;
+  user: User;
+}> {
+  const info = await verifyGoogleCredential(credential);
+
+  if (!isDomainAllowed(info.email)) {
+    const allowed = getAllowedDomains().join(' or @');
+    throw new Error(`Access restricted to official college email (@${allowed}). Personal or external accounts are not allowed.`);
+  }
+
+  const existing = await getUserByEmail(info.email);
+  const collegeDomain = info.email.split('@')[1];
+  let role: 'student' | 'mentor' | 'admin' = existing?.role ?? 'student';
+
+  // If email is explicitly in mentor list, grant mentor role
+  if (isMentorEmail(info.email)) {
+    role = 'mentor';
+  }
+
+  const userRecord: User = {
+    id: existing?.id || info.sub || uuidv4(),
+    email: info.email,
+    realName: info.name || existing?.realName || info.email.split('@')[0],
+    role,
+    collegeDomain,
+    picture: info.picture || existing?.picture,
+    createdAt: existing?.createdAt || new Date().toISOString(),
+  };
+
+  const savedUser = await upsertUser(userRecord);
+  const token = generateToken({
+    id: savedUser.id,
+    email: savedUser.email,
+    realName: savedUser.realName,
+    role: savedUser.role,
+    picture: savedUser.picture,
+  });
+
+  return { token, user: savedUser };
+}
+
+export async function authenticateDevDemoUser(email: string, realName?: string): Promise<{
+  token: string;
+  user: User;
+}> {
+  const cleanEmail = email.toLowerCase().trim();
+  if (!isDomainAllowed(cleanEmail)) {
+    const allowed = getAllowedDomains().join(' or @');
+    throw new Error(`Domain not allowed. Email must end with @${allowed}`);
+  }
+
+  const existing = await getUserByEmail(cleanEmail);
+  const collegeDomain = cleanEmail.split('@')[1];
+  let role: 'student' | 'mentor' | 'admin' = existing?.role ?? 'student';
+
+  if (isMentorEmail(cleanEmail)) {
+    role = 'mentor';
+  }
+
+  const userRecord: User = {
+    id: existing?.id || uuidv4(),
+    email: cleanEmail,
+    realName: realName?.trim() || existing?.realName || cleanEmail.split('@')[0],
+    role,
+    collegeDomain,
+    picture: existing?.picture,
+    createdAt: existing?.createdAt || new Date().toISOString(),
+  };
+
+  const savedUser = await upsertUser(userRecord);
+  const token = generateToken({
+    id: savedUser.id,
+    email: savedUser.email,
+    realName: savedUser.realName,
+    role: savedUser.role,
+    picture: savedUser.picture,
+  });
+
+  return { token, user: savedUser };
+}
+
+export async function verifyAndPromoteMentorPin(email: string, pin: string): Promise<{
+  token: string;
+  user: User;
+}> {
+  const cleanEmail = email.toLowerCase().trim();
+  const configuredPin = process.env.MENTOR_PIN || DEFAULT_MENTOR_PIN;
+
+  if (pin.trim() !== configuredPin.trim()) {
+    throw new Error('Incorrect Mentor Passcode.');
+  }
+
+  const updated = await setUserRole(cleanEmail, 'mentor');
+  if (!updated) {
+    throw new Error('User not found.');
+  }
+
+  const token = generateToken({
+    id: updated.id,
+    email: updated.email,
+    realName: updated.realName,
+    role: updated.role,
+    picture: updated.picture,
+  });
+
+  return { token, user: updated };
+}
+
+// ─── Express Auth Middleware ──────────────────────────────────────────────────
+
+export interface AuthenticatedRequest extends Request {
+  user?: JwtPayload;
+}
+
+export function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Authentication required. Please sign in with your college email.' });
+    return;
+  }
+
+  const token = authHeader.substring(7);
+  const payload = verifyToken(token);
+  if (!payload) {
+    res.status(401).json({ error: 'Session expired or invalid token. Please sign in again.' });
+    return;
+  }
+
+  req.user = payload;
+  next();
+}
+
+export function requireMentor(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+  requireAuth(req, res, () => {
+    if (!req.user || (req.user.role !== 'mentor' && req.user.role !== 'admin')) {
+      res.status(403).json({
+        error: 'Mentor privileges required. Enter your Faculty Security PIN to access host features.',
+        needsPin: true,
+      });
+      return;
+    }
+    next();
+  });
+}

@@ -28,6 +28,9 @@ import { cleanText } from '../cleanText';
 import { getAvatar } from '../utils/avatars';
 import { triggerHaptic } from '../utils/haptics';
 import { getVerdictQuote } from '../utils/verdictQuotes';
+import { getAuthUser, getAuthToken, clearStoredAuth, AuthUser } from '../auth';
+import CollegeAuthModal from '../components/CollegeAuthModal';
+import StudentQuizHistoryModal from '../components/StudentQuizHistoryModal';
 
 const LS_KEY = 'pollsync_participant';
 
@@ -66,6 +69,9 @@ export default function JoinPage() {
   const [joinError, setJoinError] = useState('');
   const [joining, setJoining] = useState(false);
   const [joined, setJoined] = useState(false);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(() => getAuthUser());
+  const [showAuthModal, setShowAuthModal] = useState(() => !getAuthUser());
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   // Server-authoritative session state. The screen is derived from `phase`
   // rather than a second local step machine that could drift out of sync.
@@ -134,12 +140,18 @@ export default function JoinPage() {
     }, 8000);
 
     if (!socket.connected) socket.connect();
+    const authToken = getAuthToken();
+    const currentAuth = getAuthUser();
+
     socket.emit('join_session', {
       code: code.trim(),
       name: name.trim(),
       // Both halves, or the server treats this as a fresh student.
       participantId: stored?.code === code.trim() ? stored.participantId : undefined,
       rejoinToken: stored?.code === code.trim() ? stored.rejoinToken : undefined,
+      authToken: authToken || undefined,
+      realName: currentAuth?.realName,
+      email: currentAuth?.email,
     });
   }, []);
 
@@ -463,6 +475,10 @@ export default function JoinPage() {
   // ─── Actions ──────────────────────────────────────────────────────────────
   function handleJoinSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!authUser) {
+      setShowAuthModal(true);
+      return;
+    }
     const code = codeInput.trim();
     const name = nameInput.trim();
 
@@ -471,7 +487,7 @@ export default function JoinPage() {
       return;
     }
     if (!name) {
-      setJoinError('Please enter your name so your mentor can see your score.');
+      setJoinError('Please choose your screen nickname for this quiz.');
       return;
     }
     doJoin(code, name, identity.current);
@@ -735,7 +751,64 @@ export default function JoinPage() {
   if (!joined) {
     return (
       <div className="menti-join-canvas">
-        <header className="menti-join-topbar">
+        <CollegeAuthModal
+          isOpen={showAuthModal || !authUser}
+          title="Medhavi Student Portal"
+          subtitle="Sign in with your official college email ID to participate in live quizzes"
+          onSuccess={(user) => {
+            setAuthUser(user);
+            setShowAuthModal(false);
+            if (!nameInput.trim()) {
+              setNameInput(user.realName.split(' ')[0]);
+            }
+          }}
+          onClose={authUser ? () => setShowAuthModal(false) : undefined}
+          roleHint="student"
+        />
+
+        <StudentQuizHistoryModal
+          isOpen={showHistoryModal}
+          currentUser={authUser}
+          onClose={() => setShowHistoryModal(false)}
+        />
+
+        <header className="menti-join-topbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', maxWidth: '440px', margin: '0 auto', padding: '0.75rem 1rem' }}>
+          {authUser ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span className="pm-auth-profile-badge">
+                🎓 {authUser.realName}
+              </span>
+              <button
+                type="button"
+                className="btn btn-ghost btn--sm"
+                onClick={() => setShowHistoryModal(true)}
+                title="View your past quiz scores"
+                style={{ padding: '0.2rem 0.5rem', fontSize: '0.78rem' }}
+              >
+                📜 My Quizzes
+              </button>
+              <button
+                type="button"
+                className="pm-auth-signout-btn"
+                onClick={() => {
+                  clearStoredAuth();
+                  setAuthUser(null);
+                  setShowAuthModal(true);
+                }}
+              >
+                Switch
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-secondary btn--sm"
+              onClick={() => setShowAuthModal(true)}
+            >
+              Sign In with College ID
+            </button>
+          )}
+
           <a href="/dashboard" className="menti-join-pill-link">Host a session</a>
         </header>
 
@@ -752,8 +825,10 @@ export default function JoinPage() {
           </div>
 
           <div>
-            <h1 className="menti-join-title">Enter the code to join</h1>
-            <p className="menti-join-subtitle">It&rsquo;s on the screen in front of you</p>
+            <h1 className="menti-join-title">Join Live Quiz</h1>
+            <p className="menti-join-subtitle">
+              {authUser ? `Welcome ${authUser.realName.split(' ')[0]}! Enter room code & nickname.` : 'Sign in with college ID to join.'}
+            </p>
           </div>
 
           <form
@@ -762,33 +837,51 @@ export default function JoinPage() {
             noValidate
           >
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-              <input
-                id="join-code"
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                pattern="\d{6}"
-                maxLength={6}
-                value={codeInput}
-                onChange={(e) => setCodeInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="123456"
-                autoFocus={!codeInput}
-                className="menti-join-input"
-                aria-label="6-digit session code"
-              />
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.35rem', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  6-Digit Quiz Code
+                </label>
+                <input
+                  id="join-code"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="\d{6}"
+                  maxLength={6}
+                  value={codeInput}
+                  onChange={(e) => setCodeInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="123456"
+                  autoFocus={!codeInput}
+                  className="menti-join-input"
+                  aria-label="6-digit session code"
+                />
+              </div>
 
-              <input
-                id="display-name"
-                type="text"
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-                placeholder="Your name"
-                maxLength={24}
-                autoComplete="given-name"
-                className="menti-join-input"
-                style={{ height: '48px', fontSize: '1rem', letterSpacing: 'normal' }}
-                aria-label="Your display name"
-              />
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.35rem' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Screen Nickname
+                  </label>
+                  <span style={{ fontSize: '0.72rem', color: '#6366F1', fontWeight: 600 }}>
+                    Classmates see only this
+                  </span>
+                </div>
+                <input
+                  id="display-name"
+                  type="text"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  placeholder="e.g. Raja"
+                  maxLength={24}
+                  autoComplete="nickname"
+                  className="menti-join-input"
+                  style={{ height: '48px', fontSize: '1rem', letterSpacing: 'normal' }}
+                  aria-label="Your screen nickname"
+                />
+                <span style={{ display: 'block', fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '0.3rem', textAlign: 'left', lineHeight: 1.35 }}>
+                  💡 Play as <strong>"{nameInput.trim() || 'Raja'}"</strong> during the quiz. Mentor receives your verified name <strong>({authUser?.realName || 'College ID'})</strong> in the official attendance sheet.
+                </span>
+              </div>
             </div>
 
             {joinError && (
@@ -803,13 +896,13 @@ export default function JoinPage() {
               disabled={joining || !codeInput || !nameInput.trim()}
               id="join-btn"
             >
-              {joining ? 'Connecting…' : 'Join'}
+              {joining ? 'Connecting…' : 'Enter Lobby →'}
             </button>
           </form>
         </main>
 
         <footer className="menti-join-footer">
-          Your name is shown on the classroom leaderboard.
+          🔒 Official Medhavi Skills University live learning portal.
         </footer>
       </div>
     );

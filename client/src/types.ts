@@ -33,12 +33,16 @@ export type SessionStatus = SessionPhase;
 export interface Participant {
   id: string;
   name: string;
+  realName?: string;
+  email?: string;
   connected: boolean;
 }
 
 export interface LeaderboardEntry {
   participantId: string;
   name: string;
+  realName?: string;
+  email?: string;
   totalScore: number;
   correctAnswers: number;
   questionsAnswered: number;

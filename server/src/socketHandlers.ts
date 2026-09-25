@@ -1,4 +1,5 @@
 import { Server, Socket } from 'socket.io';
+import { v4 as uuidv4 } from 'uuid';
 import {
   getSession,
   touchSession,
@@ -24,6 +25,7 @@ import {
 import {
   Session,
   Question,
+  LeaderboardEntry,
   JoinSessionPayload,
   SubmitResponsePayload,
   HostCommandPayload,
@@ -32,6 +34,13 @@ import {
   HostStatePayload,
   ResponseAcceptedPayload,
 } from './types';
+import { verifyToken } from './auth';
+import {
+  saveQuizSession,
+  saveSessionResults,
+  SessionParticipantRecord,
+  StudentResponseRecord,
+} from './db';
 
 /** Host-only broadcasts (participant names/ids) go to this room, never to students. */
 const hostRoom = (code: string) => `host:${code}`;
@@ -285,15 +294,84 @@ function reviewQuestion(io: Server, session: Session, index: number): void {
   io.to(hostRoom(session.code)).emit('host_state', buildHostState(session));
 }
 
+async function persistEndedSession(session: Session, leaderboard: LeaderboardEntry[]): Promise<void> {
+  try {
+    const participants: SessionParticipantRecord[] = leaderboard.map((entry) => {
+      const rec = session.participants.get(entry.participantId);
+      return {
+        id: entry.participantId,
+        sessionId: session.code,
+        userId: rec?.userId,
+        realName: rec?.realName || entry.realName || entry.name,
+        email: rec?.email || entry.email || 'anonymous@medhaviskillsuniversity.edu.in',
+        screenName: entry.name,
+        finalScore: entry.totalScore,
+        correctCount: entry.correctAnswers,
+        totalQuestions: session.questions.length,
+        rank: entry.rank,
+        joinedAt: rec ? new Date(rec.joinedAt).toISOString() : new Date().toISOString(),
+      };
+    });
+
+    const responses: StudentResponseRecord[] = [];
+    for (let qIdx = 0; qIdx < session.questions.length; qIdx++) {
+      const q = session.questions[qIdx];
+      const qResponses = session.responses[q.id] || [];
+      for (const r of qResponses) {
+        const rec = session.participants.get(r.participantId);
+        responses.push({
+          id: uuidv4(),
+          sessionId: session.code,
+          questionIndex: qIdx,
+          userId: rec?.userId,
+          email: rec?.email || 'anonymous@medhaviskillsuniversity.edu.in',
+          realName: rec?.realName || rec?.name || 'Student',
+          screenName: rec?.name || 'Student',
+          selectedOption: r.value,
+          isCorrect: r.isCorrect,
+          score: r.score,
+          timeTakenMs: r.answeredAt,
+          createdAt: new Date().toISOString(),
+        });
+      }
+    }
+
+    await saveQuizSession({
+      id: session.code,
+      code: session.code,
+      topic: session.topic || (session.questions[0]?.text ? `Quiz: ${session.questions[0].text.slice(0, 40)}...` : 'Classroom Quiz'),
+      hostEmail: session.hostEmail || 'mentor@medhaviskillsuniversity.edu.in',
+      hostName: session.hostName,
+      questionCount: session.questions.length,
+      participantCount: session.participants.size,
+      questions: session.questions,
+      createdAt: new Date(session.createdAt).toISOString(),
+      endedAt: new Date().toISOString(),
+    });
+
+    await saveSessionResults(session.code, participants, responses);
+    console.log(`[db] Quiz session ${session.code} persisted to database with ${participants.length} participants.`);
+  } catch (err) {
+    console.error('[db] Error persisting ended quiz session:', (err as Error).message);
+  }
+}
+
 function endSession(io: Server, session: Session): void {
   clearSessionTimer(session);
   session.phase = 'ended';
   touchSession(session);
 
+  const leaderboard = getLeaderboard(session);
+
   io.to(session.code).emit('session_ended', {
     finalResults: buildFinalResults(session),
     questions: session.questions,
-    leaderboard: getLeaderboard(session),
+    leaderboard,
+  });
+
+  // Asynchronously record session history
+  persistEndedSession(session, leaderboard).catch((err) => {
+    console.error('[db] Error in persistEndedSession async task:', err);
   });
 }
 
@@ -544,11 +622,29 @@ export function registerSocketHandlers(io: Server, socket: Socket): void {
       return;
     }
 
+    let authUser: { realName?: string; email?: string; userId?: string } | undefined;
+    if (payload?.authToken) {
+      const decoded = verifyToken(payload.authToken);
+      if (decoded) {
+        authUser = {
+          realName: decoded.realName,
+          email: decoded.email,
+          userId: decoded.id,
+        };
+      }
+    } else if (payload?.realName && payload?.email) {
+      authUser = {
+        realName: payload.realName,
+        email: payload.email,
+      };
+    }
+
     const outcome = addOrRejoinParticipant(
       session,
       sanitizeName(String(payload?.name ?? '')),
       payload?.participantId,
-      payload?.rejoinToken
+      payload?.rejoinToken,
+      authUser
     );
 
     if (!outcome.ok) {

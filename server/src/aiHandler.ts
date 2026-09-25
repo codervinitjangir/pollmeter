@@ -153,20 +153,27 @@ If that focus does not appear in the material, return an empty array rather than
   return `You are helping a mentor build a live in-class quiz that will be projected to about 50 students answering on their phones.
 
 Topic: ${req.topic.trim()}
-${req.audience?.trim() ? `Class / level: ${req.audience.trim()}\n` : ''}Number of questions: ${req.count + 2}
+${req.audience?.trim() ? `Class / level: ${req.audience.trim()}\n` : ''}Number of questions: ${req.count + 4}
 Difficulty: ${req.difficulty} — ${difficultyGuide}
 ${typeInstruction}
 ${syllabusBlock}${coverageBlock}${focusBlock}
 Requirements:
 - Every question must be directly about "${req.topic.trim()}". A question a student could answer without having studied this topic does not belong in the set. No general knowledge, no warm-up questions, no adjacent subjects that merely share vocabulary.
 - Every question must be factually correct and unambiguous. One and only one option may be defensible as correct.
-- Accuracy matters more than hitting the count. The mentor only needs ${req.count}; the two extra are headroom so weak ones can be dropped, not licence to pad. If the material does not support this many solid questions, return fewer. Never invent material to reach a number.
+- OPTION LENGTH PARITY (CRITICAL ANTI-BIAS RULE):
+  * The correct answer MUST NOT be noticeably longer or more descriptive than the distractors.
+  * All 4 options must be roughly equal in character count (within ±25% of each other).
+  * If the correct answer is 4 words, each distractor must also be 3 to 5 words.
+  * NEVER write a detailed, qualifying explanation for the correct answer while giving short, lazy distractors.
+  * All 4 options must use identical grammatical form (e.g., all full definitions, all active verb phrases, or all noun terms).
+  * Distractors must be plausible, realistic, and equally sophisticated.
+- Accuracy matters more than hitting the count. The mentor only needs ${req.count}; the four extra are headroom so weak or length-biased ones can be dropped, not licence to pad. If the material does not support this many solid questions, return fewer. Never invent material to reach a number.
 - Only assert things you are certain of. Do not invent specific dates, version numbers, statistics, percentages, author names, or citations. If you are not sure of a specific figure, ask about the underlying concept instead — a concept question that is right beats a precise-sounding question that is wrong.
 - Before you emit each question, re-read your own options and confirm that exactly one is correct and every other option is clearly, defensibly wrong. If two options could both be argued, rewrite the question.
 - correctAnswer must be copied character-for-character from one of the options, with identical spelling, casing and spacing.
 - Write in clean, simple plain text. DO NOT use markdown backticks, asterisks, or code symbols in question text or options (e.g. write process.nextTick plainly, write Node.js without spaces).
 - Keep question text under 140 characters; it has to be readable from the back of a classroom.
-- Keep each option under 60 characters.
+- Keep each option under 65 characters.
 - Distractors must be plausible to someone who half-remembers the material. No joke options, no "all of the above", no "none of the above".
 - Do not number the questions or prefix options with A/B/C/D — the app adds those.
 - Vary what you ask about across the set; do not ask the same fact twice in different words.
@@ -444,6 +451,26 @@ function normalizeQuestions(raw: unknown[], timeLimitSeconds: number, limit: num
     if (!matchingOption) {
       console.warn(`[ai] Question skipped - correctAnswer "${rawKey}" not found in options:`, unique);
       continue;
+    }
+
+    // Anti-Length-Bias Guard:
+    // If the correct option is significantly longer than the distractors, students guess it effortlessly.
+    const keyLen = matchingOption.length;
+    const distractors = unique.filter((o) => o !== matchingOption);
+    if (distractors.length > 0) {
+      const avgDistractor = distractors.reduce((sum, d) => sum + d.length, 0) / distractors.length;
+      if (keyLen > avgDistractor * 1.45 && keyLen - avgDistractor > 14) {
+        console.warn(
+          `[ai] Question skipped due to length bias (key too long: ${keyLen} chars vs avg distractor: ${avgDistractor.toFixed(1)} chars). Key: "${matchingOption}"`
+        );
+        continue;
+      }
+      if (avgDistractor > keyLen * 2.2 && avgDistractor - keyLen > 20) {
+        console.warn(
+          `[ai] Question skipped due to inverse length bias (key too short: ${keyLen} chars vs avg distractor: ${avgDistractor.toFixed(1)} chars). Key: "${matchingOption}"`
+        );
+        continue;
+      }
     }
 
     questions.push({

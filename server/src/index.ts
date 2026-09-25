@@ -15,6 +15,23 @@ import {
 import { registerSocketHandlers } from './socketHandlers';
 import { handleGenerateQuestions, getAiStatus } from './aiHandler';
 import { Question, QuestionType } from './types';
+import {
+  initDb,
+  saveQuizSession,
+  getMentorQuizzes,
+  getQuizDetails,
+  getStudentQuizzes,
+} from './db';
+import {
+  getAllowedDomains,
+  authenticateGoogleUser,
+  authenticateDevDemoUser,
+  verifyAndPromoteMentorPin,
+  requireAuth,
+  requireMentor,
+  AuthenticatedRequest,
+  verifyToken,
+} from './auth';
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
 
@@ -190,20 +207,61 @@ function validateQuestions(raw: unknown): ValidationResult {
 
 // ─── REST: Session management ─────────────────────────────────────────────────
 
-app.post('/api/sessions', sessionCreationLimiter, (req: Request, res: Response) => {
-  const result = validateQuestions((req.body as { questions?: unknown })?.questions);
+app.post('/api/sessions', sessionCreationLimiter, async (req: Request, res: Response) => {
+  const body = req.body as {
+    questions?: unknown;
+    topic?: string;
+    hostEmail?: string;
+    hostName?: string;
+  };
+  const result = validateQuestions(body?.questions);
 
   if (!result.ok) {
     res.status(400).json({ error: result.error });
     return;
   }
 
-  const session = createSession(result.questions);
-  console.log(`[session] created ${session.code} with ${result.questions.length} question(s)`);
+  let hostEmail = body?.hostEmail;
+  let hostName = body?.hostName;
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    const decoded = verifyToken(authHeader.substring(7));
+    if (decoded) {
+      hostEmail = hostEmail || decoded.email;
+      hostName = hostName || decoded.realName;
+    }
+  }
+
+  const topic = body?.topic?.trim() || (result.questions[0]?.text ? `Quiz: ${result.questions[0].text.slice(0, 40)}...` : 'Classroom Quiz');
+
+  const session = createSession(result.questions, {
+    topic,
+    hostEmail: hostEmail || 'mentor@medhaviskillsuniversity.edu.in',
+    hostName: hostName || 'Faculty Mentor',
+  });
+
+  try {
+    await saveQuizSession({
+      id: session.code,
+      code: session.code,
+      topic,
+      hostEmail: session.hostEmail || 'mentor@medhaviskillsuniversity.edu.in',
+      hostName: session.hostName,
+      questionCount: session.questions.length,
+      participantCount: 0,
+      questions: session.questions,
+      createdAt: new Date(session.createdAt).toISOString(),
+    });
+  } catch (err) {
+    console.error('[db] Error pre-saving session to DB:', err);
+  }
+
+  console.log(`[session] created ${session.code} with ${result.questions.length} question(s) [${topic}]`);
   res.status(201).json({
     code: session.code,
     hostId: session.hostId,
     questions: session.questions,
+    topic,
   });
 });
 
@@ -220,6 +278,105 @@ app.get('/api/sessions/:code', (req: Request, res: Response) => {
     currentIndex: session.currentIndex,
     participantCount: session.participants.size,
   });
+});
+
+// ─── REST: Authentication ───────────────────────────────────────────────────
+
+app.get('/api/auth/domains', (_req, res) => {
+  res.json({
+    allowedDomains: getAllowedDomains(),
+    googleClientId: process.env.GOOGLE_CLIENT_ID || null,
+  });
+});
+
+app.post('/api/auth/google', async (req: Request, res: Response) => {
+  try {
+    const { credential } = req.body as { credential?: string };
+    if (!credential) {
+      res.status(400).json({ error: 'Missing Google credential token.' });
+      return;
+    }
+    const result = await authenticateGoogleUser(credential);
+    res.json(result);
+  } catch (err) {
+    console.warn('[auth] Google sign-in failed:', (err as Error).message);
+    res.status(403).json({ error: (err as Error).message });
+  }
+});
+
+app.post('/api/auth/demo', async (req: Request, res: Response) => {
+  try {
+    const { email, realName } = req.body as { email?: string; realName?: string };
+    if (!email) {
+      res.status(400).json({ error: 'Please provide your college email address.' });
+      return;
+    }
+    const result = await authenticateDevDemoUser(email, realName);
+    res.json(result);
+  } catch (err) {
+    console.warn('[auth] Demo login failed:', (err as Error).message);
+    res.status(403).json({ error: (err as Error).message });
+  }
+});
+
+app.get('/api/auth/me', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  res.json({ user: req.user });
+});
+
+app.post('/api/auth/verify-mentor-pin', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { pin } = req.body as { pin?: string };
+    if (!pin) {
+      res.status(400).json({ error: 'Please enter the faculty security PIN.' });
+      return;
+    }
+    if (!req.user?.email) {
+      res.status(401).json({ error: 'User not authenticated.' });
+      return;
+    }
+    const result = await verifyAndPromoteMentorPin(req.user.email, pin);
+    res.json(result);
+  } catch (err) {
+    res.status(403).json({ error: (err as Error).message });
+  }
+});
+
+// ─── REST: History & Analytics ──────────────────────────────────────────────
+
+app.get('/api/mentor/quizzes', requireMentor, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const mentorEmail = req.user?.role === 'admin' ? undefined : req.user?.email;
+    const quizzes = await getMentorQuizzes(mentorEmail);
+    res.json({ quizzes });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve mentor quizzes.' });
+  }
+});
+
+app.get('/api/mentor/quizzes/:id', requireMentor, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const details = await getQuizDetails(req.params.id);
+    if (!details) {
+      res.status(404).json({ error: 'Quiz session not found.' });
+      return;
+    }
+    res.json(details);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve quiz details.' });
+  }
+});
+
+app.get('/api/student/quizzes', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user?.email) {
+      res.status(401).json({ error: 'Not authenticated.' });
+      return;
+    }
+    const history = await getStudentQuizzes(req.user.email);
+    res.json({ history });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve student quizzes.' });
+  }
 });
 
 // ─── REST: AI question generation ─────────────────────────────────────────────
@@ -314,6 +471,10 @@ io.on('connection', (socket) => {
 });
 
 startSessionSweeper();
+
+initDb().catch((err) => {
+  console.error('[db] Initialization error:', err);
+});
 
 httpServer.listen(PORT, '0.0.0.0', () => {
   const ai = getAiStatus();

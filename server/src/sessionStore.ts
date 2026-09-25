@@ -41,11 +41,17 @@ function generateCode(): string {
 
 // ─── Session CRUD ─────────────────────────────────────────────────────────────
 
-export function createSession(questions: Question[]): Session {
+export function createSession(
+  questions: Question[],
+  meta?: { topic?: string; hostEmail?: string; hostName?: string }
+): Session {
   const now = Date.now();
   const session: Session = {
     code: generateCode(),
     hostId: uuidv4(),
+    topic: meta?.topic,
+    hostEmail: meta?.hostEmail,
+    hostName: meta?.hostName,
     questions,
     currentIndex: -1,
     maxAskedIndex: -1,
@@ -167,7 +173,8 @@ export function addOrRejoinParticipant(
   session: Session,
   rawName: string,
   existingId?: string,
-  rejoinToken?: string
+  rejoinToken?: string,
+  auth?: { realName?: string; email?: string; userId?: string }
 ): JoinOutcome {
   const name = sanitizeName(rawName);
   if (!name) return { ok: false, error: 'Please enter your name.' };
@@ -177,8 +184,16 @@ export function addOrRejoinParticipant(
     if (existing && existing.token === rejoinToken) {
       existing.name = uniqueName(session, name, existing.id);
       existing.connected = true;
+      if (auth?.realName) existing.realName = auth.realName;
+      if (auth?.email) existing.email = auth.email;
+      if (auth?.userId) existing.userId = auth.userId;
+
       const entry = session.leaderboard.get(existing.id);
-      if (entry) entry.name = existing.name;
+      if (entry) {
+        entry.name = existing.name;
+        if (existing.realName) entry.realName = existing.realName;
+        if (existing.email) entry.email = existing.email;
+      }
       return { ok: true, record: existing, isRejoin: true };
     }
   }
@@ -190,6 +205,9 @@ export function addOrRejoinParticipant(
   const record: ParticipantRecord = {
     id: uuidv4(),
     name: uniqueName(session, name),
+    realName: auth?.realName,
+    email: auth?.email,
+    userId: auth?.userId,
     token: uuidv4(),
     connected: true,
     sockets: new Set(),
@@ -201,6 +219,8 @@ export function addOrRejoinParticipant(
   session.leaderboard.set(record.id, {
     participantId: record.id,
     name: record.name,
+    realName: record.realName,
+    email: record.email,
     totalScore: 0,
     correctAnswers: 0,
     questionsAnswered: 0,
@@ -212,11 +232,11 @@ export function addOrRejoinParticipant(
   return { ok: true, record, isRejoin: false };
 }
 
-/** Public view — deliberately omits `token`. */
+/** Public view — deliberately omits `token`. RealName & email forwarded only to the host room. */
 export function getParticipants(session: Session): Participant[] {
   return Array.from(session.participants.values())
     .sort((a, b) => a.joinedAt - b.joinedAt)
-    .map(({ id, name, connected }) => ({ id, name, connected }));
+    .map(({ id, name, realName, email, connected }) => ({ id, name, realName, email, connected }));
 }
 
 export function markSocketConnected(session: Session, participantId: string, socketId: string): void {

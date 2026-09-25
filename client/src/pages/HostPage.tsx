@@ -30,6 +30,10 @@ import AIGenerateModal from '../components/AIGenerateModal';
 import { apiUrl } from '../api';
 import { cleanText } from '../cleanText';
 import { getAvatar } from '../utils/avatars';
+import { getAuthUser, getAuthToken, clearStoredAuth, AuthUser } from '../auth';
+import CollegeAuthModal from '../components/CollegeAuthModal';
+import MentorPinModal from '../components/MentorPinModal';
+import MentorQuizHistoryModal from '../components/MentorQuizHistoryModal';
 
 /**
  * The projector laptop is the least reliable machine in the room — someone
@@ -58,6 +62,13 @@ export default function HostPage() {
   const builderRef = useRef<HTMLDivElement>(null);
   const mainPanelRef = useRef<HTMLDivElement>(null);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(() => getAuthUser());
+  const [showAuthModal, setShowAuthModal] = useState(() => !getAuthUser());
+  const [showPinModal, setShowPinModal] = useState(() => {
+    const u = getAuthUser();
+    return Boolean(u && u.role !== 'mentor' && u.role !== 'admin');
+  });
+  const [showPastQuizzes, setShowPastQuizzes] = useState(false);
 
   // Live session state — all server-authoritative.
   const [phase, setPhase] = useState<SessionPhase>('lobby');
@@ -409,16 +420,35 @@ export default function HostPage() {
 
   async function createSession() {
     setError('');
+    if (!authUser) {
+      setShowAuthModal(true);
+      return;
+    }
+    if (authUser.role !== 'mentor' && authUser.role !== 'admin') {
+      setShowPinModal(true);
+      return;
+    }
     if (questions.length === 0) {
       setError('Add at least one question.');
       return;
     }
     setLoading(true);
     try {
+      const token = getAuthToken();
+      const topic = aiInitialTopic || (questions[0]?.text ? `Quiz: ${questions[0].text.slice(0, 40)}...` : 'Classroom Quiz');
+
       const res = await fetch(apiUrl('/api/sessions'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ questions }),
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          questions,
+          topic,
+          hostEmail: authUser.email,
+          hostName: authUser.realName,
+        }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error ?? 'Could not create the session.');
@@ -578,21 +608,40 @@ export default function HostPage() {
   // ─── Helpers ──────────────────────────────────────────────────────────────
   function exportResultsCsv() {
     if (leaderboard.length === 0) return;
-    const headers = ['Rank', 'Student Name', 'Total Score', 'Correct Answers', 'Questions Answered', 'Best Streak'];
-    const rows = leaderboard.map((e) => [
-      e.rank,
-      `"${e.name.replace(/"/g, '""')}"`,
-      e.totalScore,
-      e.correctAnswers,
-      e.questionsAnswered,
-      e.bestStreak ?? 0,
-    ]);
+    const headers = [
+      'Rank',
+      'Real Name (College ID)',
+      'Screen Name (Quiz)',
+      'College Email',
+      'Total Score',
+      'Correct Answers',
+      'Questions Answered',
+      'Accuracy %',
+      'Best Streak',
+    ];
+    const rows = leaderboard.map((e) => {
+      const p = participants.find((part) => part.id === e.participantId);
+      const realName = p?.realName || e.realName || e.name;
+      const email = p?.email || e.email || '—';
+      const accuracy = e.questionsAnswered > 0 ? Math.round((e.correctAnswers / e.questionsAnswered) * 100) : 0;
+      return [
+        e.rank,
+        `"${realName.replace(/"/g, '""')}"`,
+        `"${e.name.replace(/"/g, '""')}"`,
+        `"${email.replace(/"/g, '""')}"`,
+        e.totalScore,
+        e.correctAnswers,
+        e.questionsAnswered,
+        `${accuracy}%`,
+        e.bestStreak ?? 0,
+      ];
+    });
     const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `PollMeter_Results_${code || 'session'}.csv`);
+    link.setAttribute('download', `MSU_Quiz_Results_${code || 'session'}_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -748,6 +797,38 @@ export default function HostPage() {
   // ─── Builder screen ───────────────────────────────────────────────────────
   if (!inSession) return (
     <div className="menti-app-shell">
+      <CollegeAuthModal
+        isOpen={showAuthModal || !authUser}
+        title="Medhavi Faculty &amp; Mentor Portal"
+        subtitle="Sign in with your official college email ID to host quizzes and manage students"
+        onSuccess={(user) => {
+          setAuthUser(user);
+          setShowAuthModal(false);
+          if (user.role !== 'mentor' && user.role !== 'admin') {
+            setShowPinModal(true);
+          }
+        }}
+        onClose={authUser ? () => setShowAuthModal(false) : undefined}
+        roleHint="mentor"
+      />
+
+      <MentorPinModal
+        isOpen={showPinModal}
+        currentUser={authUser}
+        onSuccess={(updated) => {
+          setAuthUser(updated);
+          setShowPinModal(false);
+        }}
+        onCancel={() => {
+          setShowPinModal(false);
+        }}
+      />
+
+      <MentorQuizHistoryModal
+        isOpen={showPastQuizzes}
+        onClose={() => setShowPastQuizzes(false)}
+      />
+
       <aside className="menti-sidebar">
         <div>
           <a href="/dashboard" className="menti-sidebar-brand">
@@ -784,6 +865,13 @@ export default function HostPage() {
             <button className="menti-nav-link" onClick={() => openWithTopic('')}>
               <span>✨</span> Generate with AI
             </button>
+            <button
+              className="menti-nav-link"
+              onClick={() => setShowPastQuizzes(true)}
+              id="past-quizzes-sidebar-btn"
+            >
+              <span>📊</span> Past Quizzes &amp; Reports
+            </button>
           </nav>
 
           <div className="menti-nav-group">
@@ -815,7 +903,42 @@ export default function HostPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className="menti-topbar-actions" />
+          <div className="menti-topbar-actions">
+            {authUser ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <span className="pm-auth-profile-badge">
+                  🎓 {authUser.realName} {authUser.role === 'mentor' || authUser.role === 'admin' ? '(Faculty)' : ''}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn--sm"
+                  onClick={() => setShowPastQuizzes(true)}
+                  id="topbar-past-quizzes-btn"
+                >
+                  📊 Past Quizzes
+                </button>
+                <button
+                  type="button"
+                  className="pm-auth-signout-btn"
+                  onClick={() => {
+                    clearStoredAuth();
+                    setAuthUser(null);
+                    setShowAuthModal(true);
+                  }}
+                >
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-primary btn--sm"
+                onClick={() => setShowAuthModal(true)}
+              >
+                Sign In with College ID
+              </button>
+            )}
+          </div>
         </header>
 
         {showAI && (

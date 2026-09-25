@@ -50,6 +50,8 @@ export interface Response {
 export interface LeaderboardEntry {
   participantId: string;
   name: string;
+  realName?: string;
+  email?: string;
   totalScore: number;
   correctAnswers: number;
   questionsAnswered: number;
@@ -63,12 +65,17 @@ export interface LeaderboardEntry {
 export interface Participant {
   id: string;
   name: string;
+  realName?: string;
+  email?: string;
   connected: boolean;
 }
 
 export interface ParticipantRecord {
   id: string;
   name: string;
+  realName?: string;
+  email?: string;
+  userId?: string;
   /** Private rejoin secret. Never broadcast — only returned to its own socket. */
   token: string;
   connected: boolean;
@@ -86,6 +93,9 @@ export interface ParticipantRecord {
 export interface Session {
   code: string;
   hostId: string;
+  topic?: string;
+  hostEmail?: string;
+  hostName?: string;
   questions: Question[];
   currentIndex: number;          // -1 = lobby
   /**
@@ -120,6 +130,9 @@ export interface JoinSessionPayload {
   name: string;
   participantId?: string;
   rejoinToken?: string;
+  authToken?: string;
+  realName?: string;
+  email?: string;
 }
 
 export interface SubmitResponsePayload {
