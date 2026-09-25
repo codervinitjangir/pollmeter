@@ -38,6 +38,7 @@ import {
   sendCollegeOtp,
   verifyCollegeOtp,
   verifyAndPromoteMentorPin,
+  isAdminEmail,
   isMentorEmail,
   requireAuth,
   requireMentor,
@@ -382,9 +383,14 @@ app.post('/api/auth/otp/verify', async (req: Request, res: Response) => {
 });
 
 app.get('/api/auth/me', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  if (req.user?.email && isMentorEmail(req.user.email)) {
-    req.user.role = 'mentor';
-    await setUserRole(req.user.email, 'mentor');
+  if (req.user?.email) {
+    if (isAdminEmail(req.user.email)) {
+      req.user.role = 'admin';
+      await setUserRole(req.user.email, 'admin');
+    } else if (isMentorEmail(req.user.email)) {
+      req.user.role = 'mentor';
+      await setUserRole(req.user.email, 'mentor');
+    }
   }
   res.json({ user: req.user });
 });

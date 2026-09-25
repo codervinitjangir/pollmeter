@@ -23,20 +23,64 @@ export function getStoredAuth(): { token: string; user: AuthUser } | null {
   }
 }
 
+export function isAdminEmail(email?: string): boolean {
+  if (!email) return false;
+  const clean = email.toLowerCase().trim();
+  const defaultAdmins = [
+    'vinit.p25@medhaviskillsuniversity.edu.in',
+    'vinit.p25@medhaviskillsunivercity.edu.in',
+    'vinit@medhaviskillsuniversity.edu.in',
+    'vinit@medhaviskillsunivercity.edu.in',
+  ];
+  return defaultAdmins.includes(clean);
+}
+
 export function getAuthToken(): string | null {
   return getStoredAuth()?.token ?? null;
 }
 
 export function getAuthUser(): AuthUser | null {
-  return getStoredAuth()?.user ?? null;
+  const session = getStoredAuth();
+  if (!session?.user) return null;
+  // Self-heal: ensure university administrator accounts always hold admin role
+  if (isAdminEmail(session.user.email) && session.user.role !== 'admin') {
+    session.user.role = 'admin';
+    setStoredAuth(session.token, session.user);
+  }
+  return session.user;
 }
 
 export function setStoredAuth(token: string, user: AuthUser): void {
   try {
+    if (isAdminEmail(user.email)) {
+      user.role = 'admin';
+    }
     localStorage.setItem(AUTH_KEY, JSON.stringify({ token, user }));
   } catch (err) {
     console.error('[auth] Failed to persist auth session:', err);
   }
+}
+
+export async function refreshAuthUser(): Promise<AuthUser | null> {
+  const token = getAuthToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(apiUrl('/api/auth/me'), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.user) {
+      if (isAdminEmail(data.user.email)) {
+        data.user.role = 'admin';
+      }
+      setStoredAuth(token, data.user);
+      return data.user;
+    }
+  } catch (err) {
+    console.error('[auth] Failed to refresh user session:', err);
+  }
+  return null;
 }
 
 export function clearStoredAuth(): void {

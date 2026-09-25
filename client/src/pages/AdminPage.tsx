@@ -15,6 +15,8 @@ import {
   fetchBatches,
   fetchAdminAuditLogs,
   AuditLogItem,
+  isAdminEmail,
+  refreshAuthUser,
 } from '../auth';
 import CollegeAuthModal from '../components/CollegeAuthModal';
 import { getActiveTheme, toggleTheme, Theme } from '../theme';
@@ -82,6 +84,38 @@ export default function AdminPage() {
   ]);
   const [modalSaving, setModalSaving] = useState(false);
   const [modalError, setModalError] = useState('');
+  const [rechecking, setRechecking] = useState(false);
+
+  // Synchronize and auto-resolve admin privileges on mount
+  useEffect(() => {
+    const current = getAuthUser();
+    if (current && isAdminEmail(current.email) && current.role !== 'admin') {
+      current.role = 'admin';
+      setAuthUser({ ...current });
+    }
+    refreshAuthUser().then((synced) => {
+      if (synced) {
+        setAuthUser({ ...synced });
+      }
+    });
+  }, []);
+
+  const handleRecheckPrivileges = async () => {
+    setRechecking(true);
+    try {
+      const refreshed = await refreshAuthUser();
+      if (refreshed) {
+        setAuthUser({ ...refreshed });
+        if (refreshed.role === 'admin') {
+          showToast('Administrator privileges verified and active!');
+        } else {
+          showToast(`Account confirmed with role: ${refreshed.role.toUpperCase()}`);
+        }
+      }
+    } finally {
+      setRechecking(false);
+    }
+  };
 
   // Fetch batches on mount
   useEffect(() => {
@@ -245,25 +279,89 @@ export default function AdminPage() {
   // ─── Guard: Not signed in ──────────────────────────────────────────────────
   if (!authUser) {
     return (
-      <div className="pm-admin-locked-page">
-        <CollegeAuthModal
-          isOpen={showAuthModal}
-          title="Medhavi University Administrator Access"
-          subtitle="Sign in with your Super-Admin college email to manage faculty and departments"
-          onSuccess={(u) => {
-            setAuthUser(u);
-            setShowAuthModal(false);
-          }}
-          onClose={() => navigate('/dashboard')}
-          roleHint="mentor"
-        />
-        <div className="pm-admin-locked-card">
-          <span style={{ fontSize: '3rem' }}>🔐</span>
-          <h2>University Administrator Authentication Required</h2>
-          <p>Please authenticate with your official university credentials to enter the Admin Console.</p>
-          <button className="btn btn-primary" onClick={() => setShowAuthModal(true)}>
-            Sign In with University ID
-          </button>
+      <div className="pm-admin-gateway-page">
+        <header className="pm-gateway-header">
+          <div className="pm-gateway-header-left">
+            <div className="pm-admin-crest">
+              <span style={{ fontSize: '1.25rem' }}>🏛️</span>
+            </div>
+            <div>
+              <span className="pm-gateway-header-title">Medhavi Skills University</span>
+              <span className="pm-gateway-header-sub">Central Institutional Administration</span>
+            </div>
+          </div>
+          <div className="pm-gateway-header-right">
+            <span className="pm-gateway-status-pill">● SECURE ACADEMIC GATEWAY</span>
+            <button
+              className="pm-theme-toggle-btn"
+              onClick={() => setAdminTheme(toggleTheme())}
+              title="Toggle Theme"
+            >
+              {adminTheme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+            </button>
+            <button className="pm-gateway-nav-btn" onClick={() => navigate('/')}>
+              ← Campus Home
+            </button>
+          </div>
+        </header>
+
+        <div className="pm-gateway-container">
+          <CollegeAuthModal
+            isOpen={showAuthModal}
+            title="Medhavi University Administrator Access"
+            subtitle="Sign in with your Super-Admin college email to manage faculty and departments"
+            onSuccess={(u) => {
+              setAuthUser(u);
+              setShowAuthModal(false);
+            }}
+            onClose={() => navigate('/dashboard')}
+            roleHint="mentor"
+          />
+
+          <div className="pm-gateway-card">
+            <div className="pm-gateway-emblem-wrap">
+              <div className="pm-gateway-emblem-glow"></div>
+              <div className="pm-gateway-emblem">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="3" ry="3" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              </div>
+            </div>
+
+            <div className="pm-gateway-clearance-pill">
+              <span>SECURITY PROTOCOL · TIER 4 ACADEMIC CLEARANCE</span>
+            </div>
+
+            <h1 className="pm-gateway-title">University Administration Portal</h1>
+            <p className="pm-gateway-desc">
+              Institutional governance of faculty rosters, departmental syllabi, cross-cohort performance analytics, and audit logging requires verified Super-Admin credentials.
+            </p>
+
+            <div className="pm-gateway-notice-box">
+              <div className="pm-gateway-notice-icon">🛡️</div>
+              <div className="pm-gateway-notice-text">
+                <strong>Official University Tenant Only</strong>
+                <span>Authentication is restricted to verified <code>@medhaviskillsuniversity.edu.in</code> credentials.</span>
+              </div>
+            </div>
+
+            <div className="pm-gateway-actions">
+              <button
+                className="pm-btn-gateway-primary"
+                onClick={() => setShowAuthModal(true)}
+                id="btn-admin-signin"
+              >
+                <span>🔐 Authenticate with University ID</span>
+              </button>
+              <button
+                className="pm-btn-gateway-secondary"
+                onClick={() => navigate('/dashboard')}
+              >
+                Launch Mentor Studio
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -271,33 +369,130 @@ export default function AdminPage() {
 
   // ─── Guard: Signed in but not an Admin ─────────────────────────────────────
   if (authUser.role !== 'admin') {
+    const isKnownAdmin = isAdminEmail(authUser.email);
+
     return (
-      <div className="pm-admin-locked-page">
-        <div className="pm-admin-locked-card">
-          <span style={{ fontSize: '3.5rem' }}>🛡️</span>
-          <h2>University Administrator Access Required</h2>
-          <p>
-            You are signed in as <strong>{authUser.realName}</strong> ({authUser.email}) with role{' '}
-            <span className="pm-badge-role">{authUser.role.toUpperCase()}</span>.
-          </p>
-          <p style={{ color: '#64748B', fontSize: '0.9rem' }}>
-            Only designated university administrators (e.g. <code>vinit.p25@medhaviskillsuniversity.edu.in</code>)
-            can manage faculty, departments, and cross-course analytics.
-          </p>
-          <div style={{ display: 'flex', gap: '1rem', marginTop: '1.25rem' }}>
-            <button className="btn btn-primary" onClick={() => navigate('/dashboard')}>
-              Go to Mentor Workspace →
-            </button>
+      <div className="pm-admin-gateway-page">
+        <header className="pm-gateway-header">
+          <div className="pm-gateway-header-left">
+            <div className="pm-admin-crest">
+              <span style={{ fontSize: '1.25rem' }}>🏛️</span>
+            </div>
+            <div>
+              <span className="pm-gateway-header-title">Medhavi Skills University</span>
+              <span className="pm-gateway-header-sub">Central Institutional Administration</span>
+            </div>
+          </div>
+          <div className="pm-gateway-header-right">
+            <span className="pm-gateway-status-pill pm-status-restricted">● CLEARANCE REQUIRED</span>
             <button
-              className="btn btn-secondary"
-              onClick={() => {
-                clearStoredAuth();
-                setAuthUser(null);
-                setShowAuthModal(true);
-              }}
+              className="pm-theme-toggle-btn"
+              onClick={() => setAdminTheme(toggleTheme())}
+              title="Toggle Theme"
             >
-              Switch Account
+              {adminTheme === 'dark' ? '☀️ Light' : '🌙 Dark'}
             </button>
+            <button className="pm-gateway-nav-btn" onClick={() => navigate('/dashboard')}>
+              ⚡ Mentor Studio →
+            </button>
+          </div>
+        </header>
+
+        <div className="pm-gateway-container">
+          <div className="pm-gateway-card">
+            <div className="pm-gateway-emblem-wrap">
+              <div className="pm-gateway-emblem-glow"></div>
+              <div className="pm-gateway-emblem">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  <path d="M12 8v4" />
+                  <path d="M12 16h.01" />
+                </svg>
+              </div>
+            </div>
+
+            <div className="pm-gateway-clearance-pill">
+              <span>ACCESS RESTRICTION · ELEVATED PRIVILEGES REQUIRED</span>
+            </div>
+
+            <h1 className="pm-gateway-title">University Administrator Access Required</h1>
+            <p className="pm-gateway-desc">
+              Central faculty rosters, academic departments, course curricula, and campus-wide compliance audits are reserved for designated university administrators.
+            </p>
+
+            {/* Verified Identity Credential Box */}
+            <div className="pm-gateway-identity-card">
+              <div className="pm-gateway-identity-top">
+                <div className="pm-gateway-avatar">
+                  {authUser.realName.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="pm-gateway-identity-details">
+                  <div className="pm-gateway-name-row">
+                    <strong>{authUser.realName}</strong>
+                    <span className="pm-gateway-verified-badge">✓ MSU Verified</span>
+                  </div>
+                  <span className="pm-gateway-email">{authUser.email}</span>
+                </div>
+              </div>
+
+              <div className="pm-gateway-identity-meta">
+                <div className="pm-gateway-meta-item">
+                  <span className="pm-gateway-meta-label">Current Role:</span>
+                  <span className="pm-gateway-role-tag">{authUser.role.toUpperCase()}</span>
+                </div>
+                <div className="pm-gateway-meta-item">
+                  <span className="pm-gateway-meta-label">Domain:</span>
+                  <span className="pm-gateway-meta-val">medhaviskillsuniversity.edu.in</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Dynamic notice if known admin email or standard mentor */}
+            {isKnownAdmin ? (
+              <div className="pm-gateway-alert-box pm-alert-sync">
+                <span className="pm-alert-icon">⚡</span>
+                <div className="pm-alert-content">
+                  <strong>Registered Administrator Identity Detected</strong>
+                  <p>Your institutional email matches the university administrator register. Click below to synchronize your active token.</p>
+                </div>
+              </div>
+            ) : (
+              <p className="pm-gateway-sub-note">
+                Only appointed University Deans &amp; Institutional Super-Administrators may modify university faculty rosters or access raw audit records.
+              </p>
+            )}
+
+            {/* Action Buttons */}
+            <div className="pm-gateway-actions">
+              {isKnownAdmin && (
+                <button
+                  className="pm-btn-gateway-primary"
+                  onClick={handleRecheckPrivileges}
+                  disabled={rechecking}
+                  style={{ width: '100%' }}
+                >
+                  <span>{rechecking ? '🔄 Synchronizing Privileges...' : '⚡ Establish Administrator Session'}</span>
+                </button>
+              )}
+              <div className="pm-gateway-actions-row">
+                <button
+                  className={isKnownAdmin ? "pm-btn-gateway-secondary" : "pm-btn-gateway-primary"}
+                  onClick={() => navigate('/dashboard')}
+                >
+                  ⚡ Open Mentor Studio →
+                </button>
+                <button
+                  className="pm-btn-gateway-secondary"
+                  onClick={() => {
+                    clearStoredAuth();
+                    setAuthUser(null);
+                    setShowAuthModal(true);
+                  }}
+                >
+                  Switch University ID
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
