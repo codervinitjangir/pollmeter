@@ -30,7 +30,7 @@ import AIGenerateModal from '../components/AIGenerateModal';
 import { apiUrl } from '../api';
 import { cleanText } from '../cleanText';
 import { getAvatar } from '../utils/avatars';
-import { getAuthUser, getAuthToken, clearStoredAuth, AuthUser } from '../auth';
+import { getAuthUser, getAuthToken, setStoredAuth, clearStoredAuth, AuthUser } from '../auth';
 import CollegeAuthModal from '../components/CollegeAuthModal';
 import MentorPinModal from '../components/MentorPinModal';
 import MentorQuizHistoryModal from '../components/MentorQuizHistoryModal';
@@ -69,6 +69,26 @@ export default function HostPage() {
     return Boolean(u && u.role !== 'mentor' && u.role !== 'admin');
   });
   const [showPastQuizzes, setShowPastQuizzes] = useState(false);
+
+  // Synchronize auth state and auto-detect whitelisted mentors
+  useEffect(() => {
+    const token = getAuthToken();
+    if (!token) return;
+    fetch(apiUrl('/api/auth/me'), {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user) {
+          setStoredAuth(token, data.user);
+          setAuthUser(data.user);
+          if (data.user.role === 'mentor' || data.user.role === 'admin') {
+            setShowPinModal(false);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Live session state — all server-authoritative.
   const [phase, setPhase] = useState<SessionPhase>('lobby');

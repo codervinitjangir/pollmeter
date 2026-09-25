@@ -21,6 +21,7 @@ import {
   getMentorQuizzes,
   getQuizDetails,
   getStudentQuizzes,
+  setUserRole,
 } from './db';
 import {
   getAllowedDomains,
@@ -29,6 +30,7 @@ import {
   sendCollegeOtp,
   verifyCollegeOtp,
   verifyAndPromoteMentorPin,
+  isMentorEmail,
   requireAuth,
   requireMentor,
   AuthenticatedRequest,
@@ -353,7 +355,11 @@ app.post('/api/auth/otp/verify', async (req: Request, res: Response) => {
   }
 });
 
-app.get('/api/auth/me', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+app.get('/api/auth/me', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  if (req.user?.email && isMentorEmail(req.user.email)) {
+    req.user.role = 'mentor';
+    await setUserRole(req.user.email, 'mentor');
+  }
   res.json({ user: req.user });
 });
 

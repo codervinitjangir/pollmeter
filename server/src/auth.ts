@@ -35,6 +35,10 @@ export function isDomainAllowed(email: string): boolean {
 export function isMentorEmail(email: string): boolean {
   const clean = email.toLowerCase().trim();
   const defaultMentors = [
+    'vinit.p25@medhaviskillsuniversity.edu.in',
+    'vinit.p25@medhaviskillsunivercity.edu.in',
+    'vinit@medhaviskillsuniversity.edu.in',
+    'vinit@medhaviskillsunivercity.edu.in',
     'vini@medhaviskillsuniversity.edu.in',
     'vini@medhaviskillsunivercity.edu.in',
   ];
