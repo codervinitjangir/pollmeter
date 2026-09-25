@@ -18,6 +18,7 @@ import {
   LeaderboardEntry,
   ResponseAcceptedPayload,
   TimerUpdatedPayload,
+  SocketErrorPayload,
 } from '../types';
 import CountdownTimer from '../components/CountdownTimer';
 import LiveBarChart from '../components/LiveBarChart';
@@ -342,7 +343,7 @@ export default function JoinPage() {
       }
     }
 
-    function onError(p: { message: string; fatal?: boolean }) {
+    function onError(p: SocketErrorPayload) {
       if (joinTimeoutRef.current) {
         clearTimeout(joinTimeoutRef.current);
         joinTimeoutRef.current = null;

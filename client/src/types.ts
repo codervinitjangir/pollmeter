@@ -203,3 +203,18 @@ export interface AiStatus {
   model: string | null;
   reason?: string;
 }
+
+/**
+ * Payload of the `error` socket event.
+ *
+ * `fatal` marks the errors that mean the session — or this client's place in it
+ * — is gone for good rather than one action having been refused. In practice
+ * that is a backend restart: sessions live in memory, so a redeploy or crash
+ * wipes them while phones are still mid-question. Both pages tear down their
+ * stored identity when they see it; everything without it is recoverable and
+ * must stay recoverable, or a transient hiccup would eject a whole class.
+ */
+export interface SocketErrorPayload {
+  message: string;
+  fatal?: boolean;
+}

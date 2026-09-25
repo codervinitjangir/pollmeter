@@ -17,6 +17,7 @@ import {
   TimerUpdatedPayload,
   Participant,
   ParticipantsUpdatedPayload,
+  SocketErrorPayload,
 } from '../types';
 import QuestionForm from '../components/QuestionForm';
 import { QRCodeSVG } from 'qrcode.react';
@@ -310,13 +311,17 @@ export default function HostPage() {
       setTimeout(() => setReactions((prev) => prev.filter((r) => r.id !== p.id)), 2700);
     }
 
-    function onError(p: { message: string }) {
+    function onError(p: SocketErrorPayload) {
       setError(p.message);
       setLoading(false);
       // The session we remembered is gone (server restart, or swept). Drop the
       // stale credentials so the mentor lands back on the builder, not a
       // dead screen that silently ignores every click.
-      if (/not found|not the host/i.test(p.message)) {
+      //
+      // `fatal` is the server's own signal. The message test stays as a fallback
+      // for the window where a cached Cloudflare bundle is talking to a freshly
+      // deployed backend, or the reverse — the two halves ship separately.
+      if (p.fatal || /not found|not the host/i.test(p.message)) {
         localStorage.removeItem(HOST_LS_KEY);
         credentials.current = null;
         setInSession(false);

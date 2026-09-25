@@ -239,6 +239,7 @@ export interface SessionEndedPayload {
 
 export interface ErrorPayload {
   message: string;
+  fatal?: boolean;
 }
 
 export interface ParticipantsUpdatedPayload {

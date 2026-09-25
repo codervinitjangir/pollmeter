@@ -380,11 +380,14 @@ function buildHostState(session: Session): HostStatePayload {
 function requireHost(socket: Socket, payload: HostCommandPayload): Session | null {
   const session = getSession(payload?.code);
   if (!session) {
-    socket.emit('error', { message: `Session ${payload?.code ?? ''} not found.` });
+    // `fatal` so the host page can drop its stored credentials on a flag rather
+    // than by pattern-matching the prose, which breaks the moment the wording
+    // changes. See the same flag on the student paths below.
+    socket.emit('error', { message: `Session ${payload?.code ?? ''} not found.`, fatal: true });
     return null;
   }
   if (session.hostId !== payload.hostId) {
-    socket.emit('error', { message: 'You are not the host of this session.' });
+    socket.emit('error', { message: 'You are not the host of this session.', fatal: true });
     return null;
   }
   return session;
