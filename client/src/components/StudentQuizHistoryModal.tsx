@@ -78,6 +78,9 @@ export default function StudentQuizHistoryModal({ isOpen, currentUser, onClose }
                           <span className="pm-subject-badge" style={{ fontSize: '0.72rem', padding: '0.15rem 0.5rem' }}>
                             {session.subject || 'General'}
                           </span>
+                          <span className="pm-batch-badge" style={{ fontSize: '0.72rem', padding: '0.15rem 0.5rem' }}>
+                            🎓 {session.batch || participant.batch || 'General'}
+                          </span>
                         </div>
                         <span className="pm-quiz-card-date">
                           👨‍🏫 Mentor: <strong>{session.hostName || 'Faculty'}</strong> • Played as <strong>"{participant.screenName}"</strong> on{' '}

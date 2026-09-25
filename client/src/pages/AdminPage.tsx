@@ -12,6 +12,7 @@ import {
   FacultyMember,
   UniversityOverview,
   StudentAuditItem,
+  fetchBatches,
 } from '../auth';
 import CollegeAuthModal from '../components/CollegeAuthModal';
 
@@ -63,8 +64,33 @@ export default function AdminPage() {
   const [formDept, setFormDept] = useState(POPULAR_DEPARTMENTS[0]);
   const [formSubject, setFormSubject] = useState(POPULAR_SUBJECTS[0]);
   const [formRole, setFormRole] = useState<'mentor' | 'admin'>('mentor');
+  const [formBatches, setFormBatches] = useState<string[]>([]);
+  const [standardBatches, setStandardBatches] = useState<string[]>([
+    '1st Year - Batch A',
+    '1st Year - Batch B',
+    '1st Year - Batch C',
+    '2nd Year - Batch A',
+    '2nd Year - Batch B',
+    '2nd Year - Batch C',
+    '3rd Year - Batch A',
+  ]);
   const [modalSaving, setModalSaving] = useState(false);
   const [modalError, setModalError] = useState('');
+
+  // Fetch batches on mount
+  useEffect(() => {
+    fetchBatches()
+      .then((b) => {
+        if (b && b.length > 0) setStandardBatches(b);
+      })
+      .catch(() => {});
+  }, []);
+
+  const toggleFormBatch = (b: string) => {
+    setFormBatches((prev) =>
+      prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b]
+    );
+  };
 
   // Action status message
   const [toastMessage, setToastMessage] = useState('');
@@ -137,6 +163,7 @@ export default function AdminPage() {
     setFormDept(POPULAR_DEPARTMENTS[0]);
     setFormSubject(POPULAR_SUBJECTS[0]);
     setFormRole('mentor');
+    setFormBatches(['1st Year - Batch A', '1st Year - Batch B']);
     setModalError('');
     setIsFacultyModalOpen(true);
   };
@@ -149,6 +176,7 @@ export default function AdminPage() {
     setFormDept(f.department || POPULAR_DEPARTMENTS[0]);
     setFormSubject(f.subject || POPULAR_SUBJECTS[0]);
     setFormRole(f.role);
+    setFormBatches(f.batches && f.batches.length > 0 ? f.batches : []);
     setModalError('');
     setIsFacultyModalOpen(true);
   };
@@ -178,6 +206,7 @@ export default function AdminPage() {
         realName: cleanName,
         department: formDept,
         subject: formSubject,
+        batches: formBatches,
         role: formRole,
       });
 
@@ -406,6 +435,24 @@ export default function AdminPage() {
           </section>
         )}
 
+        {/* ─── Batch Distribution Cohort Pills ─────────────────────────────────── */}
+        {overview?.batches && overview.batches.length > 0 && (
+          <section className="pm-admin-subjects-section" style={{ marginTop: '0.65rem' }}>
+            <span className="pm-subjects-heading">Active Academic Cohorts &amp; Batches:</span>
+            <div className="pm-subject-tags-list">
+              {overview.batches.map((b, i) => (
+                <div key={i} className="pm-subject-pill" style={{ background: '#EEF2FF', borderColor: '#C7D2FE' }}>
+                  <span className="pm-subject-dot" style={{ background: '#4F46E5' }} />
+                  <strong>{b.batch}</strong>
+                  <span className="pm-subject-count" style={{ background: '#E0E7FF', color: '#3730A3' }}>
+                    {b.count} {b.count === 1 ? 'quiz' : 'quizzes'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* ─── Navigation Tabs ──────────────────────────────────────────────── */}
         <div className="pm-admin-tabs-bar">
           <div className="pm-admin-tabs">
@@ -483,6 +530,7 @@ export default function AdminPage() {
                       <th>Faculty Name &amp; Email</th>
                       <th>Department / School</th>
                       <th>Assigned Subject</th>
+                      <th>Assigned Batches</th>
                       <th>Privilege Level</th>
                       <th>Status</th>
                       <th style={{ textAlign: 'right' }}>Actions</th>
@@ -511,6 +559,21 @@ export default function AdminPage() {
                           <span className="pm-subject-badge">
                             {fac.subject || 'Full Stack Web Development'}
                           </span>
+                        </td>
+                        <td>
+                          <div className="pm-mentor-batches-cell">
+                            {fac.batches && fac.batches.length > 0 ? (
+                              fac.batches.map((b) => (
+                                <span key={b} className="pm-batch-badge">
+                                  {b}
+                                </span>
+                              ))
+                            ) : (
+                              <span style={{ color: '#94A3B8', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                                All Batches
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td>
                           <span
@@ -676,6 +739,7 @@ export default function AdminPage() {
                       <th>Session Code</th>
                       <th>Topic &amp; Title</th>
                       <th>Subject Specialization</th>
+                      <th>Target Batch</th>
                       <th>Host Mentor</th>
                       <th>Students Attended</th>
                       <th>Questions</th>
@@ -693,6 +757,9 @@ export default function AdminPage() {
                         </td>
                         <td>
                           <span className="pm-subject-badge">{q.subject || 'General'}</span>
+                        </td>
+                        <td>
+                          <span className="pm-batch-badge">🎓 {q.batch || 'General'}</span>
                         </td>
                         <td>
                           <div className="pm-mentor-meta">
@@ -817,6 +884,33 @@ export default function AdminPage() {
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div className="pm-form-group">
+                <label className="pm-form-label">
+                  Assigned Batches / Cohorts
+                </label>
+                <div className="pm-batch-checkbox-grid">
+                  {standardBatches.map((b) => {
+                    const checked = formBatches.includes(b);
+                    return (
+                      <label
+                        key={b}
+                        className={`pm-batch-checkbox-item ${checked ? 'checked' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleFormBatch(b)}
+                        />
+                        <span>{b}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <small className="pm-form-hint">
+                  Mentors are isolated to hosting sessions and viewing gradebooks for their assigned batches.
+                </small>
               </div>
 
               <div className="pm-form-group">

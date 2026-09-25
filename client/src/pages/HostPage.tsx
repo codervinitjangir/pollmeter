@@ -30,7 +30,7 @@ import AIGenerateModal from '../components/AIGenerateModal';
 import { apiUrl } from '../api';
 import { cleanText } from '../cleanText';
 import { getAvatar } from '../utils/avatars';
-import { getAuthUser, getAuthToken, setStoredAuth, clearStoredAuth, AuthUser } from '../auth';
+import { getAuthUser, getAuthToken, setStoredAuth, clearStoredAuth, AuthUser, fetchBatches } from '../auth';
 import CollegeAuthModal from '../components/CollegeAuthModal';
 import MentorPinModal from '../components/MentorPinModal';
 import MentorQuizHistoryModal from '../components/MentorQuizHistoryModal';
@@ -57,6 +57,16 @@ export default function HostPage() {
   const [showAI, setShowAI] = useState(false);
   const [aiInitialTopic, setAiInitialTopic] = useState('');
   const [quizSubject, setQuizSubject] = useState('Full Stack Web Development');
+  const [quizBatch, setQuizBatch] = useState('2nd Year - Batch A');
+  const [availableBatches, setAvailableBatches] = useState<string[]>([
+    '1st Year - Batch A',
+    '1st Year - Batch B',
+    '1st Year - Batch C',
+    '2nd Year - Batch A',
+    '2nd Year - Batch B',
+    '2nd Year - Batch C',
+    '3rd Year - Batch A',
+  ]);
   const [activeNav, setActiveNav] = useState('home');
   const [searchQuery, setSearchQuery] = useState('');
   const [editing, setEditing] = useState<Question | null>(null);
@@ -70,6 +80,18 @@ export default function HostPage() {
     return Boolean(u && u.role !== 'mentor' && u.role !== 'admin');
   });
   const [showPastQuizzes, setShowPastQuizzes] = useState(false);
+
+  // Fetch college batches dynamically
+  useEffect(() => {
+    fetchBatches()
+      .then((b) => {
+        if (b && b.length > 0) {
+          setAvailableBatches(b);
+          setQuizBatch(b[0]);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Synchronize auth state and auto-detect whitelisted mentors
   useEffect(() => {
@@ -468,6 +490,7 @@ export default function HostPage() {
           questions,
           topic,
           subject: quizSubject || 'General',
+          batch: quizBatch || 'General',
           hostEmail: authUser.email,
           hostName: authUser.realName,
         }),
@@ -1310,7 +1333,7 @@ export default function HostPage() {
                       </span>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '0.85rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.85rem' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: '0.3rem' }}>
                           Academic Subject
@@ -1339,6 +1362,33 @@ export default function HostPage() {
                           <option value="Cloud Computing & DevOps">Cloud Computing &amp; DevOps</option>
                           <option value="Software Engineering & Agile">Software Engineering &amp; Agile</option>
                           <option value="General Technical Aptitude">General Technical Aptitude</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: '0.3rem' }}>
+                          Target Batch / Class
+                        </label>
+                        <select
+                          className="input"
+                          style={{
+                            width: '100%',
+                            fontSize: '0.85rem',
+                            padding: '0.5rem 0.75rem',
+                            borderRadius: '10px',
+                            background: '#FFFFFF',
+                            border: '1px solid #CBD5E1',
+                            fontWeight: 600,
+                            color: '#0F172A',
+                          }}
+                          value={quizBatch}
+                          onChange={(e) => setQuizBatch(e.target.value)}
+                        >
+                          {availableBatches.map((b) => (
+                            <option key={b} value={b}>
+                              {b}
+                            </option>
+                          ))}
                         </select>
                       </div>
 

@@ -11,15 +11,27 @@ export interface User {
   collegeDomain: string;
   department?: string;
   subject?: string;
+  batches?: string[];
   picture?: string;
   createdAt: string;
 }
+
+export const STANDARD_BATCHES = [
+  '1st Year - Batch A',
+  '1st Year - Batch B',
+  '1st Year - Batch C',
+  '2nd Year - Batch A',
+  '2nd Year - Batch B',
+  '2nd Year - Batch C',
+  '3rd Year - Batch A',
+];
 
 export interface QuizSessionRecord {
   id: string;
   code: string;
   topic: string;
   subject?: string;
+  batch?: string;
   hostEmail: string;
   hostName?: string;
   questionCount: number;
@@ -36,6 +48,7 @@ export interface SessionParticipantRecord {
   realName: string;
   email: string;
   screenName: string;
+  batch?: string;
   finalScore: number;
   correctCount: number;
   totalQuestions: number;
@@ -58,11 +71,21 @@ export interface StudentResponseRecord {
   createdAt: string;
 }
 
+export interface AuditLogRecord {
+  id: string;
+  actorId: string;
+  action: string;
+  targetId?: string;
+  metadata?: unknown;
+  createdAt: string;
+}
+
 interface LocalSchema {
   users: Record<string, User>;
   sessions: Record<string, QuizSessionRecord>;
   participants: SessionParticipantRecord[];
   responses: StudentResponseRecord[];
+  auditLogs?: AuditLogRecord[];
 }
 
 let pool: Pool | null = null;
@@ -136,12 +159,14 @@ export async function initDb(): Promise<void> {
 
           ALTER TABLE users ADD COLUMN IF NOT EXISTS department VARCHAR(160);
           ALTER TABLE users ADD COLUMN IF NOT EXISTS subject VARCHAR(160);
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS batches JSONB DEFAULT '[]';
 
           CREATE TABLE IF NOT EXISTS quiz_sessions (
             id VARCHAR(64) PRIMARY KEY,
             code VARCHAR(20) NOT NULL,
             topic VARCHAR(255) NOT NULL,
             subject VARCHAR(160) DEFAULT 'General',
+            batch VARCHAR(100) DEFAULT 'General',
             host_email VARCHAR(160) NOT NULL,
             host_name VARCHAR(160),
             question_count INT DEFAULT 0,
@@ -152,6 +177,7 @@ export async function initDb(): Promise<void> {
           );
 
           ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS subject VARCHAR(160) DEFAULT 'General';
+          ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS batch VARCHAR(100) DEFAULT 'General';
 
           CREATE TABLE IF NOT EXISTS session_participants (
             id VARCHAR(64) PRIMARY KEY,
@@ -160,6 +186,7 @@ export async function initDb(): Promise<void> {
             real_name VARCHAR(160) NOT NULL,
             email VARCHAR(160) NOT NULL,
             screen_name VARCHAR(100) NOT NULL,
+            batch VARCHAR(100) DEFAULT 'General',
             final_score INT DEFAULT 0,
             correct_count INT DEFAULT 0,
             total_questions INT DEFAULT 0,
@@ -179,6 +206,15 @@ export async function initDb(): Promise<void> {
             is_correct BOOLEAN DEFAULT false,
             score INT DEFAULT 0,
             time_taken_ms INT DEFAULT 0,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          );
+
+          CREATE TABLE IF NOT EXISTS audit_logs (
+            id VARCHAR(64) PRIMARY KEY,
+            actor_id VARCHAR(160) NOT NULL,
+            action VARCHAR(100) NOT NULL,
+            target_id VARCHAR(160),
+            metadata JSONB,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           );
         `);
@@ -295,17 +331,19 @@ export async function setUserRole(email: string, role: 'mentor' | 'student' | 'a
 export async function saveQuizSession(session: QuizSessionRecord): Promise<void> {
   if (usePostgres && pool) {
     await pool.query(
-      `INSERT INTO quiz_sessions (id, code, topic, subject, host_email, host_name, question_count, participant_count, questions, created_at, ended_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `INSERT INTO quiz_sessions (id, code, topic, subject, batch, host_email, host_name, question_count, participant_count, questions, created_at, ended_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        ON CONFLICT (id) DO UPDATE
        SET participant_count = EXCLUDED.participant_count,
            ended_at = EXCLUDED.ended_at,
-           subject = COALESCE(EXCLUDED.subject, quiz_sessions.subject)`,
+           subject = COALESCE(EXCLUDED.subject, quiz_sessions.subject),
+           batch = COALESCE(EXCLUDED.batch, quiz_sessions.batch)`,
       [
         session.id,
         session.code,
         session.topic,
         session.subject || 'General',
+        session.batch || 'General',
         session.hostEmail.toLowerCase(),
         session.hostName ?? null,
         session.questionCount,
@@ -343,12 +381,13 @@ export async function saveSessionResults(
       // Upsert participants
       for (const p of participants) {
         await client.query(
-          `INSERT INTO session_participants (id, session_id, user_id, real_name, email, screen_name, final_score, correct_count, total_questions, rank, joined_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          `INSERT INTO session_participants (id, session_id, user_id, real_name, email, screen_name, batch, final_score, correct_count, total_questions, rank, joined_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
            ON CONFLICT (id) DO UPDATE
            SET final_score = EXCLUDED.final_score,
                correct_count = EXCLUDED.correct_count,
-               rank = EXCLUDED.rank`,
+               rank = EXCLUDED.rank,
+               batch = COALESCE(EXCLUDED.batch, session_participants.batch)`,
           [
             p.id || uuidv4(),
             sessionId,
@@ -356,6 +395,7 @@ export async function saveSessionResults(
             p.realName,
             p.email.toLowerCase(),
             p.screenName,
+            p.batch || 'General',
             p.finalScore,
             p.correctCount,
             p.totalQuestions,
@@ -414,29 +454,98 @@ export async function saveSessionResults(
   saveLocalDb();
 }
 
-export async function getMentorQuizzes(hostEmail?: string): Promise<QuizSessionRecord[]> {
+export interface QuizFilterOptions {
+  batch?: string;
+  timeRange?: 'all' | 'today' | 'yesterday' | '7d' | '30d' | 'custom' | string;
+  startDate?: string;
+  endDate?: string;
+}
+
+function matchesDateRange(createdAt: string, timeRange?: string, startDate?: string, endDate?: string): boolean {
+  if (!timeRange || timeRange === 'all') return true;
+  const d = new Date(createdAt);
+  const now = new Date();
+
+  if (timeRange === 'today') {
+    return d.toDateString() === now.toDateString();
+  }
+  if (timeRange === 'yesterday') {
+    const y = new Date();
+    y.setDate(y.getDate() - 1);
+    return d.toDateString() === y.toDateString();
+  }
+  if (timeRange === '7d') {
+    const cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    return d >= cutoff;
+  }
+  if (timeRange === '30d') {
+    const cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    return d >= cutoff;
+  }
+  if (timeRange === 'custom') {
+    if (startDate && d < new Date(startDate)) return false;
+    if (endDate && d > new Date(endDate + 'T23:59:59.999Z')) return false;
+    return true;
+  }
+  return true;
+}
+
+export async function getMentorQuizzes(
+  hostEmail?: string,
+  options?: QuizFilterOptions
+): Promise<QuizSessionRecord[]> {
   if (usePostgres && pool) {
     let query = `
-      SELECT id, code, topic, host_email as "hostEmail", host_name as "hostName",
-             question_count as "questionCount", participant_count as "participantCount",
-             questions, created_at as "createdAt", ended_at as "endedAt"
+      SELECT id, code, topic, COALESCE(subject, 'General') as subject, COALESCE(batch, 'General') as batch,
+             host_email as "hostEmail", host_name as "hostName", question_count as "questionCount",
+             participant_count as "participantCount", questions, created_at as "createdAt", ended_at as "endedAt"
       FROM quiz_sessions
+      WHERE 1=1
     `;
     const params: unknown[] = [];
     if (hostEmail) {
-      query += ` WHERE LOWER(host_email) = $1`;
       params.push(hostEmail.toLowerCase().trim());
+      query += ` AND LOWER(host_email) = $${params.length}`;
     }
-    query += ` ORDER BY created_at DESC LIMIT 100`;
+    if (options?.batch && options.batch !== 'all') {
+      params.push(options.batch);
+      query += ` AND batch = $${params.length}`;
+    }
+    if (options?.timeRange === 'today') {
+      query += ` AND created_at >= CURRENT_DATE`;
+    } else if (options?.timeRange === 'yesterday') {
+      query += ` AND created_at >= CURRENT_DATE - INTERVAL '1 day' AND created_at < CURRENT_DATE`;
+    } else if (options?.timeRange === '7d') {
+      query += ` AND created_at >= CURRENT_TIMESTAMP - INTERVAL '7 days'`;
+    } else if (options?.timeRange === '30d') {
+      query += ` AND created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'`;
+    } else if (options?.timeRange === 'custom') {
+      if (options.startDate) {
+        params.push(options.startDate);
+        query += ` AND created_at >= $${params.length}`;
+      }
+      if (options.endDate) {
+        params.push(options.endDate + 'T23:59:59.999Z');
+        query += ` AND created_at <= $${params.length}`;
+      }
+    }
+    query += ` ORDER BY created_at DESC LIMIT 200`;
 
     const res = await pool.query(query, params);
     return res.rows;
   }
 
   const all = Object.values(localDb.sessions);
-  const filtered = hostEmail
-    ? all.filter((s) => s.hostEmail.toLowerCase() === hostEmail.toLowerCase().trim())
-    : all;
+  let filtered = all;
+  if (hostEmail) {
+    filtered = filtered.filter((s) => s.hostEmail.toLowerCase() === hostEmail.toLowerCase().trim());
+  }
+  if (options?.batch && options.batch !== 'all') {
+    filtered = filtered.filter((s) => (s.batch || 'General') === options.batch);
+  }
+  if (options?.timeRange && options.timeRange !== 'all') {
+    filtered = filtered.filter((s) => matchesDateRange(s.createdAt, options.timeRange, options.startDate, options.endDate));
+  }
 
   return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
@@ -448,7 +557,8 @@ export async function getQuizDetails(sessionId: string): Promise<{
 } | null> {
   if (usePostgres && pool) {
     const sRes = await pool.query(
-      `SELECT id, code, topic, host_email as "hostEmail", host_name as "hostName",
+      `SELECT id, code, topic, COALESCE(subject, 'General') as subject, COALESCE(batch, 'General') as batch,
+              host_email as "hostEmail", host_name as "hostName",
               question_count as "questionCount", participant_count as "participantCount",
               questions, created_at as "createdAt", ended_at as "endedAt"
        FROM quiz_sessions WHERE id = $1`,
@@ -458,9 +568,9 @@ export async function getQuizDetails(sessionId: string): Promise<{
 
     const pRes = await pool.query(
       `SELECT id, session_id as "sessionId", user_id as "userId", real_name as "realName",
-              email, screen_name as "screenName", final_score as "finalScore",
-              correct_count as "correctCount", total_questions as "totalQuestions",
-              rank, joined_at as "joinedAt"
+              email, screen_name as "screenName", COALESCE(batch, 'General') as batch,
+              final_score as "finalScore", correct_count as "correctCount",
+              total_questions as "totalQuestions", rank, joined_at as "joinedAt"
        FROM session_participants WHERE session_id = $1 ORDER BY rank ASC, final_score DESC`,
       [sessionId]
     );
@@ -503,9 +613,10 @@ export async function getStudentQuizzes(studentEmail: string): Promise<Array<{
 
   if (usePostgres && pool) {
     const res = await pool.query(
-      `SELECT s.id as s_id, s.code, s.topic, s.host_email as s_host_email, s.host_name as s_host_name,
+      `SELECT s.id as s_id, s.code, s.topic, COALESCE(s.subject, 'General') as s_subject,
+              COALESCE(s.batch, 'General') as s_batch, s.host_email as s_host_email, s.host_name as s_host_name,
               s.question_count, s.participant_count, s.created_at as s_created_at, s.ended_at as s_ended_at,
-              p.id as p_id, p.user_id, p.real_name, p.email, p.screen_name,
+              p.id as p_id, p.user_id, p.real_name, p.email, p.screen_name, COALESCE(p.batch, 'General') as p_batch,
               p.final_score, p.correct_count, p.total_questions, p.rank, p.joined_at
        FROM session_participants p
        JOIN quiz_sessions s ON p.session_id = s.id
@@ -519,6 +630,8 @@ export async function getStudentQuizzes(studentEmail: string): Promise<Array<{
         id: row.s_id,
         code: row.code,
         topic: row.topic,
+        subject: row.s_subject,
+        batch: row.s_batch,
         hostEmail: row.s_host_email,
         hostName: row.s_host_name,
         questionCount: row.question_count,
@@ -533,6 +646,7 @@ export async function getStudentQuizzes(studentEmail: string): Promise<Array<{
         realName: row.real_name,
         email: row.email,
         screenName: row.screen_name,
+        batch: row.p_batch,
         finalScore: row.final_score,
         correctCount: row.correct_count,
         totalQuestions: row.total_questions,
@@ -560,7 +674,8 @@ export async function getStudentQuizzes(studentEmail: string): Promise<Array<{
 export async function getAllFaculty(): Promise<User[]> {
   if (usePostgres && pool) {
     const res = await pool.query(
-      `SELECT id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, created_at as "createdAt"
+      `SELECT id, email, real_name as "realName", role, college_domain as "collegeDomain",
+              department, subject, COALESCE(batches, '[]'::jsonb) as batches, picture, created_at as "createdAt"
        FROM users
        WHERE role IN ('mentor', 'admin')
        ORDER BY real_name ASC`
@@ -578,23 +693,26 @@ export async function addOrUpdateFaculty(data: {
   realName: string;
   department?: string;
   subject?: string;
+  batches?: string[];
   role?: 'mentor' | 'admin';
 }): Promise<User> {
   const cleanEmail = data.email.toLowerCase().trim();
   const collegeDomain = cleanEmail.split('@')[1] || 'medhaviskillsuniversity.edu.in';
   const role = data.role || 'mentor';
+  const batches = data.batches ?? [];
 
   if (usePostgres && pool) {
     const res = await pool.query(
-      `INSERT INTO users (id, email, real_name, role, college_domain, department, subject, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+      `INSERT INTO users (id, email, real_name, role, college_domain, department, subject, batches, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
        ON CONFLICT (email) DO UPDATE
        SET real_name = EXCLUDED.real_name,
            role = CASE WHEN users.role = 'admin' THEN 'admin' ELSE EXCLUDED.role END,
            department = COALESCE(EXCLUDED.department, users.department),
-           subject = COALESCE(EXCLUDED.subject, users.subject)
-       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, created_at as "createdAt"`,
-      [uuidv4(), cleanEmail, data.realName, role, collegeDomain, data.department ?? null, data.subject ?? null]
+           subject = COALESCE(EXCLUDED.subject, users.subject),
+           batches = COALESCE(EXCLUDED.batches, users.batches)
+       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, batches, picture, created_at as "createdAt"`,
+      [uuidv4(), cleanEmail, data.realName, role, collegeDomain, data.department ?? null, data.subject ?? null, JSON.stringify(batches)]
     );
     return res.rows[0];
   }
@@ -605,6 +723,7 @@ export async function addOrUpdateFaculty(data: {
     if (existing.role !== 'admin') existing.role = role;
     existing.department = data.department ?? existing.department;
     existing.subject = data.subject ?? existing.subject;
+    existing.batches = batches.length > 0 ? batches : existing.batches;
     saveLocalDb();
     return existing;
   }
@@ -617,6 +736,7 @@ export async function addOrUpdateFaculty(data: {
     collegeDomain,
     department: data.department,
     subject: data.subject,
+    batches,
     createdAt: new Date().toISOString(),
   };
   localDb.users[newUser.id] = newUser;
@@ -649,6 +769,7 @@ export async function getUniversityOverview(): Promise<{
   totalQuizzes: number;
   totalResponses: number;
   subjects: Array<{ subject: string; count: number }>;
+  batches: Array<{ batch: string; count: number }>;
   recentQuizzes: QuizSessionRecord[];
 }> {
   if (usePostgres && pool) {
@@ -662,12 +783,19 @@ export async function getUniversityOverview(): Promise<{
       GROUP BY COALESCE(subject, 'General')
       ORDER BY count DESC
     `);
+    const batchRes = await pool.query(`
+      SELECT COALESCE(batch, 'General') as batch, COUNT(*)::int as count
+      FROM quiz_sessions
+      GROUP BY COALESCE(batch, 'General')
+      ORDER BY count DESC
+    `);
     const recentRes = await pool.query(`
-      SELECT id, code, topic, COALESCE(subject, 'General') as subject, host_email as "hostEmail", host_name as "hostName",
+      SELECT id, code, topic, COALESCE(subject, 'General') as subject, COALESCE(batch, 'General') as batch,
+             host_email as "hostEmail", host_name as "hostName",
              question_count as "questionCount", participant_count as "participantCount", created_at as "createdAt", ended_at as "endedAt"
       FROM quiz_sessions
       ORDER BY created_at DESC
-      LIMIT 10
+      LIMIT 15
     `);
 
     return {
@@ -676,6 +804,7 @@ export async function getUniversityOverview(): Promise<{
       totalQuizzes: quizRes.rows[0]?.count ?? 0,
       totalResponses: respRes.rows[0]?.count ?? 0,
       subjects: subjectRes.rows,
+      batches: batchRes.rows,
       recentQuizzes: recentRes.rows,
     };
   }
@@ -688,15 +817,19 @@ export async function getUniversityOverview(): Promise<{
   const totalResponses = localDb.responses.length;
 
   const subjectCounts: Record<string, number> = {};
+  const batchCounts: Record<string, number> = {};
   for (const s of allSessions) {
     const sub = s.subject || 'General';
     subjectCounts[sub] = (subjectCounts[sub] || 0) + 1;
+    const b = s.batch || 'General';
+    batchCounts[b] = (batchCounts[b] || 0) + 1;
   }
   const subjects = Object.entries(subjectCounts).map(([subject, count]) => ({ subject, count }));
+  const batches = Object.entries(batchCounts).map(([batch, count]) => ({ batch, count }));
 
   const recentQuizzes = [...allSessions]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 10);
+    .slice(0, 15);
 
   return {
     totalMentors,
@@ -704,6 +837,7 @@ export async function getUniversityOverview(): Promise<{
     totalQuizzes,
     totalResponses,
     subjects,
+    batches,
     recentQuizzes,
   };
 }
@@ -758,3 +892,51 @@ export async function searchStudents(query?: string): Promise<Array<{
     lastQuizDate: s.lastDate,
   })).sort((a, b) => b.quizCount - a.quizCount);
 }
+
+export async function recordAuditLog(
+  actorId: string,
+  action: string,
+  targetId?: string,
+  metadata?: unknown
+): Promise<void> {
+  const id = uuidv4();
+  const createdAt = new Date().toISOString();
+
+  if (usePostgres && pool) {
+    try {
+      await pool.query(
+        `INSERT INTO audit_logs (id, actor_id, action, target_id, metadata, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [id, actorId, action, targetId || null, metadata ? JSON.stringify(metadata) : null, createdAt]
+      );
+      return;
+    } catch (err) {
+      console.error('[db] Error inserting audit log into postgres:', (err as Error).message);
+    }
+  }
+
+  if (!localDb.auditLogs) localDb.auditLogs = [];
+  localDb.auditLogs.push({ id, actorId, action, targetId, metadata, createdAt });
+  saveLocalDb();
+}
+
+export async function getRecentAuditLogs(limit = 100): Promise<AuditLogRecord[]> {
+  if (usePostgres && pool) {
+    try {
+      const res = await pool.query(
+        `SELECT id, actor_id as "actorId", action, target_id as "targetId", metadata, created_at as "createdAt"
+         FROM audit_logs ORDER BY created_at DESC LIMIT $1`,
+        [limit]
+      );
+      return res.rows;
+    } catch (err) {
+      console.error('[db] Error fetching audit logs from postgres:', (err as Error).message);
+    }
+  }
+
+  return (localDb.auditLogs || [])
+    .slice()
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, limit);
+}
+

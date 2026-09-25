@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { fetchMentorQuizzes, fetchQuizDetails } from '../auth';
+import { fetchMentorQuizzes, fetchQuizDetails, fetchBatches, getAuthToken } from '../auth';
+import { apiUrl } from '../api';
 
 interface Props {
   isOpen: boolean;
@@ -18,15 +19,46 @@ export default function MentorQuizHistoryModal({ isOpen, onClose }: Props) {
   } | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
+  // Multi-horizon date and batch filter states
+  const [timeRange, setTimeRange] = useState<string>('all');
+  const [selectedBatch, setSelectedBatch] = useState<string>('all');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [batchOptions, setBatchOptions] = useState<string[]>([
+    '1st Year - Batch A',
+    '1st Year - Batch B',
+    '1st Year - Batch C',
+    '2nd Year - Batch A',
+    '2nd Year - Batch B',
+    '2nd Year - Batch C',
+    '3rd Year - Batch A',
+  ]);
+
+  // Load available batches dynamically
+  useEffect(() => {
+    if (!isOpen) return;
+    fetchBatches()
+      .then((b) => {
+        if (b && b.length > 0) setBatchOptions(b);
+      })
+      .catch(() => {});
+  }, [isOpen]);
+
+  // Load mentor-scoped quizzes with active filters
   useEffect(() => {
     if (!isOpen) return;
     setLoading(true);
     setError('');
-    fetchMentorQuizzes()
+    fetchMentorQuizzes({
+      batch: selectedBatch !== 'all' ? selectedBatch : undefined,
+      timeRange: timeRange !== 'all' ? timeRange : undefined,
+      startDate: timeRange === 'custom' && startDate ? startDate : undefined,
+      endDate: timeRange === 'custom' && endDate ? endDate : undefined,
+    })
       .then((data) => setQuizzes(data))
       .catch((err) => setError(err.message || 'Failed to load past quizzes'))
       .finally(() => setLoading(false));
-  }, [isOpen]);
+  }, [isOpen, timeRange, selectedBatch, startDate, endDate]);
 
   async function handleSelectQuiz(id: string) {
     setSelectedQuizId(id);
@@ -46,7 +78,7 @@ export default function MentorQuizHistoryModal({ isOpen, onClose }: Props) {
 
     const session = details.session;
     const rows = [
-      ['Rank', 'Real Name (College ID)', 'Screen Name (Used in Quiz)', 'College Email', 'Final Score', 'Correct Answers', 'Total Questions', 'Accuracy %'],
+      ['Rank', 'Real Name (College ID)', 'Screen Name (Used in Quiz)', 'College Email', 'Batch / Class', 'Final Score', 'Correct Answers', 'Total Questions', 'Accuracy %'],
     ];
 
     details.participants.forEach((p) => {
@@ -56,6 +88,7 @@ export default function MentorQuizHistoryModal({ isOpen, onClose }: Props) {
         `"${(p.realName || '').replace(/"/g, '""')}"`,
         `"${(p.screenName || '').replace(/"/g, '""')}"`,
         `"${(p.email || '').replace(/"/g, '""')}"`,
+        `"${(p.batch || session?.batch || 'General').replace(/"/g, '""')}"`,
         String(p.finalScore || 0),
         String(p.correctCount || 0),
         String(p.totalQuestions || session?.questionCount || 0),
@@ -67,11 +100,32 @@ export default function MentorQuizHistoryModal({ isOpen, onClose }: Props) {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    const filename = `MSU_Quiz_${session?.code || 'report'}_${new Date(session?.createdAt || Date.now()).toISOString().split('T')[0]}.csv`;
+    const filename = `MSU_Quiz_${session?.code || 'report'}_${(session?.batch || 'Class').replace(/[^a-zA-Z0-9]/g, '_')}_${new Date(session?.createdAt || Date.now()).toISOString().split('T')[0]}.csv`;
     link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    // Audit log record for export (§8 of architecture spec)
+    const token = getAuthToken();
+    if (token) {
+      fetch(apiUrl('/api/audit/log'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          action: 'REPORT_EXPORTED',
+          targetId: session?.code,
+          metadata: {
+            topic: session?.topic,
+            batch: session?.batch,
+            participantCount: details.participants.length,
+          },
+        }),
+      }).catch(() => {});
+    }
   }
 
   if (!isOpen) return null;
@@ -142,14 +196,14 @@ export default function MentorQuizHistoryModal({ isOpen, onClose }: Props) {
                     <strong className="pm-summary-value">{details.session?.topic}</strong>
                   </div>
                   <div className="pm-history-summary-item">
-                    <span className="pm-summary-label">Room Code</span>
-                    <strong className="pm-summary-value">{details.session?.code}</strong>
+                    <span className="pm-summary-label">Target Batch</span>
+                    <strong className="pm-summary-value" style={{ color: '#4338CA' }}>
+                      🎓 {details.session?.batch || 'General'}
+                    </strong>
                   </div>
                   <div className="pm-history-summary-item">
-                    <span className="pm-summary-label">Date &amp; Time</span>
-                    <span className="pm-summary-value">
-                      {new Date(details.session?.createdAt).toLocaleString()}
-                    </span>
+                    <span className="pm-summary-label">Room Code</span>
+                    <strong className="pm-summary-value">#{details.session?.code}</strong>
                   </div>
                   <div className="pm-history-summary-item">
                     <span className="pm-summary-label">Students Attended</span>
@@ -232,6 +286,64 @@ export default function MentorQuizHistoryModal({ isOpen, onClose }: Props) {
         ) : (
           /* List of all quizzes */
           <div className="pm-history-content">
+            {/* Multi-horizon Filter Toolbar */}
+            <div className="pm-filter-toolbar">
+              <div className="pm-filter-chips-group">
+                {[
+                  { id: 'all', label: 'All Time' },
+                  { id: 'today', label: 'Today' },
+                  { id: 'yesterday', label: 'Yesterday' },
+                  { id: '7d', label: 'Last 7 Days' },
+                  { id: '30d', label: 'Last 30 Days' },
+                  { id: 'custom', label: 'Custom Range' },
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className={`pm-filter-chip ${timeRange === t.id ? 'active' : ''}`}
+                    onClick={() => setTimeRange(t.id)}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="pm-filter-right">
+                {timeRange === 'custom' && (
+                  <div className="pm-filter-date-inputs">
+                    <input
+                      type="date"
+                      className="pm-filter-date-input"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      title="Start Date"
+                    />
+                    <span style={{ fontSize: '0.8rem', color: '#94A3B8' }}>→</span>
+                    <input
+                      type="date"
+                      className="pm-filter-date-input"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      title="End Date"
+                    />
+                  </div>
+                )}
+
+                <select
+                  className="pm-filter-select"
+                  value={selectedBatch}
+                  onChange={(e) => setSelectedBatch(e.target.value)}
+                >
+                  <option value="all">🎓 All Batches</option>
+                  {batchOptions.map((b) => (
+                    <option key={b} value={b}>
+                      {b}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             {loading ? (
               <div className="pm-history-loading">
                 <div className="pm-spinner" />
@@ -240,8 +352,8 @@ export default function MentorQuizHistoryModal({ isOpen, onClose }: Props) {
             ) : quizzes.length === 0 ? (
               <div className="pm-history-empty">
                 <span style={{ fontSize: '3rem' }}>📋</span>
-                <h3>No past quizzes recorded yet</h3>
-                <p>When you host a live quiz and end the session, the complete report and attendance will appear here.</p>
+                <h3>No quizzes match your filter</h3>
+                <p>Try switching time horizons or choosing "All Batches" to see your past sessions.</p>
               </div>
             ) : (
               <div className="pm-quizzes-card-list">
@@ -258,6 +370,9 @@ export default function MentorQuizHistoryModal({ isOpen, onClose }: Props) {
                           <h4 className="pm-quiz-card-topic">{q.topic || 'Classroom Quiz'}</h4>
                           <span className="pm-subject-badge" style={{ fontSize: '0.72rem', padding: '0.15rem 0.5rem' }}>
                             {q.subject || 'General'}
+                          </span>
+                          <span className="pm-batch-badge" style={{ fontSize: '0.72rem', padding: '0.15rem 0.5rem' }}>
+                            🎓 {q.batch || 'General'}
                           </span>
                         </div>
                         <span className="pm-quiz-card-date">
@@ -289,3 +404,4 @@ export default function MentorQuizHistoryModal({ isOpen, onClose }: Props) {
     </div>
   );
 }
+

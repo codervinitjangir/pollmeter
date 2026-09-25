@@ -30,11 +30,18 @@ export default function LandingPage() {
             <rect x="15" y="16" width="6" height="13" rx="2" fill="#F43F5E" />
             <rect x="25" y="7" width="6" height="22" rx="2" fill="#1F69FF" />
           </svg>
-          <span className="pm-landing-nav-brand">PollMeter</span>
-          <span className="pm-landing-nav-pill">Live Classroom</span>
+          <span className="pm-landing-nav-brand">PollMeter Campus</span>
+          <span className="pm-landing-nav-pill">Enterprise Edition</span>
         </div>
 
         <div className="pm-landing-nav-actions">
+          <button
+            className="pm-landing-nav-btn pm-landing-nav-btn-secondary"
+            onClick={() => navigate('/admin')}
+            id="nav-admin-btn"
+          >
+            🏛️ Admin Console
+          </button>
           <button
             className="pm-landing-nav-btn pm-landing-nav-btn-secondary"
             onClick={() => navigate('/join')}
@@ -55,7 +62,7 @@ export default function LandingPage() {
       {/* Main Single-Screen Hero Container */}
       <main className="pm-landing-content">
         <div className="pm-landing-badge">
-          <span>✨</span> Real-Time Classroom Polling &amp; Quizzes
+          <span>✨</span> Enterprise University Classroom Quizzing &amp; Analytics
         </div>
 
         <h1 className="pm-landing-headline">

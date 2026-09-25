@@ -167,11 +167,27 @@ export async function verifyMentorPin(pin: string): Promise<{
   return data;
 }
 
-export async function fetchMentorQuizzes(): Promise<any[]> {
+export async function fetchMentorQuizzes(options?: {
+  batch?: string;
+  timeRange?: string;
+  startDate?: string;
+  endDate?: string;
+  mentorEmail?: string;
+}): Promise<any[]> {
   const token = getAuthToken();
   if (!token) throw new Error('Authentication required');
 
-  const res = await fetch(apiUrl('/api/mentor/quizzes'), {
+  const params = new URLSearchParams();
+  if (options?.batch && options.batch !== 'all') params.set('batch', options.batch);
+  if (options?.timeRange && options.timeRange !== 'all') params.set('timeRange', options.timeRange);
+  if (options?.startDate) params.set('startDate', options.startDate);
+  if (options?.endDate) params.set('endDate', options.endDate);
+  if (options?.mentorEmail) params.set('mentorEmail', options.mentorEmail);
+
+  const qs = params.toString();
+  const url = qs ? apiUrl(`/api/mentor/quizzes?${qs}`) : apiUrl('/api/mentor/quizzes');
+
+  const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
@@ -231,6 +247,7 @@ export interface FacultyMember {
   collegeDomain: string;
   department?: string;
   subject?: string;
+  batches?: string[];
   picture?: string;
   createdAt: string;
 }
@@ -241,6 +258,7 @@ export interface UniversityOverview {
   totalQuizzes: number;
   totalResponses: number;
   subjects: Array<{ subject: string; count: number }>;
+  batches: Array<{ batch: string; count: number }>;
   recentQuizzes: any[];
 }
 
@@ -250,6 +268,25 @@ export interface StudentAuditItem {
   quizCount: number;
   avgScore: number;
   lastQuizDate?: string;
+}
+
+export async function fetchBatches(): Promise<string[]> {
+  try {
+    const res = await fetch(apiUrl('/api/batches'));
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    return data.batches || [];
+  } catch {
+    return [
+      '1st Year - Batch A',
+      '1st Year - Batch B',
+      '1st Year - Batch C',
+      '2nd Year - Batch A',
+      '2nd Year - Batch B',
+      '2nd Year - Batch C',
+      '3rd Year - Batch A',
+    ];
+  }
 }
 
 export async function fetchAdminOverview(): Promise<UniversityOverview> {
@@ -290,6 +327,7 @@ export async function addAdminFaculty(payload: {
   realName: string;
   department?: string;
   subject?: string;
+  batches?: string[];
   role?: 'mentor' | 'admin';
 }): Promise<FacultyMember> {
   const token = getAuthToken();

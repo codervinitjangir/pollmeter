@@ -7310,6 +7310,160 @@ fieldset.field {
   color: #334155;
 }
 
+/* ─── Batch Badges & Cohort Tags ────────────────────────────────────────── */
+.pm-batch-badge {
+  display: inline-block;
+  background: #EEF2FF;
+  color: #4338CA;
+  border: 1px solid #C7D2FE;
+  padding: 0.22rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+/* ─── Filter Bar in History & Reporting ─────────────────────────────────── */
+.pm-filter-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.85rem 1.25rem;
+  background: #F8FAFC;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.pm-filter-chips-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.pm-filter-chip {
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  color: #64748B;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.pm-filter-chip:hover {
+  background: #F1F5F9;
+  color: #1E293B;
+  border-color: #CBD5E1;
+}
+
+.pm-filter-chip.active {
+  background: #4F46E5;
+  color: #FFFFFF;
+  border-color: #4F46E5;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);
+}
+
+.pm-filter-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pm-filter-select {
+  padding: 0.38rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #CBD5E1;
+  background: #FFFFFF;
+  color: #1E293B;
+  font-size: 0.82rem;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+}
+
+.pm-filter-select:focus {
+  border-color: #4F46E5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15);
+}
+
+.pm-filter-date-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.pm-filter-date-input {
+  padding: 0.35rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid #CBD5E1;
+  background: #FFFFFF;
+  color: #1E293B;
+  font-size: 0.78rem;
+  font-weight: 500;
+  outline: none;
+}
+
+.pm-filter-date-input:focus {
+  border-color: #4F46E5;
+}
+
+/* ─── Batch Assignment Selector in Admin Modal ──────────────────────────── */
+.pm-batch-checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.pm-batch-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #E2E8F0;
+  background: #F8FAFC;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.pm-batch-checkbox-item:hover {
+  background: #EEF2FF;
+  border-color: #C7D2FE;
+}
+
+.pm-batch-checkbox-item.checked {
+  background: #EEF2FF;
+  border-color: #818CF8;
+}
+
+.pm-batch-checkbox-item input[type="checkbox"] {
+  accent-color: #4F46E5;
+  cursor: pointer;
+}
+
+.pm-batch-checkbox-item span {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #1E293B;
+}
+
+.pm-mentor-batches-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  max-width: 240px;
+}
+
+
 
 
 

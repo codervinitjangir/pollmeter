@@ -27,6 +27,9 @@ import {
   removeFaculty,
   getUniversityOverview,
   searchStudents,
+  STANDARD_BATCHES,
+  recordAuditLog,
+  getRecentAuditLogs,
 } from './db';
 import {
   getAllowedDomains,
@@ -222,6 +225,7 @@ app.post('/api/sessions', sessionCreationLimiter, async (req: Request, res: Resp
     questions?: unknown;
     topic?: string;
     subject?: string;
+    batch?: string;
     hostEmail?: string;
     hostName?: string;
   };
@@ -245,10 +249,12 @@ app.post('/api/sessions', sessionCreationLimiter, async (req: Request, res: Resp
 
   const topic = body?.topic?.trim() || (result.questions[0]?.text ? `Quiz: ${result.questions[0].text.slice(0, 40)}...` : 'Classroom Quiz');
   const subject = body?.subject?.trim() || 'General';
+  const batch = body?.batch?.trim() || '2nd Year - Batch A';
 
   const session = createSession(result.questions, {
     topic,
     subject,
+    batch,
     hostEmail: hostEmail || 'mentor@medhaviskillsuniversity.edu.in',
     hostName: hostName || 'Faculty Mentor',
   });
@@ -259,6 +265,7 @@ app.post('/api/sessions', sessionCreationLimiter, async (req: Request, res: Resp
       code: session.code,
       topic,
       subject,
+      batch,
       hostEmail: session.hostEmail || 'mentor@medhaviskillsuniversity.edu.in',
       hostName: session.hostName,
       questionCount: session.questions.length,
@@ -266,17 +273,25 @@ app.post('/api/sessions', sessionCreationLimiter, async (req: Request, res: Resp
       questions: session.questions,
       createdAt: new Date(session.createdAt).toISOString(),
     });
+
+    await recordAuditLog(
+      session.hostEmail || 'mentor@medhaviskillsuniversity.edu.in',
+      'SESSION_CREATED',
+      session.code,
+      { topic, subject, batch, questionCount: session.questions.length }
+    );
   } catch (err) {
     console.error('[db] Error pre-saving session to DB:', err);
   }
 
-  console.log(`[session] created ${session.code} with ${result.questions.length} question(s) [${topic}] [${subject}]`);
+  console.log(`[session] created ${session.code} with ${result.questions.length} question(s) [${topic}] [${subject}] [${batch}]`);
   res.status(201).json({
     code: session.code,
     hostId: session.hostId,
     questions: session.questions,
     topic,
     subject,
+    batch,
   });
 });
 
@@ -396,8 +411,24 @@ app.post('/api/auth/verify-mentor-pin', requireAuth, async (req: AuthenticatedRe
 
 app.get('/api/mentor/quizzes', requireMentor, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const mentorEmail = req.user?.role === 'admin' ? undefined : req.user?.email;
-    const quizzes = await getMentorQuizzes(mentorEmail);
+    // STRICT MENTOR ISOLATION:
+    // Mentors can ONLY query their own quizzes.
+    // Only administrators can view quizzes college-wide or filter by mentorEmail.
+    const mentorEmail = req.user?.role === 'admin'
+      ? (req.query.mentorEmail as string) || undefined
+      : req.user?.email;
+
+    const batch = req.query.batch as string | undefined;
+    const timeRange = req.query.timeRange as string | undefined;
+    const startDate = req.query.startDate as string | undefined;
+    const endDate = req.query.endDate as string | undefined;
+
+    const quizzes = await getMentorQuizzes(mentorEmail, {
+      batch,
+      timeRange,
+      startDate,
+      endDate,
+    });
     res.json({ quizzes });
   } catch (err) {
     res.status(500).json({ error: 'Failed to retrieve mentor quizzes.' });
@@ -411,6 +442,17 @@ app.get('/api/mentor/quizzes/:id', requireMentor, async (req: AuthenticatedReque
       res.status(404).json({ error: 'Quiz session not found.' });
       return;
     }
+
+    // STRICT MENTOR ISOLATION:
+    // Non-admin mentors cannot access quiz session reports hosted by another mentor.
+    if (
+      req.user?.role !== 'admin' &&
+      details.session.hostEmail.toLowerCase() !== req.user?.email?.toLowerCase()
+    ) {
+      res.status(403).json({ error: 'Access denied: You can only view quiz reports for your own sessions.' });
+      return;
+    }
+
     res.json(details);
   } catch (err) {
     res.status(500).json({ error: 'Failed to retrieve quiz details.' });
@@ -454,11 +496,12 @@ app.get('/api/admin/faculty', requireAdmin, async (_req: AuthenticatedRequest, r
 
 app.post('/api/admin/faculty', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { email, realName, department, subject, role } = req.body as {
+    const { email, realName, department, subject, batches, role } = req.body as {
       email?: string;
       realName?: string;
       department?: string;
       subject?: string;
+      batches?: string[];
       role?: 'mentor' | 'admin';
     };
 
@@ -472,14 +515,27 @@ app.post('/api/admin/faculty', requireAdmin, async (req: AuthenticatedRequest, r
       realName,
       department,
       subject,
+      batches,
       role: role || 'mentor',
     });
     console.log(`[admin] Faculty ${email} added/updated by ${req.user?.email}`);
+
+    await recordAuditLog(
+      req.user?.email || 'admin',
+      'FACULTY_ASSIGNED',
+      email,
+      { realName, department, subject, batches, role: role || 'mentor' }
+    );
+
     res.json({ success: true, faculty });
   } catch (err) {
     console.error('[admin] Failed to add/update faculty:', err);
     res.status(500).json({ error: 'Failed to save faculty record.' });
   }
+});
+
+app.get('/api/batches', (_req: Request, res: Response) => {
+  res.json({ batches: STANDARD_BATCHES });
 });
 
 app.delete('/api/admin/faculty/:email', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
@@ -491,6 +547,13 @@ app.delete('/api/admin/faculty/:email', requireAdmin, async (req: AuthenticatedR
     }
     const success = await removeFaculty(email);
     console.log(`[admin] Faculty ${email} removed/demoted by ${req.user?.email}`);
+
+    await recordAuditLog(
+      req.user?.email || 'admin',
+      'FACULTY_REVOKED',
+      email
+    );
+
     res.json({ success });
   } catch (err) {
     console.error('[admin] Failed to remove faculty:', err);
@@ -506,6 +569,29 @@ app.get('/api/admin/students', requireAdmin, async (req: AuthenticatedRequest, r
   } catch (err) {
     console.error('[admin] Failed to search students:', err);
     res.status(500).json({ error: 'Failed to search student audit data.' });
+  }
+});
+
+app.post('/api/audit/log', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { action, targetId, metadata } = req.body;
+    if (!action) {
+      res.status(400).json({ error: 'Action is required.' });
+      return;
+    }
+    await recordAuditLog(req.user?.email || 'unknown', action, targetId, metadata);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to record audit log.' });
+  }
+});
+
+app.get('/api/admin/audit-logs', requireAdmin, async (_req: AuthenticatedRequest, res: Response) => {
+  try {
+    const logs = await getRecentAuditLogs(100);
+    res.json({ logs });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch audit logs.' });
   }
 });
 
