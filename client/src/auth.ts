@@ -384,3 +384,30 @@ export async function searchStudentAudit(q?: string): Promise<StudentAuditItem[]
   const data = await res.json();
   return data.students || [];
 }
+
+export interface AuditLogItem {
+  id: string;
+  actorId: string;
+  action: string;
+  targetId?: string;
+  metadata?: any;
+  createdAt: string;
+}
+
+export async function fetchAdminAuditLogs(): Promise<AuditLogItem[]> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Administrator authentication required');
+
+  const res = await fetch(apiUrl('/api/admin/audit-logs'), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to fetch audit logs');
+  }
+
+  const data = await res.json();
+  return data.logs || [];
+}
+

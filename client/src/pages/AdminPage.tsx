@@ -13,6 +13,8 @@ import {
   UniversityOverview,
   StudentAuditItem,
   fetchBatches,
+  fetchAdminAuditLogs,
+  AuditLogItem,
 } from '../auth';
 import CollegeAuthModal from '../components/CollegeAuthModal';
 
@@ -50,7 +52,9 @@ export default function AdminPage() {
   const [studentAudit, setStudentAudit] = useState<StudentAuditItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'faculty' | 'students' | 'quizzes'>('faculty');
+  const [activeTab, setActiveTab] = useState<'faculty' | 'students' | 'quizzes' | 'audit'>('faculty');
+  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
+  const [loadingAudit, setLoadingAudit] = useState(false);
 
   // Search queries
   const [facultySearch, setFacultySearch] = useState('');
@@ -477,6 +481,20 @@ export default function AdminPage() {
               <span>📊 University Quiz Logs</span>
               <span className="pm-tab-pill">{overview?.recentQuizzes?.length ?? 0}</span>
             </button>
+            <button
+              className={`pm-admin-tab-btn ${activeTab === 'audit' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('audit');
+                setLoadingAudit(true);
+                fetchAdminAuditLogs()
+                  .then(setAuditLogs)
+                  .catch(() => {})
+                  .finally(() => setLoadingAudit(false));
+              }}
+            >
+              <span>🛡️ Security &amp; Audit Trail</span>
+              <span className="pm-tab-pill">{auditLogs.length || 'Logs'}</span>
+            </button>
           </div>
 
           {activeTab === 'faculty' && (
@@ -778,6 +796,94 @@ export default function AdminPage() {
                         <td>
                           <span className="pm-date-text">
                             {new Date(q.createdAt).toLocaleDateString()}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ─── TAB 4: Institutional Audit & Security Trail ─────────────────── */}
+        {activeTab === 'audit' && (
+          <section className="pm-admin-panel-card">
+            <div className="pm-panel-header-row">
+              <div>
+                <h3>Institutional Compliance &amp; Security Audit Trail</h3>
+                <p style={{ fontSize: '0.82rem', color: '#64748B', marginTop: '0.2rem' }}>
+                  Permanent log of gradebook exports, live session creations, faculty promotions, and revocations
+                </p>
+              </div>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  setLoadingAudit(true);
+                  fetchAdminAuditLogs()
+                    .then(setAuditLogs)
+                    .catch(() => {})
+                    .finally(() => setLoadingAudit(false));
+                }}
+              >
+                🔄 Refresh Logs
+              </button>
+            </div>
+
+            {loadingAudit ? (
+              <div className="pm-history-loading">
+                <div className="pm-spinner" />
+                <p>Loading security audit logs...</p>
+              </div>
+            ) : auditLogs.length === 0 ? (
+              <div className="pm-history-empty">
+                <span style={{ fontSize: '3rem' }}>🛡️</span>
+                <h3>No audit events logged yet</h3>
+                <p>When mentors launch sessions, export gradebooks, or admin modifies faculty, events appear here.</p>
+              </div>
+            ) : (
+              <div className="pm-table-responsive">
+                <table className="pm-admin-table">
+                  <thead>
+                    <tr>
+                      <th>Event Action</th>
+                      <th>Actor Identity</th>
+                      <th>Target Entity</th>
+                      <th>Event Metadata</th>
+                      <th>Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {auditLogs.map((log) => (
+                      <tr key={log.id}>
+                        <td>
+                          <span
+                            className={`pm-role-pill ${
+                              log.action.includes('EXPORT')
+                                ? 'pm-role-mentor'
+                                : log.action.includes('REVOKE')
+                                ? 'pm-role-admin'
+                                : 'pm-badge-role'
+                            }`}
+                          >
+                            {log.action}
+                          </span>
+                        </td>
+                        <td>
+                          <strong>{log.actorId}</strong>
+                        </td>
+                        <td>
+                          <code>{log.targetId || '-'}</code>
+                        </td>
+                        <td>
+                          <span style={{ fontSize: '0.78rem', color: '#475569' }}>
+                            {log.metadata ? JSON.stringify(log.metadata) : '-'}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="pm-date-text">
+                            {new Date(log.createdAt).toLocaleString()}
                           </span>
                         </td>
                       </tr>
