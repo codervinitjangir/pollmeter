@@ -8562,6 +8562,600 @@ html[data-theme="dark"] body {
   color: #0f172a;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* ─── POLARIS LMS OBSIDIAN SUITE: HOST DASHBOARD & SIDEBAR ───────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+[data-theme="dark"] .dashboard-layout,
+[data-theme="dark"] .menti-main-panel {
+  background-color: #09090b !important;
+  color: #f2f2f2 !important;
+}
+
+[data-theme="dark"] .menti-sidebar {
+  background: #111113 !important;
+  border-right: 1px solid #2a2a2f !important;
+  color: #f2f2f2 !important;
+}
+
+[data-theme="dark"] .menti-sidebar-brand {
+  color: #f2f2f2 !important;
+}
+
+[data-theme="dark"] .menti-btn-new {
+  background: #f59e0b !important;
+  color: #09090b !important;
+  font-weight: 800 !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3) !important;
+}
+
+[data-theme="dark"] .menti-btn-new:hover {
+  background: #f6a21a !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(245, 158, 11, 0.4) !important;
+}
+
+[data-theme="dark"] .menti-nav-title {
+  color: #6b7280 !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.05em !important;
+}
+
+[data-theme="dark"] .menti-nav-link {
+  color: #9ca3af !important;
+  background: transparent !important;
+}
+
+[data-theme="dark"] .menti-nav-link:hover {
+  background: #1b1b1f !important;
+  color: #f2f2f2 !important;
+}
+
+[data-theme="dark"] .menti-nav-link.active {
+  background: rgba(245, 158, 11, 0.12) !important;
+  color: #f59e0b !important;
+  font-weight: 700 !important;
+  border-left: 3px solid #f59e0b !important;
+  border-radius: 4px 10px 10px 4px !important;
+}
+
+[data-theme="dark"] .menti-sidebar-footer {
+  border-top: 1px solid #2a2a2f !important;
+}
+
+[data-theme="dark"] .menti-topbar {
+  background: #111113 !important;
+  border-bottom: 1px solid #2a2a2f !important;
+}
+
+[data-theme="dark"] .menti-search {
+  background: #1b1b1f !important;
+  border: 1px solid #2a2a2f !important;
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .menti-search input {
+  color: #f2f2f2 !important;
+}
+
+[data-theme="dark"] .menti-welcome-title {
+  color: #f2f2f2 !important;
+}
+
+/* Polaris LMS Dashboard Hero Cards */
+[data-theme="dark"] .menti-card-live {
+  background: #1b1b1f !important;
+  border: 1px solid #2a2a2f !important;
+  color: #f2f2f2 !important;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .menti-live-pill {
+  color: #f2f2f2 !important;
+}
+
+[data-theme="dark"] .menti-live-headline {
+  color: #f2f2f2 !important;
+}
+
+[data-theme="dark"] .menti-live-desc {
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .menti-btn-presentation {
+  background: #f59e0b !important;
+  color: #09090b !important;
+  font-weight: 800 !important;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35) !important;
+}
+
+[data-theme="dark"] .menti-btn-presentation:hover {
+  background: #f6a21a !important;
+  transform: translateY(-1px);
+}
+
+[data-theme="dark"] .menti-card-mini {
+  background: #1b1b1f !important;
+  border: 1px solid #2a2a2f !important;
+  color: #f2f2f2 !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .menti-card-mini:hover {
+  border-color: #f59e0b !important;
+  background: #202024 !important;
+  transform: translateY(-2px);
+}
+
+[data-theme="dark"] .menti-mini-badge {
+  color: #f2f2f2 !important;
+}
+
+[data-theme="dark"] .menti-mini-desc {
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .menti-mini-arrow {
+  background: #202024 !important;
+  border: 1px solid #2a2a2f !important;
+  color: #f59e0b !important;
+}
+
+[data-theme="dark"] .menti-ai-header {
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .menti-ai-box {
+  background: #1b1b1f !important;
+  border: 1px solid #2a2a2f !important;
+  color: #f2f2f2 !important;
+}
+
+[data-theme="dark"] .menti-ai-box:hover {
+  background: #202024 !important;
+  border-color: #f59e0b !important;
+  color: #f59e0b !important;
+  transform: translateY(-2px);
+}
+
+[data-theme="dark"] .menti-ai-label {
+  color: #f2f2f2 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* ─── POLARIS LMS AUTH MODAL (Dark Obsidian Theme) ───────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+[data-theme="dark"] .pm-auth-modal-card {
+  background: #111113 !important;
+  border: 1px solid #2a2a2f !important;
+  color: #f2f2f2 !important;
+  box-shadow: 0 25px 65px -15px rgba(0, 0, 0, 0.85) !important;
+}
+
+[data-theme="dark"] .pm-auth-header {
+  border-bottom: 1px solid #2a2a2f !important;
+}
+
+[data-theme="dark"] .pm-auth-title {
+  color: #f2f2f2 !important;
+}
+
+[data-theme="dark"] .pm-auth-subtitle {
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .pm-auth-badge {
+  background: #1b1b1f !important;
+  border: 1px solid #2a2a2f !important;
+  color: #f59e0b !important;
+}
+
+[data-theme="dark"] .pm-auth-tabs {
+  background: #111113 !important;
+  border: 1px solid #2a2a2f !important;
+}
+
+[data-theme="dark"] .pm-auth-tab {
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .pm-auth-tab.active {
+  background: #1b1b1f !important;
+  color: #f59e0b !important;
+  border: 1px solid #2a2a2f !important;
+}
+
+[data-theme="dark"] .pm-auth-sso-card {
+  background: #1b1b1f !important;
+  border: 1px solid #2a2a2f !important;
+  color: #f2f2f2 !important;
+}
+
+[data-theme="dark"] .pm-auth-sso-title {
+  color: #f2f2f2 !important;
+}
+
+[data-theme="dark"] .pm-auth-sso-desc {
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .pm-auth-footer-note {
+  color: #6b7280 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* ─── POLARIS CAMPUS UNIFIED PORTAL & LOGIN HUB (Homepage) ───────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.pm-portal-landing {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(ellipse 70% 50% at 50% 10%, rgba(245, 158, 11, 0.08) 0%, transparent 65%),
+              #09090b;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+  color: #f2f2f2;
+  font-family: var(--font);
+}
+
+[data-theme="light"] .pm-portal-landing {
+  background: radial-gradient(ellipse 70% 50% at 50% 10%, rgba(245, 158, 11, 0.06) 0%, transparent 65%),
+              #f8fafc;
+  background-image: radial-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+  color: #0f172a;
+}
+
+.pm-portal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem clamp(1.25rem, 5vw, 3.5rem);
+  background: rgba(17, 17, 19, 0.85);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid #2a2a2f;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+[data-theme="light"] .pm-portal-nav {
+  background: rgba(255, 255, 255, 0.88);
+  border-bottom-color: #e2e8f0;
+}
+
+.pm-portal-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.pm-portal-crest {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #1b1b1f;
+  border: 1px solid #f59e0b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f59e0b;
+  font-size: 1.15rem;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);
+}
+
+.pm-portal-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #f2f2f2;
+  display: block;
+}
+
+[data-theme="light"] .pm-portal-title {
+  color: #0f172a;
+}
+
+.pm-portal-subtitle {
+  font-size: 0.72rem;
+  color: #9ca3af;
+  font-weight: 500;
+  display: block;
+}
+
+.pm-portal-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pm-portal-body {
+  flex: 1;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 3.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Polaris Welcome Executive Banner */
+.pm-portal-welcome-card {
+  background: #111113;
+  border: 1px solid #2a2a2f;
+  border-radius: 20px;
+  padding: 2rem 2.25rem;
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  position: relative;
+  overflow: hidden;
+}
+
+[data-theme="light"] .pm-portal-welcome-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.08);
+}
+
+.pm-portal-welcome-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+
+.pm-portal-welcome-left {
+  display: flex;
+  align-items: center;
+  gap: 1.15rem;
+}
+
+.pm-portal-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: #1b1b1f;
+  border: 2px solid #f59e0b;
+  color: #f59e0b;
+  font-size: 1.2rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.25);
+  flex-shrink: 0;
+}
+
+.pm-portal-welcome-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #f2f2f2;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+[data-theme="light"] .pm-portal-welcome-title {
+  color: #0f172a;
+}
+
+.pm-portal-role-badge {
+  background: #fff1d6;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.2rem 0.65rem;
+  letter-spacing: 0.03em;
+}
+
+.pm-portal-welcome-sub {
+  font-size: 0.85rem;
+  color: #9ca3af;
+  margin: 0.25rem 0 0;
+}
+
+.pm-portal-welcome-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Portal Hub Grid (Dual Wings) */
+.pm-portal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.75rem;
+}
+
+@media (max-width: 900px) {
+  .pm-portal-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pm-portal-card {
+  background: #111113;
+  border: 1px solid #2a2a2f;
+  border-radius: 20px;
+  padding: 2.25rem 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 18px 40px -10px rgba(0, 0, 0, 0.5);
+  transition: all 0.2s ease;
+}
+
+[data-theme="light"] .pm-portal-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.06);
+}
+
+.pm-portal-card:hover {
+  border-color: #383842;
+  transform: translateY(-2px);
+}
+
+[data-theme="dark"] .pm-portal-card-faculty {
+  border-top: 3px solid #f59e0b;
+}
+
+[data-theme="dark"] .pm-portal-card-student {
+  border-top: 3px solid #3b82f6;
+}
+
+.pm-portal-card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  width: fit-content;
+  margin-bottom: 1rem;
+}
+
+.pm-portal-badge-faculty {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.pm-portal-badge-student {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.pm-portal-card-title {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #f2f2f2;
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.02em;
+}
+
+[data-theme="light"] .pm-portal-card-title {
+  color: #0f172a;
+}
+
+.pm-portal-card-desc {
+  font-size: 0.88rem;
+  color: #9ca3af;
+  line-height: 1.55;
+  margin: 0 0 1.5rem;
+}
+
+[data-theme="light"] .pm-portal-card-desc {
+  color: #475569;
+}
+
+.pm-portal-features {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.75rem;
+  padding: 1rem;
+  background: #1b1b1f;
+  border: 1px solid #2a2a2f;
+  border-radius: 12px;
+}
+
+[data-theme="light"] .pm-portal-features {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.pm-portal-feat-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: #f2f2f2;
+}
+
+[data-theme="light"] .pm-portal-feat-line {
+  color: #1e293b;
+}
+
+.pm-portal-feat-check {
+  color: #10b981;
+  font-weight: 700;
+}
+
+/* Student PIN input in Portal */
+.pm-portal-pin-row {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.pm-portal-pin-input {
+  flex: 1;
+  background: #1b1b1f;
+  border: 1px solid #2a2a2f;
+  border-radius: 12px;
+  padding: 0.85rem 1.25rem;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 0.25em;
+  color: #f2f2f2;
+  text-align: center;
+  font-family: monospace;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.pm-portal-pin-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+
+[data-theme="light"] .pm-portal-pin-input {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+/* Bottom Telemetry Bar */
+.pm-portal-telemetry {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding: 1rem 1.5rem;
+  background: #111113;
+  border: 1px solid #2a2a2f;
+  border-radius: 14px;
+}
+
+[data-theme="light"] .pm-portal-telemetry {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+.pm-portal-telemetry-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #9ca3af;
+  font-weight: 600;
+}
+
+
 
 
 

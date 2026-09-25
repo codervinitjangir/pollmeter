@@ -1065,30 +1065,30 @@ export default function HostPage() {
               </div>
 
               <div className="stack stack-3" style={{ gap: '1rem' }}>
-                <div className="row row-3" style={{ alignItems: 'flex-start', background: '#F8FAFC', padding: '0.9rem 1.1rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                <div className="row row-3" style={{ alignItems: 'flex-start', background: 'var(--surface-mid, #202024)', padding: '0.9rem 1.1rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
                   <span style={{ fontSize: '1.7rem', lineHeight: 1 }}>✨</span>
                   <div className="stack stack-1 flex-1">
-                    <strong style={{ color: '#0F172A', fontSize: '0.95rem' }}>1. Build or Generate Quiz</strong>
+                    <strong style={{ color: 'var(--text-primary, #F2F2F2)', fontSize: '0.95rem' }}>1. Build or Generate Quiz</strong>
                     <p className="t-body-sm text-secondary" style={{ margin: 0 }}>
                       Paste your syllabus/topics into <strong>Generate with AI</strong> or create custom MCQs with custom timers.
                     </p>
                   </div>
                 </div>
 
-                <div className="row row-3" style={{ alignItems: 'flex-start', background: '#F8FAFC', padding: '0.9rem 1.1rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                <div className="row row-3" style={{ alignItems: 'flex-start', background: 'var(--surface-mid, #202024)', padding: '0.9rem 1.1rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
                   <span style={{ fontSize: '1.7rem', lineHeight: 1 }}>📱</span>
                   <div className="stack stack-1 flex-1">
-                    <strong style={{ color: '#0F172A', fontSize: '0.95rem' }}>2. Project &amp; Connect Students</strong>
+                    <strong style={{ color: 'var(--text-primary, #F2F2F2)', fontSize: '0.95rem' }}>2. Project &amp; Connect Students</strong>
                     <p className="t-body-sm text-secondary" style={{ margin: 0 }}>
                       Click <strong>&quot;Get the join code&quot;</strong> and full-screen on projector. Students scan QR code to join instantly (no app download needed).
                     </p>
                   </div>
                 </div>
 
-                <div className="row row-3" style={{ alignItems: 'flex-start', background: '#F8FAFC', padding: '0.9rem 1.1rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                <div className="row row-3" style={{ alignItems: 'flex-start', background: 'var(--surface-mid, #202024)', padding: '0.9rem 1.1rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
                   <span style={{ fontSize: '1.7rem', lineHeight: 1 }}>🏁</span>
                   <div className="stack stack-1 flex-1">
-                    <strong style={{ color: '#0F172A', fontSize: '0.95rem' }}>3. Play, Race &amp; Review</strong>
+                    <strong style={{ color: 'var(--text-primary, #F2F2F2)', fontSize: '0.95rem' }}>3. Play, Race &amp; Review</strong>
                     <p className="t-body-sm text-secondary" style={{ margin: 0 }}>
                       Launch questions with speed bonus scoring. Watch scores surge on the <strong>60FPS racing leaderboard</strong> with streak badges, then review answers together!
                     </p>
@@ -1267,7 +1267,7 @@ export default function HostPage() {
                       <div
                         key={q.id}
                         className="card card--sm row row-3"
-                        style={{ alignItems: 'flex-start', background: '#FFFFFF' }}
+                        style={{ alignItems: 'flex-start', background: 'var(--surface, #1B1B1F)', border: '1px solid var(--border, #2A2A2F)' }}
                       >
                         <div className="flex-1 stack stack-2">
                           <div className="row row-2 row-wrap">
@@ -1332,8 +1332,8 @@ export default function HostPage() {
 
                   <div
                     style={{
-                      background: '#F8FAFC',
-                      border: '1px solid #E2E8F0',
+                      background: 'var(--surface-mid, #202024)',
+                      border: '1px solid var(--border, #2A2A2F)',
                       borderRadius: '16px',
                       padding: '1.1rem 1.25rem',
                       display: 'flex',
@@ -1344,17 +1344,17 @@ export default function HostPage() {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1E293B', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary, #F2F2F2)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span>📚</span> Subject &amp; Academic Course Tag
                       </span>
-                      <span style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600 }}>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted, #9CA3AF)', fontWeight: 600 }}>
                         Auto-grouped in student transcripts
                       </span>
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.85rem' }}>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: '0.3rem' }}>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary, #9CA3AF)', marginBottom: '0.3rem' }}>
                           Academic Subject
                         </label>
                         <select
@@ -1364,10 +1364,10 @@ export default function HostPage() {
                             fontSize: '0.85rem',
                             padding: '0.5rem 0.75rem',
                             borderRadius: '10px',
-                            background: '#FFFFFF',
-                            border: '1px solid #CBD5E1',
+                            background: 'var(--surface, #1B1B1F)',
+                            border: '1px solid var(--border, #2A2A2F)',
                             fontWeight: 600,
-                            color: '#0F172A',
+                            color: 'var(--text-primary, #F2F2F2)',
                           }}
                           value={quizSubject}
                           onChange={(e) => setQuizSubject(e.target.value)}
@@ -1385,7 +1385,7 @@ export default function HostPage() {
                       </div>
 
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: '0.3rem' }}>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary, #9CA3AF)', marginBottom: '0.3rem' }}>
                           Target Batch / Class
                         </label>
                         <select
@@ -1395,10 +1395,10 @@ export default function HostPage() {
                             fontSize: '0.85rem',
                             padding: '0.5rem 0.75rem',
                             borderRadius: '10px',
-                            background: '#FFFFFF',
-                            border: '1px solid #CBD5E1',
+                            background: 'var(--surface, #1B1B1F)',
+                            border: '1px solid var(--border, #2A2A2F)',
                             fontWeight: 600,
-                            color: '#0F172A',
+                            color: 'var(--text-primary, #F2F2F2)',
                           }}
                           value={quizBatch}
                           onChange={(e) => setQuizBatch(e.target.value)}
