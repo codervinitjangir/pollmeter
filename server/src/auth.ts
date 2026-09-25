@@ -34,11 +34,15 @@ export function isDomainAllowed(email: string): boolean {
 
 export function isMentorEmail(email: string): boolean {
   const clean = email.toLowerCase().trim();
+  const defaultMentors = [
+    'vini@medhaviskillsuniversity.edu.in',
+    'vini@medhaviskillsunivercity.edu.in',
+  ];
   const mentorList = (process.env.MENTOR_EMAILS || '')
     .split(',')
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
-  return mentorList.includes(clean);
+  return [...defaultMentors, ...mentorList].includes(clean);
 }
 
 export function generateToken(payload: JwtPayload): string {

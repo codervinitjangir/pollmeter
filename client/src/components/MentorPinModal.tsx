@@ -86,7 +86,7 @@ export default function MentorPinModal({
           <div className="pm-pin-modal-actions">
             <button
               type="button"
-              className="pm-btn pm-btn-ghost"
+              className="pm-pin-cancel-btn"
               onClick={onCancel}
               disabled={loading}
             >

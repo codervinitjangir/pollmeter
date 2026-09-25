@@ -5831,6 +5831,42 @@ fieldset.field {
   text-align: center;
 }
 
+.pm-pin-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  width: 100%;
+}
+
+.pm-pin-cancel-btn {
+  height: 48px;
+  padding: 0 1.25rem;
+  background: #F1F5F9;
+  border: 1px solid #CBD5E1;
+  color: #475569;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pm-pin-cancel-btn:hover:not(:disabled) {
+  background: #E2E8F0;
+  color: #1E293B;
+}
+
+.pm-pin-modal-actions .pm-auth-submit-btn {
+  margin-top: 0;
+  flex: 1;
+}
+
 /* ══════════════════════════════════════════════════════════════════════════════════
    QUIZ HISTORY & ANALYTICS MODAL STYLES
    ══════════════════════════════════════════════════════════════════════════════════ */
