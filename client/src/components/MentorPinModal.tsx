@@ -84,7 +84,7 @@ export default function MentorPinModal({
               <input
                 id="mentor-pin-input"
                 type="password"
-                placeholder="Enter PIN (e.g. medhavi2026)"
+                placeholder="Enter PIN (e.g. polaris2026)"
                 value={pin}
                 onChange={(e) => {
                   setPin(e.target.value);

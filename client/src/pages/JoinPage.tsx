@@ -753,7 +753,7 @@ export default function JoinPage() {
       <div className="menti-join-canvas">
         <CollegeAuthModal
           isOpen={showAuthModal || !authUser}
-          title="Medhavi Student Portal"
+          title="Polaris Student Portal"
           subtitle="Sign in with your official college email ID to participate in live quizzes"
           onSuccess={(user) => {
             setAuthUser(user);
@@ -902,7 +902,7 @@ export default function JoinPage() {
         </main>
 
         <footer className="menti-join-footer">
-          🔒 Official Medhavi Skills University live learning portal.
+          🔒 Official Polaris Campus live learning portal.
         </footer>
       </div>
     );

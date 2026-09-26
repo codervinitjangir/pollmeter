@@ -290,7 +290,7 @@ export default function AdminPage() {
               <span style={{ fontSize: '1.25rem' }}>🏛️</span>
             </div>
             <div>
-              <span className="pm-gateway-header-title">Medhavi Skills University</span>
+              <span className="pm-gateway-header-title">Polaris Campus</span>
               <span className="pm-gateway-header-sub">Central Institutional Administration</span>
             </div>
           </div>
@@ -383,7 +383,7 @@ export default function AdminPage() {
               <span style={{ fontSize: '1.25rem' }}>🏛️</span>
             </div>
             <div>
-              <span className="pm-gateway-header-title">Medhavi Skills University</span>
+              <span className="pm-gateway-header-title">Polaris Campus</span>
               <span className="pm-gateway-header-sub">Central Institutional Administration</span>
             </div>
           </div>
@@ -521,7 +521,7 @@ export default function AdminPage() {
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="pm-admin-title">Medhavi Skills University</span>
+              <span className="pm-admin-title">Polaris Campus</span>
               <span className="pm-badge-admin-seal">SUPER-ADMIN</span>
             </div>
             <span className="pm-admin-sub">Central Faculty Management &amp; Academic Analytics</span>

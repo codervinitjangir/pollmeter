@@ -40,6 +40,7 @@ export default function CollegeAuthModal({
 }: Props) {
   const [activeTab, setActiveTab] = useState<'google' | 'otp'>('google');
   const [allowedDomains, setAllowedDomains] = useState<string[]>([
+    'polariscampus.com',
     'medhaviskillsuniversity.edu.in',
     'medhaviskillsunivercity.edu.in',
   ]);
@@ -63,7 +64,7 @@ export default function CollegeAuthModal({
   const [loading, setLoading] = useState(false);
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
-  const primaryDomain = allowedDomains[0] || 'medhaviskillsuniversity.edu.in';
+  const primaryDomain = allowedDomains[0] || 'polariscampus.com';
   const isFacultyRole = roleHint === 'mentor';
   const activeDomain = isFacultyRole ? 'polariscampus.com' : primaryDomain;
 
@@ -236,7 +237,7 @@ export default function CollegeAuthModal({
             <span>
               {isFacultyRole
                 ? 'Polaris Campus Verified Faculty & Admin Portal'
-                : 'Medhavi Skills University Verified Portal'}
+                : 'Polaris Campus Verified Student Portal'}
             </span>
           </div>
           <h2 className="pm-auth-title">{title || defaultTitle}</h2>
@@ -496,7 +497,7 @@ export default function CollegeAuthModal({
           <span>
             {isFacultyRole
               ? 'End-to-End Institutional Security • Polaris Campus Verified'
-              : 'End-to-End Institutional Security • Medhavi EduCloud Verified'}
+              : 'End-to-End Institutional Security • Polaris EduCloud Verified'}
           </span>
         </div>
       </div>

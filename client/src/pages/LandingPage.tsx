@@ -60,10 +60,10 @@ export default function LandingPage() {
             <span>🏛️</span>
           </div>
           <div>
-            <span className="pm-portal-title">Medhavi Skills University</span>
+            <span className="pm-portal-title">Polaris Campus</span>
             <span className="pm-portal-subtitle">
               <span className="pm-portal-live-dot" />
-              Polaris Campus Quizzing &amp; Live Analytics
+              Live Classroom Quizzing &amp; Analytics
             </span>
           </div>
         </div>
@@ -182,7 +182,7 @@ export default function LandingPage() {
                       <span>•</span>
                       <span>
                         {authUser.role === 'student'
-                          ? 'Medhavi Skills University Verified Identity'
+                          ? 'Polaris Campus Verified Student Identity'
                           : 'Polaris Campus Verified Faculty & Admin Portal'}
                       </span>
                     </p>
@@ -402,7 +402,7 @@ export default function LandingPage() {
           <>
             <div className="pm-portal-hero-intro">
               <span className="pm-portal-hero-badge">
-                <span>⚡</span> Official Medhavi Skills University Arena &bull; Polaris Campus
+                <span>⚡</span> Official Polaris Campus Arena &bull; Enterprise Live Quizzing
               </span>
               <h1 className="pm-portal-hero-headline">
                 Interactive Classroom Quizzes.{' '}
@@ -482,7 +482,7 @@ export default function LandingPage() {
                     </div>
                     <div className="pm-portal-feat-line">
                       <span className="pm-portal-feat-check">✓</span>
-                      <span>Medhavi Google SSO (@medhaviskillsuniversity.edu.in)</span>
+                      <span>Polaris Google SSO (@polariscampus.com)</span>
                     </div>
                   </div>
                 </div>
@@ -523,7 +523,7 @@ export default function LandingPage() {
                         padding: '0.25rem',
                       }}
                     >
-                      Or sign in with @medhaviskillsuniversity.edu.in student account
+                      Or sign in with @polariscampus.com student account
                     </button>
                   </div>
                 </div>
@@ -579,7 +579,7 @@ export default function LandingPage() {
           </div>
           <div className="pm-portal-telemetry-item">
             <span>🔒</span>
-            <span>Medhavi &amp; Polaris EduCloud Security</span>
+            <span>Polaris EduCloud Enterprise Security</span>
           </div>
         </div>
       </main>
