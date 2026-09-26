@@ -9155,6 +9155,551 @@ html[data-theme="dark"] body {
   font-weight: 600;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* ─── POLARIS LMS MOBILE & AUDIENCE SUITE: FIGMA-GRADE DARK UI ───────────── */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+/* 1. Universal Top Navigation in Dark Mode */
+[data-theme="dark"] nav.nav,
+[data-theme="dark"] header.nav,
+[data-theme="dark"] .nav {
+  background: rgba(17, 17, 19, 0.96) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-bottom: 1px solid #2A2A2F !important;
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .nav-logo {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .chip {
+  background: #1B1B1F !important;
+  border: 1px solid #2A2A2F !important;
+  color: #9CA3AF !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="dark"] .badge-live {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #10B981 !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+  font-weight: 800 !important;
+}
+
+/* 2. Join Screen Canvas (Dark Mode Native) */
+[data-theme="dark"] .menti-join-canvas {
+  background: #09090B !important;
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .menti-join-logo {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .menti-join-title {
+  color: #F2F2F2 !important;
+  letter-spacing: -0.02em !important;
+}
+
+[data-theme="dark"] .menti-join-subtitle {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .menti-join-pill-link {
+  border: 1px solid #2A2A2F !important;
+  background: #151518 !important;
+  color: #F2F2F2 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .menti-join-pill-link:hover {
+  background: #1B1B1F !important;
+  border-color: #F59E0B !important;
+  color: #F59E0B !important;
+}
+
+[data-theme="dark"] .menti-join-input {
+  background: #111113 !important;
+  border: 1.5px solid #2A2A2F !important;
+  border-radius: 14px !important;
+  color: #F2F2F2 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25) inset !important;
+}
+
+[data-theme="dark"] .menti-join-input:focus {
+  border-color: #F59E0B !important;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25) !important;
+  background: #151518 !important;
+}
+
+[data-theme="dark"] .menti-btn-join {
+  background: #F59E0B !important;
+  color: #09090B !important;
+  font-weight: 800 !important;
+  border: none !important;
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35) !important;
+}
+
+[data-theme="dark"] .menti-btn-join:hover:not(:disabled) {
+  background: #F6A21A !important;
+  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.5) !important;
+  transform: translateY(-1px) !important;
+}
+
+[data-theme="dark"] .menti-btn-join:disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+}
+
+[data-theme="dark"] .menti-join-footer {
+  border-top: 1px solid #2A2A2F !important;
+  color: #6B7280 !important;
+}
+
+[data-theme="dark"] .pm-auth-profile-badge {
+  background: #151518 !important;
+  border: 1px solid #2A2A2F !important;
+  color: #F2F2F2 !important;
+}
+
+/* 3. Question View & Audience Option Buttons (Ultra-Sleek Dark Cards) */
+[data-theme="dark"] .option-btn {
+  background: #151518 !important;
+  border: 1.5px solid #2A2A2F !important;
+  color: #F2F2F2 !important;
+  border-radius: 18px !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+}
+
+[data-theme="dark"] .option-btn:hover:not(:disabled) {
+  background: #1B1B1F !important;
+  border-color: #383842 !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .option-btn.selected,
+[data-theme="dark"] .option-btn.is-mine {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.16) 0%, rgba(246, 162, 26, 0.08) 100%) !important;
+  border-color: #F59E0B !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.3), 0 8px 25px rgba(245, 158, 11, 0.2) !important;
+  transform: scale(1.01) !important;
+}
+
+[data-theme="dark"] .option-btn .option-text {
+  color: #F2F2F2 !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="dark"] .option-btn.selected .option-text {
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="dark"] .option-letter {
+  background: #202024 !important;
+  color: #F2F2F2 !important;
+  border: 1px solid #2A2A2F !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .option-btn:hover:not(:disabled) .option-letter {
+  background: #2A2A30 !important;
+  border-color: #F59E0B !important;
+  color: #F59E0B !important;
+}
+
+[data-theme="dark"] .option-btn.selected .option-letter,
+[data-theme="dark"] .option-btn.is-mine .option-letter {
+  background: #F59E0B !important;
+  color: #09090B !important;
+  border-color: #F59E0B !important;
+  font-weight: 900 !important;
+}
+
+[data-theme="dark"] .option-btn.correct-highlight {
+  background: rgba(16, 185, 129, 0.18) !important;
+  border-color: #10B981 !important;
+  color: #34D399 !important;
+}
+
+[data-theme="dark"] .option-btn.correct-highlight .option-letter {
+  background: #10B981 !important;
+  color: #09090B !important;
+}
+
+[data-theme="dark"] .option-btn.wrong-highlight {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.45) !important;
+  color: #F87171 !important;
+  opacity: 0.75 !important;
+}
+
+[data-theme="dark"] .option-btn.is-locked {
+  opacity: 0.45 !important;
+  background: #111113 !important;
+  border-color: #202025 !important;
+}
+
+/* 4. Reading Buffer State Card (Dark Mode Focused) */
+[data-theme="dark"] .menti-read-buffer-card {
+  background: #141418 !important;
+  border: 1.5px dashed rgba(245, 158, 11, 0.45) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .menti-read-buffer-badge {
+  background: rgba(245, 158, 11, 0.15) !important;
+  color: #F59E0B !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .menti-read-buffer-title {
+  color: #F2F2F2 !important;
+  font-size: 1.25rem !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="dark"] .menti-read-buffer-subtitle {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .menti-read-buffer-countdown {
+  color: #F59E0B !important;
+}
+
+[data-theme="dark"] .menti-read-buffer-track {
+  background: #202024 !important;
+}
+
+[data-theme="dark"] .menti-read-buffer-fill {
+  background: linear-gradient(90deg, #F59E0B, #F6A21A) !important;
+}
+
+[data-theme="dark"] .menti-read-buffer-hint {
+  color: #9CA3AF !important;
+}
+
+/* 5. Floating Reaction Dock (Dark Glassmorphism) */
+[data-theme="dark"] .reactions-dock {
+  background: rgba(17, 17, 19, 0.88) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid #2A2A2F !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.75), 0 0 1px rgba(255, 255, 255, 0.1) inset !important;
+}
+
+[data-theme="dark"] .reaction-btn {
+  background: transparent !important;
+}
+
+[data-theme="dark"] .reaction-btn:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* 6. Institutional Auth Modal (Dark Canvas & Cards) */
+[data-theme="dark"] .pm-auth-modal-card {
+  background: #111113 !important;
+  border: 1px solid #2A2A2F !important;
+  color: #F2F2F2 !important;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.85) !important;
+}
+
+[data-theme="dark"] .pm-auth-badge {
+  background: rgba(245, 158, 11, 0.12) !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+  color: #F59E0B !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .pm-auth-title {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .pm-auth-subtitle {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .pm-auth-tabs {
+  background: #151518 !important;
+  border: 1px solid #2A2A2F !important;
+}
+
+[data-theme="dark"] .pm-auth-tab {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .pm-auth-tab:hover:not(.active) {
+  color: #F2F2F2 !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+[data-theme="dark"] .pm-auth-tab.active {
+  background: #1B1B1F !important;
+  color: #F59E0B !important;
+  border: 1px solid #2A2A2F !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .pm-tab-badge {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #10B981 !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+
+[data-theme="dark"] .pm-sso-card {
+  background: #151518 !important;
+  border: 1px solid #2A2A2F !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .pm-sso-icon-bubble {
+  background: #202024 !important;
+  border: 1px solid #2A2A2F !important;
+}
+
+[data-theme="dark"] .pm-sso-title {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .pm-sso-desc {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .pm-sso-features {
+  background: #1B1B1F !important;
+  border: 1px solid #2A2A2F !important;
+}
+
+[data-theme="dark"] .pm-sso-feature-item {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .pm-auth-field label {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .pm-auth-input-wrapper input {
+  background: #151518 !important;
+  border: 1.5px solid #2A2A2F !important;
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .pm-auth-input-wrapper input:focus {
+  background: #1B1B1F !important;
+  border-color: #F59E0B !important;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25) !important;
+}
+
+[data-theme="dark"] .pm-auth-submit-btn {
+  background: #F59E0B !important;
+  color: #09090B !important;
+  font-weight: 800 !important;
+  border: none !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3) !important;
+}
+
+[data-theme="dark"] .pm-auth-submit-btn:hover:not(:disabled) {
+  background: #F6A21A !important;
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.45) !important;
+}
+
+[data-theme="dark"] .pm-otp-notice {
+  background: #11261D !important;
+  border: 1px solid #065F46 !important;
+}
+
+[data-theme="dark"] .pm-otp-notice h4 {
+  color: #6EE7B7 !important;
+}
+
+[data-theme="dark"] .pm-otp-notice p {
+  color: #A7F3D0 !important;
+}
+
+[data-theme="dark"] .pm-btn-text {
+  color: #F59E0B !important;
+}
+
+[data-theme="dark"] .pm-btn-text:hover:not(:disabled) {
+  color: #F6A21A !important;
+}
+
+/* 7. Student Verdict Cards & Score Display (Results & Leaderboard) */
+[data-theme="dark"] .student-verdict-card {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .student-verdict-card.verdict-correct {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.16) 0%, rgba(5, 150, 105, 0.06) 100%) !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+}
+
+[data-theme="dark"] .student-verdict-card.verdict-wrong {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.16) 0%, rgba(185, 28, 28, 0.06) 100%) !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+}
+
+[data-theme="dark"] .student-verdict-card.verdict-missed {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.16) 0%, rgba(217, 119, 6, 0.06) 100%) !important;
+  border-color: rgba(245, 158, 11, 0.4) !important;
+}
+
+[data-theme="dark"] .student-verdict-card.verdict-poll {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.16) 0%, rgba(37, 99, 235, 0.06) 100%) !important;
+  border-color: rgba(59, 130, 246, 0.4) !important;
+}
+
+[data-theme="dark"] .student-verdict-card .verdict-badge {
+  background: #1B1B1F !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .verdict-correct .verdict-badge {
+  color: #34D399 !important;
+  border: 1px solid rgba(16, 185, 129, 0.35) !important;
+}
+
+[data-theme="dark"] .verdict-wrong .verdict-badge {
+  color: #F87171 !important;
+  border: 1px solid rgba(239, 68, 68, 0.35) !important;
+}
+
+[data-theme="dark"] .verdict-missed .verdict-badge {
+  color: #F59E0B !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+}
+
+[data-theme="dark"] .verdict-poll .verdict-badge {
+  color: #60A5FA !important;
+  border: 1px solid rgba(59, 130, 246, 0.35) !important;
+}
+
+[data-theme="dark"] .student-verdict-card .verdict-quote {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .student-verdict-card .verdict-subtext {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .verdict-score-pill {
+  background: #1B1B1F !important;
+  border: 1px solid #2A2A2F !important;
+}
+
+[data-theme="dark"] .verdict-score-num {
+  color: #10B981 !important;
+}
+
+[data-theme="dark"] .verdict-score-label {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .verdict-correct-answer {
+  background: #111113 !important;
+  border: 1px solid #2A2A2F !important;
+}
+
+[data-theme="dark"] .verdict-ca-label {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .verdict-ca-text {
+  color: #F2F2F2 !important;
+}
+
+/* 8. Session Wrap & Podium Dark UI */
+[data-theme="dark"] .menti-wrap-page {
+  background: #09090B !important;
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .menti-wrap-title {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .menti-wrap-highlight {
+  background: #151518 !important;
+  border: 1.5px solid #2A2A2F !important;
+  color: #F2F2F2 !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .menti-wrap-score-badge {
+  color: #F59E0B !important;
+}
+
+[data-theme="dark"] .menti-wrap-accuracy {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .menti-wrap-meta {
+  color: #6B7280 !important;
+}
+
+[data-theme="dark"] .menti-wrap-card {
+  background: #111113 !important;
+  border: 1px solid #2A2A2F !important;
+  border-radius: 20px !important;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-theme="dark"] .menti-wrap-btn-primary {
+  background: #F59E0B !important;
+  color: #09090B !important;
+  font-weight: 800 !important;
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35) !important;
+}
+
+[data-theme="dark"] .menti-wrap-btn-primary:hover {
+  background: #F6A21A !important;
+  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.5) !important;
+}
+
+/* 9. Live Racing Rows & Leaderboard in Dark Mode */
+[data-theme="dark"] .menti-race-score {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .menti-race-name {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .menti-race-unit {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .menti-race-avatar {
+  background: #1B1B1F !important;
+  border-color: #2A2A2F !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .menti-race-track-wrap {
+  background: #151518 !important;
+  border-radius: 6px !important;
+}
+
+[data-theme="dark"] .badge-neutral {
+  background: #202024 !important;
+  color: #9CA3AF !important;
+  border: 1px solid #2A2A2F !important;
+}
+
+[data-theme="dark"] .badge-success {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #10B981 !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+
+
 
 
 

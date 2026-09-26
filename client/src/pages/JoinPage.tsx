@@ -666,11 +666,11 @@ export default function JoinPage() {
     <nav className="nav">
       <span className="nav-logo">
         <svg width="24" height="24" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M6 9H11V27H6V9Z" fill="#191C21" />
-          <rect x="14" y="14" width="5" height="13" rx="1" fill="#F43F5E" />
+          <path d="M6 9H11V27H6V9Z" fill="currentColor" />
+          <rect x="14" y="14" width="5" height="13" rx="1" fill="#F59E0B" />
           <rect x="22" y="7" width="5" height="20" rx="1" fill="#3B82F6" />
         </svg>
-        <span style={{ fontWeight: 800, color: '#191C21' }}>PollMeter</span>
+        <span style={{ fontWeight: 800 }}>PollMeter</span>
       </span>
       <div className="row row-2">
         {!connected && <span className="badge badge-warning t-label-sm">Reconnecting…</span>}
@@ -681,9 +681,9 @@ export default function JoinPage() {
             <span
               className="badge t-label-sm"
               style={{
-                background: 'rgba(124, 58, 237, 0.12)',
-                color: '#7C3AED',
-                borderColor: 'rgba(124, 58, 237, 0.25)',
+                background: 'rgba(245, 158, 11, 0.15)',
+                color: '#F59E0B',
+                borderColor: 'rgba(245, 158, 11, 0.35)',
                 fontWeight: 700,
               }}
             >
@@ -815,11 +815,11 @@ export default function JoinPage() {
         <main className="menti-join-center">
           <div className="menti-join-logo">
             <svg width="34" height="34" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M6 9H11V27H6V9Z" fill="#191C21" />
-              <rect x="14" y="14" width="5" height="13" rx="1" fill="#F43F5E" />
+              <path d="M6 9H11V27H6V9Z" fill="currentColor" />
+              <rect x="14" y="14" width="5" height="13" rx="1" fill="#F59E0B" />
               <rect x="22" y="7" width="5" height="20" rx="1" fill="#3B82F6" />
             </svg>
-            <span style={{ fontWeight: 800, fontSize: '1.65rem', letterSpacing: '-0.02em', color: '#191C21' }}>
+            <span style={{ fontWeight: 800, fontSize: '1.65rem', letterSpacing: '-0.02em', color: 'inherit' }}>
               PollMeter
             </span>
           </div>
@@ -862,7 +862,7 @@ export default function JoinPage() {
                   <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Screen Nickname
                   </label>
-                  <span style={{ fontSize: '0.72rem', color: '#6366F1', fontWeight: 600 }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: 600 }}>
                     Classmates see only this
                   </span>
                 </div>
@@ -918,14 +918,14 @@ export default function JoinPage() {
             <div className="stack stack-2">
               <h2 className="t-headline">You&rsquo;re in, {myName}!</h2>
               <p className="t-body-md text-secondary">
-                Connected to session <strong style={{ color: 'var(--menti-blue)' }}>{sessionCode}</strong>
+                Connected to session <strong style={{ color: 'var(--primary)' }}>{sessionCode}</strong>
               </p>
             </div>
 
             <div className="card stack stack-3" style={{ background: 'var(--surface-low)', padding: '1.25rem' }}>
               <div className="row row-2" style={{ justifyContent: 'center' }}>
                 <span className="spinner spinner--sm" />
-                <span className="t-label-md" style={{ color: 'var(--menti-blue)' }}>
+                <span className="t-label-md" style={{ color: 'var(--primary)' }}>
                   Waiting for your mentor to start…
                 </span>
               </div>
@@ -1050,14 +1050,14 @@ export default function JoinPage() {
             <div
               className="card text-center stack stack-3"
               style={{
-                background: 'var(--surface-mid)',
-                borderColor: 'rgba(31,105,255,0.25)',
+                background: 'var(--surface)',
+                borderColor: 'var(--border)',
                 padding: '1.75rem 1.25rem',
                 borderRadius: '20px',
               }}
             >
               <div style={{ fontSize: '2.5rem' }}>{hasScore && rank === 1 ? '👑' : hasScore && rank && rank <= 3 ? '🥈' : '⚡'}</div>
-              <p className="t-headline" style={{ color: 'var(--menti-blue)', margin: 0 }}>{message}</p>
+              <p className="t-headline" style={{ color: 'var(--primary)', margin: 0 }}>{message}</p>
               {myEntry && (
                 <div className="stack stack-1">
                   <div className="row row-2" style={{ justifyContent: 'center', alignItems: 'baseline' }}>
@@ -1274,9 +1274,9 @@ export default function JoinPage() {
                           disabled={locked}
                           aria-pressed={mine}
                           id={`option-${idx}`}
-                          style={mine ? { borderColor: color, boxShadow: `0 0 0 2px ${color}33` } : undefined}
+                          style={mine ? { borderColor: 'var(--primary)', boxShadow: '0 0 0 2px rgba(245, 158, 11, 0.28)' } : undefined}
                         >
-                          <span className="option-letter" style={{ backgroundColor: color, color: '#fff', fontWeight: 800 }}>
+                          <span className="option-letter">
                             {LETTERS[idx] ?? idx + 1}
                           </span>
                           <span className="option-text flex-1" style={{ textAlign: 'left', fontWeight: mine ? 700 : 500 }}>
@@ -1285,9 +1285,9 @@ export default function JoinPage() {
                           {submitting && mine ? (
                             <span className="spinner spinner--sm option-status" style={{ width: 16, height: 16 }} />
                           ) : isKey ? (
-                            <span className="option-status" style={{ color: '#0ca30c', fontWeight: 800 }}>✓ Correct</span>
+                            <span className="option-status" style={{ color: '#10B981', fontWeight: 800 }}>✓ Correct</span>
                           ) : mine ? (
-                            <span className="option-status" style={{ color, fontWeight: 800 }}>✓</span>
+                            <span className="option-status" style={{ color: '#F59E0B', fontWeight: 800 }}>✓</span>
                           ) : null}
                         </button>
                       );
