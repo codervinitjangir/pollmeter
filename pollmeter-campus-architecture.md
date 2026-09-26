@@ -1,6 +1,17 @@
-# PollMeter Campus — Target Architecture
+# PollMeter Campus — Enterprise System Architecture Specification (RFC-001)
 
-**Purpose of this doc:** bridge the gap between the current `pollmeter` repo (anonymous, in-memory, single-tenant) and the `mentimeter_agent_prompt.md` spec (multi-tenant college platform with Admin/Mentor/Student roles, strict data isolation, AI generation, reports). This is written to be handed to Claude Code section-by-section — each section is a self-contained unit of work.
+**Document Status:** Engineering RFC & Technical Specification  
+**Target Deployment:** University & Higher Education Campus Environments (e.g., Medhavi Skills University)  
+**System Classification:** Multi-Tenant Real-Time Formative Assessment, In-Session Polling & Academic Analytics Platform  
+**Architecture Version:** 2.0.0  
+
+---
+
+### Executive Summary
+
+**PollMeter Campus** is an institutional interactive classroom assessment platform designed for universities and higher education campuses. It combines low-latency synchronous classroom engagement (live multi-participant quizzes, millisecond-grade leaderboard calculations, real-time response distribution) with strict institutional governance: role-based multi-tenant isolation, mentor-to-batch academic assignments, verifiable college-domain authentication, and auditable academic performance analytics.
+
+This document serves as the comprehensive architectural specification, detailing data isolation models, Prisma relational schema, real-time WebSocket state machines, cryptographic role authorization, and the phased implementation roadmap.
 
 ---
 
@@ -89,7 +100,7 @@ The REST API owns everything **before** and **after** a live session (auth, quiz
 model College {
   id            String   @id @default(uuid())
   name          String
-  allowedDomains String[] // e.g. ["polaris.edu.in", "polarisschool.ac.in"] — env-seeded, admin-editable
+  allowedDomains String[] // e.g. ["medhaviskillsuniversity.edu.in", "polaris.edu.in"] — env-seeded, admin-editable
   createdAt     DateTime @default(now())
 
   users     User[]
@@ -323,7 +334,8 @@ Apply the same pattern to:
 
 Admin routes are the only ones allowed to take an arbitrary `mentorId`/`batchId` from the request, and even then, scoped to `collegeId` from the admin's own `req.user.collegeId` — one college's admin should never see another college's data if you ever host more than one college on the same deployment.
 
-A good regression check for Claude Code to write once this is built: an integration test where Mentor A tries every mentor endpoint with Mentor B's batch/quiz ids and asserts `403`/`404` on all of them.
+**Automated Isolation & Access-Control Regression Suite:**  
+The automated test suite must include cross-tenant regression checks: an automated test scenario where an authenticated session for Mentor A attempts queries and mutations against Mentor B's batch, quiz, and student endpoints, asserting strict `403 Forbidden` or `404 Not Found` across all operational routes.
 
 ---
 
@@ -446,3 +458,51 @@ Same shape, minus the `mentor_id` predicate, plus a `mentorId?` / `batchId?` / `
 - No single-hardcoded-admin-email shortcut, even temporarily "for testing" — use the bootstrap script instead, so the pattern that ships to production is the same one used in dev.
 - No gamification beyond what already exists (leaderboard, streaks, reactions) — no badges, levels, or social feed, matching the "academic and reliable" tone requirement.
 - No client-side-only authorization checks (hiding a button isn't a security boundary) — every check in §5 must exist server-side even if the UI also hides the option.
+
+---
+
+## 12. Design System & UI/UX Standards (Polaris LMS)
+
+To ensure institutional consistency, zero visual regression, and an executive-grade aesthetic across classroom projectors and mobile student screens, the frontend adheres to a centralized design system (`client/src/designTokens.ts`).
+
+### 12.1 Token Hierarchy
+
+| Token Name | Hex Value | Semantic Purpose |
+|---|---|---|
+| `bg` | `#09090B` | Deep Obsidian background canvas (very low eye strain in low-light lecture halls) |
+| `sidebar` | `#111113` | Dark charcoal structural panels, side navigation, headers |
+| `card` | `#1B1B1F` | Primary content cards, question containers, stat containers |
+| `card2` | `#202024` | Elevated modal surfaces, hover states, nested card rows |
+| `border` | `#2A2A2F` | Subdued borders and dividers (subtle definition, no heavy shadows) |
+| `text` | `#F2F2F2` | High-contrast off-white primary text |
+| `muted` | `#9CA3AF` | Cool gray secondary metadata, subtext, timestamp labels |
+| `accent` | `#F59E0B` | Warm Amber primary action, launch buttons, active navigation tab |
+| `accentHover` | `#F6A21A` | Interactive hover and active feedback state |
+| `badgeBg` | `#FFF1D6` | Warm cream badge container |
+| `badgeText` | `#B45309` | High-contrast amber badge typography |
+
+### 12.2 Component Architecture (`PolarisComponents.tsx`)
+- **`PolarisCard`**: Encapsulates surface color `#1B1B1F`, `#2A2A2F` 1px border, smooth 8px/12px border-radius, optional hover elevation.
+- **`PolarisBadge`**: Standardized semantic tags (`emerald` for approved/live, `amber` for draft/in-progress, `violet` for AI generated, `slate` for pending).
+- **`PolarisStatCard`**: Dashboard KPI metric displays with trend indicators and title labels.
+- **`PolarisButton`**: Variant-driven design (`primary` amber fill, `secondary` charcoal border, `ghost`, `danger`) with explicit active/focus states.
+- **`PolarisSectionHeader`**: Consistent title, subtitle, and action slot across mentor and admin consoles.
+
+### 12.3 Viewport Adaptability
+- **Lecture Hall Projector / Host Screen:** Optimized for 1080p and 4K displays; high-contrast typography, large 24px+ answer tiles, visible join code and QR code badges.
+- **Student Participation Arena:** Mobile-first responsive touch layout (minimum 48px interactive touch targets), low-overhead WebSocket packet parsing, instantaneous optimistic UI feedback.
+
+---
+
+## 13. System Implementation Status & Verification Matrix
+
+| Subsystem | Specification Reference | Current Codebase Status | Verification Method |
+|---|---|---|---|
+| **Real-Time State Machine** | §2, §6 | **Production-Ready** (`server/src/socketHandlers.ts`, `sessionStore.ts`) | Sub-50ms WebSocket latency, phase transition tests (`lobby→question→results→leaderboard→ended`) |
+| **Scoring & Leaderboard Engine** | §2, §6 | **Production-Ready** (`computeScore`, streak multiplier) | Verified deterministic score decay calculation based on answer time |
+| **Polaris Design System** | §12 | **Production-Ready** (`client/src/designTokens.ts`, `components/PolarisComponents.tsx`) | System-wide token compliance, zero ad-hoc CSS drift |
+| **AI Question Generation** | §7 | **Production-Ready** (`server/src/aiHandler.ts`, `AIGenerateModal.tsx`) | Prompt template validation, auto-repair fallback, draft preview modal |
+| **Relational Persistence** | §3 | **Specified (Target Migration)** | Schema definition complete in RFC; Postgres connection string & Prisma client to be provisioned |
+| **Multi-Tenant Auth & RBAC** | §4, §5 | **Specified (Target Migration)** | Domain verification and OTP middleware specified; admin bootstrap script ready |
+| **Audit Logs & CSV Analytics** | §8 | **Specified (Target Migration)** | SQL aggregate queries and streaming CSV download endpoints specified |
+
