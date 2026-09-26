@@ -238,8 +238,8 @@ export default function AdminPage() {
       return;
     }
 
-    if (!cleanEmail.includes('@medhaviskillsuniversity.edu.in') && !cleanEmail.includes('@medhaviskillsunivercity.edu.in')) {
-      setModalError('Faculty email must belong to @medhaviskillsuniversity.edu.in domain.');
+    if (!cleanEmail.endsWith('@polariscampus.com')) {
+      setModalError('Faculty email must belong to official @polariscampus.com domain.');
       return;
     }
 
@@ -312,8 +312,8 @@ export default function AdminPage() {
         <div className="pm-gateway-container">
           <CollegeAuthModal
             isOpen={showAuthModal}
-            title="Medhavi University Administrator Access"
-            subtitle="Sign in with your Super-Admin college email to manage faculty and departments"
+            title="University Administrator Access"
+            subtitle="Sign in with your @polariscampus.com Super-Admin email to manage faculty and departments"
             onSuccess={(u) => {
               setAuthUser(u);
               setShowAuthModal(false);
@@ -346,7 +346,7 @@ export default function AdminPage() {
               <div className="pm-gateway-notice-icon">🛡️</div>
               <div className="pm-gateway-notice-text">
                 <strong>Official University Tenant Only</strong>
-                <span>Authentication is restricted to verified <code>@medhaviskillsuniversity.edu.in</code> credentials.</span>
+                <span>Authentication is restricted to verified <code>@polariscampus.com</code> credentials.</span>
               </div>
             </div>
 
@@ -446,7 +446,7 @@ export default function AdminPage() {
                 </div>
                 <div className="pm-gateway-meta-item">
                   <span className="pm-gateway-meta-label">Domain:</span>
-                  <span className="pm-gateway-meta-val">medhaviskillsuniversity.edu.in</span>
+                  <span className="pm-gateway-meta-val">{authUser.email.split('@')[1] || 'polariscampus.com'}</span>
                 </div>
               </div>
             </div>
@@ -1158,14 +1158,14 @@ export default function AdminPage() {
                 <input
                   type="email"
                   className="pm-input"
-                  placeholder="mentor.name@medhaviskillsuniversity.edu.in"
+                  placeholder="mentor.name@polariscampus.com"
                   value={formEmail}
                   onChange={(e) => setFormEmail(e.target.value)}
                   disabled={Boolean(editingFaculty)}
                   required
                 />
                 <small className="pm-form-hint">
-                  Must end with <code>@medhaviskillsuniversity.edu.in</code>
+                  Must end with <code>@polariscampus.com</code>
                 </small>
               </div>
 

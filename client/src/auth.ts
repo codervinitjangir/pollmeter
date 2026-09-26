@@ -26,13 +26,19 @@ export function getStoredAuth(): { token: string; user: AuthUser } | null {
 export function isAdminEmail(email?: string): boolean {
   if (!email) return false;
   const clean = email.toLowerCase().trim();
+  if (!clean.endsWith('@polariscampus.com')) return false;
   const defaultAdmins = [
-    'vinit.p25@medhaviskillsuniversity.edu.in',
-    'vinit.p25@medhaviskillsunivercity.edu.in',
-    'vinit@medhaviskillsuniversity.edu.in',
-    'vinit@medhaviskillsunivercity.edu.in',
+    'vinit@polariscampus.com',
+    'admin@polariscampus.com',
+    'codervinitjangir@polariscampus.com',
   ];
-  return defaultAdmins.includes(clean);
+  return defaultAdmins.includes(clean) || clean.startsWith('admin@polariscampus.com');
+}
+
+export function isFacultyEmail(email?: string): boolean {
+  if (!email) return false;
+  const clean = email.toLowerCase().trim();
+  return clean.endsWith('@polariscampus.com');
 }
 
 export function getAuthToken(): string | null {
@@ -42,8 +48,11 @@ export function getAuthToken(): string | null {
 export function getAuthUser(): AuthUser | null {
   const session = getStoredAuth();
   if (!session?.user) return null;
-  // Self-heal: ensure university administrator accounts always hold admin role
-  if (isAdminEmail(session.user.email) && session.user.role !== 'admin') {
+  // Non-polariscampus users can only ever have student role
+  if (!session.user.email.endsWith('@polariscampus.com') && session.user.role !== 'student') {
+    session.user.role = 'student';
+    setStoredAuth(session.token, session.user);
+  } else if (isAdminEmail(session.user.email) && session.user.role !== 'admin') {
     session.user.role = 'admin';
     setStoredAuth(session.token, session.user);
   }
@@ -52,7 +61,9 @@ export function getAuthUser(): AuthUser | null {
 
 export function setStoredAuth(token: string, user: AuthUser): void {
   try {
-    if (isAdminEmail(user.email)) {
+    if (!user.email.endsWith('@polariscampus.com')) {
+      user.role = 'student';
+    } else if (isAdminEmail(user.email)) {
       user.role = 'admin';
     }
     localStorage.setItem(AUTH_KEY, JSON.stringify({ token, user }));
@@ -101,7 +112,7 @@ export async function fetchCollegeConfig(): Promise<{
     return await res.json();
   } catch {
     return {
-      allowedDomains: ['medhaviskillsuniversity.edu.in', 'medhaviskillsunivercity.edu.in'],
+      allowedDomains: ['polariscampus.com', 'medhaviskillsuniversity.edu.in', 'medhaviskillsunivercity.edu.in'],
       googleClientId: null,
     };
   }

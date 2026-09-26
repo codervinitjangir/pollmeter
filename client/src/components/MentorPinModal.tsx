@@ -20,8 +20,14 @@ export default function MentorPinModal({
 
   if (!isOpen) return null;
 
+  const isPolarisEmail = Boolean(currentUser?.email?.endsWith('@polariscampus.com'));
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!isPolarisEmail) {
+      setError('Faculty privileges are restricted exclusively to official @polariscampus.com email accounts.');
+      return;
+    }
     if (!pin.trim()) {
       setError('Please enter the security PIN.');
       return;
@@ -50,10 +56,19 @@ export default function MentorPinModal({
           </div>
           <h2 className="pm-auth-title">Mentor Security Access</h2>
           <p className="pm-auth-subtitle">
-            Enter the Faculty Passcode to unlock quiz hosting and student tracking privileges for{' '}
+            Enter the Faculty Passcode to unlock quiz hosting privileges for{' '}
             <strong>{currentUser?.email}</strong>.
           </p>
         </div>
+
+        {!isPolarisEmail && (
+          <div className="pm-auth-error-alert" role="alert" style={{ marginBottom: '1rem' }}>
+            <span className="pm-auth-error-icon">🚫</span>
+            <span>
+              Restricted Domain: Faculty access is reserved for <strong>@polariscampus.com</strong> accounts only.
+            </span>
+          </div>
+        )}
 
         {error && (
           <div className="pm-auth-error-alert" role="alert">

@@ -516,6 +516,11 @@ app.post('/api/admin/faculty', requireAdmin, async (req: AuthenticatedRequest, r
       return;
     }
 
+    if (!email.toLowerCase().trim().endsWith('@polariscampus.com')) {
+      res.status(400).json({ error: 'Faculty and admin email must belong to @polariscampus.com domain.' });
+      return;
+    }
+
     const faculty = await addOrUpdateFaculty({
       email,
       realName,

@@ -862,8 +862,8 @@ export default function HostPage() {
     <div className="menti-app-shell">
       <CollegeAuthModal
         isOpen={showAuthModal || !authUser}
-        title="Medhavi Faculty &amp; Mentor Portal"
-        subtitle="Sign in with your official college email ID to host quizzes and manage students"
+        title="Polaris Faculty &amp; Mentor Portal"
+        subtitle="Sign in with your official @polariscampus.com email ID to host quizzes and manage students"
         onSuccess={(user) => {
           setAuthUser(user);
           setShowAuthModal(false);

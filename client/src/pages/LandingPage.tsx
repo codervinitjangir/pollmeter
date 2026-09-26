@@ -38,7 +38,11 @@ export default function LandingPage() {
       <CollegeAuthModal
         isOpen={showAuthModal}
         title={authRoleHint === 'mentor' ? 'University Faculty & Admin Access' : 'Student Classroom Login'}
-        subtitle="Sign in with your official university credentials (@medhaviskillsuniversity.edu.in)"
+        subtitle={
+          authRoleHint === 'mentor'
+            ? 'Access restricted to verified @polariscampus.com faculty & administrators'
+            : 'Sign in with your official university credentials'
+        }
         onSuccess={(u) => {
           setAuthUser(u);
           setShowAuthModal(false);
@@ -246,13 +250,13 @@ export default function LandingPage() {
                 </span>
                 <h2 className="pm-portal-card-title">Academic Faculty Portal</h2>
                 <p className="pm-portal-card-desc">
-                  Sign in with your official university credentials to generate AI questions, host projector polls, and track student attendance analytics.
+                  Sign in with your official @polariscampus.com credentials to generate AI questions, host projector polls, and track student attendance analytics.
                 </p>
 
                 <div className="pm-portal-features">
                   <div className="pm-portal-feat-line">
                     <span className="pm-portal-feat-check">✓</span>
-                    <span>Official @medhaviskillsuniversity.edu.in SSO</span>
+                    <span>Official @polariscampus.com Faculty SSO</span>
                   </div>
                   <div className="pm-portal-feat-line">
                     <span className="pm-portal-feat-check">✓</span>

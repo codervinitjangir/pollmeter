@@ -4,7 +4,7 @@ import { User, getUserByEmail, upsertUser, setUserRole } from './db';
 import { v4 as uuidv4 } from 'uuid';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'pollmeter_jwt_secret_medhavi_2026_secured';
-const DEFAULT_DOMAINS = ['medhaviskillsuniversity.edu.in', 'medhaviskillsunivercity.edu.in'];
+const DEFAULT_DOMAINS = ['polariscampus.com', 'medhaviskillsuniversity.edu.in', 'medhaviskillsunivercity.edu.in'];
 const DEFAULT_MENTOR_PIN = process.env.MENTOR_PIN || 'medhavi2026';
 
 export interface JwtPayload {
@@ -34,35 +34,25 @@ export function isDomainAllowed(email: string): boolean {
 
 export function isAdminEmail(email: string): boolean {
   const clean = email.toLowerCase().trim();
+  if (!clean.endsWith('@polariscampus.com')) return false;
   const defaultAdmins = [
-    'vinit.p25@medhaviskillsuniversity.edu.in',
-    'vinit.p25@medhaviskillsunivercity.edu.in',
-    'vinit@medhaviskillsuniversity.edu.in',
-    'vinit@medhaviskillsunivercity.edu.in',
+    'vinit@polariscampus.com',
+    'admin@polariscampus.com',
+    'codervinitjangir@polariscampus.com',
   ];
   const adminList = (process.env.ADMIN_EMAILS || '')
     .split(',')
     .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  return [...defaultAdmins, ...adminList].includes(clean);
+    .filter((e) => e.endsWith('@polariscampus.com'));
+  return (
+    [...defaultAdmins, ...adminList].includes(clean) ||
+    clean.startsWith('admin@polariscampus.com')
+  );
 }
 
 export function isMentorEmail(email: string): boolean {
   const clean = email.toLowerCase().trim();
-  if (isAdminEmail(clean)) return true;
-  const defaultMentors = [
-    'vinit.p25@medhaviskillsuniversity.edu.in',
-    'vinit.p25@medhaviskillsunivercity.edu.in',
-    'vinit@medhaviskillsuniversity.edu.in',
-    'vinit@medhaviskillsunivercity.edu.in',
-    'vini@medhaviskillsuniversity.edu.in',
-    'vini@medhaviskillsunivercity.edu.in',
-  ];
-  const mentorList = (process.env.MENTOR_EMAILS || '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  return [...defaultMentors, ...mentorList].includes(clean);
+  return clean.endsWith('@polariscampus.com');
 }
 
 export function generateToken(payload: JwtPayload): string {
@@ -128,10 +118,14 @@ export async function authenticateGoogleUser(credential: string): Promise<{
   const collegeDomain = info.email.split('@')[1];
   let role: 'student' | 'mentor' | 'admin' = existing?.role ?? 'student';
 
-  if (isAdminEmail(info.email)) {
-    role = 'admin';
-  } else if (isMentorEmail(info.email) || existing?.role === 'mentor' || existing?.role === 'admin') {
-    role = existing?.role === 'admin' ? 'admin' : 'mentor';
+  if (info.email.endsWith('@polariscampus.com')) {
+    if (isAdminEmail(info.email)) {
+      role = 'admin';
+    } else {
+      role = existing?.role === 'admin' ? 'admin' : 'mentor';
+    }
+  } else {
+    role = 'student';
   }
 
   const userRecord: User = {
@@ -170,10 +164,14 @@ export async function authenticateDevDemoUser(email: string, realName?: string):
   const collegeDomain = cleanEmail.split('@')[1];
   let role: 'student' | 'mentor' | 'admin' = existing?.role ?? 'student';
 
-  if (isAdminEmail(cleanEmail)) {
-    role = 'admin';
-  } else if (isMentorEmail(cleanEmail) || existing?.role === 'mentor' || existing?.role === 'admin') {
-    role = existing?.role === 'admin' ? 'admin' : 'mentor';
+  if (cleanEmail.endsWith('@polariscampus.com')) {
+    if (isAdminEmail(cleanEmail)) {
+      role = 'admin';
+    } else {
+      role = existing?.role === 'admin' ? 'admin' : 'mentor';
+    }
+  } else {
+    role = 'student';
   }
 
   const userRecord: User = {
@@ -277,6 +275,10 @@ export async function verifyAndPromoteMentorPin(email: string, pin: string): Pro
     throw new Error('Incorrect Mentor Passcode.');
   }
 
+  if (!cleanEmail.endsWith('@polariscampus.com') && !isMentorEmail(cleanEmail)) {
+    throw new Error('Faculty status is strictly restricted to verified @polariscampus.com accounts.');
+  }
+
   const updated = await setUserRole(cleanEmail, 'mentor');
   if (!updated) {
     throw new Error('User not found.');
@@ -319,10 +321,10 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
 
 export function requireMentor(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   requireAuth(req, res, () => {
-    if (!req.user || (req.user.role !== 'mentor' && req.user.role !== 'admin')) {
+    if (!req.user || !req.user.email.endsWith('@polariscampus.com') || (req.user.role !== 'mentor' && req.user.role !== 'admin')) {
       res.status(403).json({
-        error: 'Mentor privileges required. Enter your Faculty Security PIN to access host features.',
-        needsPin: true,
+        error: 'Faculty privileges required. Access is restricted to verified @polariscampus.com faculty.',
+        needsPin: false,
       });
       return;
     }
@@ -332,9 +334,9 @@ export function requireMentor(req: AuthenticatedRequest, res: Response, next: Ne
 
 export function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   requireAuth(req, res, () => {
-    if (!req.user || req.user.role !== 'admin') {
+    if (!req.user || !req.user.email.endsWith('@polariscampus.com') || req.user.role !== 'admin') {
       res.status(403).json({
-        error: 'University Administrator privileges required to access this resource.',
+        error: 'University Administrator privileges required (@polariscampus.com).',
       });
       return;
     }
