@@ -33,6 +33,8 @@ export default function LandingPage() {
     setShowAuthModal(true);
   }
 
+  const isFacultyUser = authUser && (authUser.role === 'mentor' || authUser.role === 'admin');
+
   return (
     <div className="pm-portal-landing">
       <CollegeAuthModal
@@ -59,7 +61,10 @@ export default function LandingPage() {
           </div>
           <div>
             <span className="pm-portal-title">Medhavi Skills University</span>
-            <span className="pm-portal-subtitle">Polaris Campus Quizzing &amp; Live Analytics</span>
+            <span className="pm-portal-subtitle">
+              <span className="pm-portal-live-dot" />
+              Polaris Campus Quizzing &amp; Live Analytics
+            </span>
           </div>
         </div>
 
@@ -75,38 +80,63 @@ export default function LandingPage() {
 
           {authUser ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <div className="pm-portal-nav-user-chip">
+                <span className="pm-portal-nav-mini-avatar">
+                  {authUser.realName.slice(0, 1).toUpperCase()}
+                </span>
+                <span>{authUser.realName.split(' ')[0]}</span>
+              </div>
+
               {authUser.role === 'admin' && (
                 <button
                   className="pm-btn-secondary"
                   onClick={() => navigate('/admin')}
                   style={{ fontSize: '0.8rem', padding: '0.4rem 0.85rem' }}
+                  id="nav-admin-btn"
                 >
-                  🏛️ Admin Console
+                  🏛️ Admin
                 </button>
               )}
+
+              {isFacultyUser && (
+                <button
+                  className="pm-btn-primary"
+                  onClick={() => navigate('/dashboard')}
+                  style={{ fontSize: '0.82rem', padding: '0.45rem 1rem' }}
+                  id="nav-host-btn"
+                >
+                  ⚡ Host Studio →
+                </button>
+              )}
+
               <button
-                className="pm-btn-primary"
-                onClick={() => navigate('/dashboard')}
-                style={{ fontSize: '0.82rem', padding: '0.45rem 1rem' }}
+                className="pm-btn-danger-ghost"
+                onClick={() => {
+                  clearStoredAuth();
+                  setAuthUser(null);
+                }}
+                id="portal-signout-btn"
               >
-                ⚡ Host Studio →
+                Sign Out
               </button>
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <button
                 className="pm-btn-secondary"
-                onClick={() => openSignIn('mentor')}
-                style={{ fontSize: '0.8rem', padding: '0.4rem 0.85rem' }}
+                onClick={() => openSignIn('student')}
+                style={{ fontSize: '0.82rem', padding: '0.45rem 1rem' }}
+                id="nav-student-signin-btn"
               >
-                Faculty Sign In
+                Student Login
               </button>
               <button
                 className="pm-btn-primary"
                 onClick={() => openSignIn('mentor')}
                 style={{ fontSize: '0.82rem', padding: '0.45rem 1rem' }}
+                id="nav-faculty-signin-btn"
               >
-                🔐 University SSO
+                🔐 Faculty SSO
               </button>
             </div>
           )}
@@ -115,132 +145,260 @@ export default function LandingPage() {
 
       {/* Main Content Area */}
       <main className="pm-portal-body">
-        {/* If signed in: Show Polaris Executive Welcome Banner (as in OJT/LMS screenshot) */}
         {authUser ? (
-          <section className="pm-portal-welcome-card">
-            <div className="pm-portal-welcome-header">
-              <div className="pm-portal-welcome-left">
-                <div className="pm-portal-avatar">
-                  {authUser.realName.slice(0, 2).toUpperCase()}
-                </div>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                    <h1 className="pm-portal-welcome-title">Welcome back, {authUser.realName} 👋</h1>
-                    <span className="pm-portal-role-badge">
-                      {authUser.role === 'admin'
-                        ? '🏛️ SUPER-ADMINISTRATOR'
-                        : authUser.role === 'mentor'
-                        ? '🎓 FACULTY MENTOR'
-                        : '🎒 STUDENT PARTICIPANT'}
-                    </span>
-                  </div>
-                  <p className="pm-portal-welcome-sub">
-                    {authUser.email} · Medhavi Skills University Verified Identity
-                  </p>
-                </div>
-              </div>
-
-              <div className="pm-portal-welcome-actions">
-                <button
-                  className="pm-btn-primary"
-                  onClick={() => navigate('/dashboard')}
-                  id="welcome-host-btn"
-                >
-                  ⚡ Open Mentor Host Studio →
-                </button>
-                {authUser.role === 'admin' && (
-                  <button
-                    className="pm-btn-secondary"
-                    onClick={() => navigate('/admin')}
-                    id="welcome-admin-btn"
+          <>
+            {/* ─── Executive Welcome Banner ─── */}
+            <section className="pm-portal-welcome-card">
+              <div className="pm-portal-welcome-header">
+                <div className="pm-portal-welcome-left">
+                  <div
+                    className={`pm-portal-avatar ${
+                      isFacultyUser ? 'pm-portal-avatar-faculty' : ''
+                    }`}
                   >
-                    🏛️ Central Admin Console
-                  </button>
-                )}
-                <button
-                  className="pm-btn-secondary"
-                  onClick={() => {
-                    clearStoredAuth();
-                    setAuthUser(null);
-                  }}
-                  style={{ color: '#EF4444' }}
-                >
-                  Sign Out
-                </button>
-              </div>
-            </div>
-
-            {/* Quick Live Session Participation Inset */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                gap: '1.25rem',
-                paddingTop: '1.5rem',
-                borderTop: '1px solid #2A2A2F',
-              }}
-            >
-              <div
-                style={{
-                  background: 'var(--surface-mid, #202024)',
-                  padding: '1.25rem 1.5rem',
-                  borderRadius: '14px',
-                  border: '1px solid #2A2A2F',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.4rem' }}>
-                  <span style={{ color: '#F59E0B' }}>⚡</span>
-                  <strong style={{ fontSize: '0.95rem' }}>Active Classroom Host</strong>
+                    {authUser.realName.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <h1 className="pm-portal-welcome-title">
+                      <span>Welcome back, {authUser.realName} 👋</span>
+                      <span
+                        className={`pm-portal-role-badge ${
+                          authUser.role === 'admin'
+                            ? 'pm-portal-role-badge-admin'
+                            : authUser.role === 'mentor'
+                            ? 'pm-portal-role-badge-faculty'
+                            : 'pm-portal-role-badge-student'
+                        }`}
+                      >
+                        {authUser.role === 'admin'
+                          ? '🏛️ SUPER-ADMINISTRATOR'
+                          : authUser.role === 'mentor'
+                          ? '🎓 FACULTY MENTOR'
+                          : '🎒 STUDENT PARTICIPANT'}
+                      </span>
+                    </h1>
+                    <p className="pm-portal-welcome-sub">
+                      <span>{authUser.email}</span>
+                      <span>•</span>
+                      <span>
+                        {authUser.role === 'student'
+                          ? 'Medhavi Skills University Verified Identity'
+                          : 'Polaris Campus Verified Faculty & Admin Portal'}
+                      </span>
+                    </p>
+                  </div>
                 </div>
-                <p style={{ fontSize: '0.8rem', color: '#9CA3AF', margin: '0 0 1rem', lineHeight: 1.4 }}>
-                  Launch question banks, generate syllabus MCQs, or view cross-cohort gradebook exports.
-                </p>
-                <button
-                  className="pm-btn-secondary"
-                  onClick={() => navigate('/dashboard')}
-                  style={{ width: '100%', fontSize: '0.82rem' }}
-                >
-                  Manage Quizzes &amp; Host Sessions →
-                </button>
-              </div>
 
-              <div
-                style={{
-                  background: 'var(--surface-mid, #202024)',
-                  padding: '1.25rem 1.5rem',
-                  borderRadius: '14px',
-                  border: '1px solid #2A2A2F',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.4rem' }}>
-                  <span style={{ color: '#3B82F6' }}>📱</span>
-                  <strong style={{ fontSize: '0.95rem' }}>Join a Live Quiz as Participant</strong>
-                </div>
-                <p style={{ fontSize: '0.8rem', color: '#9CA3AF', margin: '0 0 1rem', lineHeight: 1.4 }}>
-                  Enter the 6-digit session PIN shown on the projector to race on the leaderboard.
-                </p>
-                <form onSubmit={handleFastJoin} className="pm-portal-pin-row">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="\d{6}"
-                    maxLength={6}
-                    value={fastCode}
-                    onChange={(e) => setFastCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="123456"
-                    className="pm-portal-pin-input"
-                    aria-label="Enter 6-digit session pin"
-                    id="welcome-code-input"
-                  />
-                  <button type="submit" className="pm-btn-primary" style={{ padding: '0 1.25rem' }}>
-                    Join →
+                <div className="pm-portal-welcome-actions">
+                  {authUser.role === 'admin' && (
+                    <button
+                      className="pm-btn-secondary"
+                      onClick={() => navigate('/admin')}
+                      id="welcome-admin-btn"
+                    >
+                      🏛️ Admin Console
+                    </button>
+                  )}
+                  {isFacultyUser && (
+                    <button
+                      className="pm-btn-primary"
+                      onClick={() => navigate('/dashboard')}
+                      id="welcome-host-btn"
+                    >
+                      ⚡ Open Mentor Host Studio →
+                    </button>
+                  )}
+                  <button
+                    className="pm-btn-danger-ghost"
+                    onClick={() => {
+                      clearStoredAuth();
+                      setAuthUser(null);
+                    }}
+                  >
+                    Sign Out
                   </button>
-                </form>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+
+            {/* ─── ROLE-SPECIFIC DASHBOARD SECTIONS ─── */}
+            {authUser.role === 'student' ? (
+              <>
+                {/* 1. HERO PARTICIPATION TERMINAL FOR STUDENTS */}
+                <section className="pm-portal-hero-terminal">
+                  <div className="pm-terminal-icon-bubble">📱</div>
+                  <div className="pm-terminal-header">
+                    <h2>Join a Live Classroom Session</h2>
+                    <p>
+                      Enter the 6-digit session PIN from your professor&apos;s projector screen to enter the arena and race on the leaderboard.
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleFastJoin} className="pm-terminal-pin-form">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="\d{6}"
+                      maxLength={6}
+                      value={fastCode}
+                      onChange={(e) => setFastCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="123456"
+                      className="pm-terminal-pin-input"
+                      aria-label="Enter 6-digit session pin"
+                      id="welcome-code-input"
+                      autoFocus
+                    />
+                    <button type="submit" className="pm-terminal-join-btn" id="welcome-join-btn">
+                      <span>Enter Quiz Arena</span>
+                      <span>→</span>
+                    </button>
+                  </form>
+
+                  <div className="pm-terminal-pills-row">
+                    <span className="pm-terminal-pill">⚡ 60 FPS Real-Time Racing</span>
+                    <span className="pm-terminal-pill">🏆 Instant Leaderboard Podium</span>
+                    <span className="pm-terminal-pill">🔒 Auto-Synced Gradebook Attendance</span>
+                  </div>
+                </section>
+
+                {/* 2. THREE STUDENT VALUE PILLARS */}
+                <section className="pm-portal-feature-grid">
+                  <div className="pm-portal-feature-card">
+                    <div>
+                      <div className="pm-card-top-icon">🏎️</div>
+                      <h3 className="pm-card-title">Real-Time Speed Scoring</h3>
+                      <p className="pm-card-desc">
+                        Every millisecond counts. Answering accurately within the first few seconds multiplies your points and elevates your avatar on the classroom podium.
+                      </p>
+                    </div>
+                    <div className="pm-card-footer">
+                      <span className="pm-card-tag">Speed Bonus Engine</span>
+                    </div>
+                  </div>
+
+                  <div className="pm-portal-feature-card">
+                    <div>
+                      <div className="pm-card-top-icon">📋</div>
+                      <h3 className="pm-card-title">Deanonymized Attendance</h3>
+                      <p className="pm-card-desc">
+                        Your submissions are cryptographically linked to your official ID (<code>{authUser.email}</code>). Zero proxy participation, with verified attendance logs.
+                      </p>
+                    </div>
+                    <div className="pm-card-footer">
+                      <span className="pm-card-tag">Zero-Proxy Sync</span>
+                    </div>
+                  </div>
+
+                  <div className="pm-portal-feature-card">
+                    <div>
+                      <div className="pm-card-top-icon">🏛️</div>
+                      <h3 className="pm-card-title">Faculty &amp; Mentor Access</h3>
+                      <p className="pm-card-desc">
+                        Need to create or host quizzes? Faculty access is restricted to verified <code>@polariscampus.com</code> institutional accounts.
+                      </p>
+                    </div>
+                    <div className="pm-card-footer">
+                      <button
+                        className="pm-btn-ghost"
+                        onClick={() => openSignIn('mentor')}
+                        style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem' }}
+                      >
+                        Switch to Faculty SSO →
+                      </button>
+                    </div>
+                  </div>
+                </section>
+              </>
+            ) : (
+              /* ─── FACULTY / MENTOR COMMAND CENTER ─── */
+              <section className="pm-portal-feature-grid">
+                <div className="pm-portal-feature-card">
+                  <div>
+                    <div className="pm-card-top-icon">🚀</div>
+                    <h3 className="pm-card-title">Launch Live Quiz Studio</h3>
+                    <p className="pm-card-desc">
+                      Start a live classroom session, display the projector big-screen mode, and control question pacing with live voting.
+                    </p>
+                  </div>
+                  <div className="pm-card-footer">
+                    <button
+                      className="pm-btn-primary"
+                      onClick={() => navigate('/dashboard')}
+                      style={{ width: '100%', fontSize: '0.85rem' }}
+                    >
+                      Open Host Studio →
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pm-portal-feature-card">
+                  <div>
+                    <div className="pm-card-top-icon">🤖</div>
+                    <h3 className="pm-card-title">AI Syllabus Question Maker</h3>
+                    <p className="pm-card-desc">
+                      Generate exam-grade multiple-choice questions in seconds using syllabus notes, lecture topics, or custom prompts.
+                    </p>
+                  </div>
+                  <div className="pm-card-footer">
+                    <button
+                      className="pm-btn-secondary"
+                      onClick={() => navigate('/dashboard')}
+                      style={{ width: '100%', fontSize: '0.85rem' }}
+                    >
+                      Generate Questions →
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pm-portal-feature-card">
+                  <div>
+                    <div className="pm-card-top-icon">📊</div>
+                    <h3 className="pm-card-title">Attendance &amp; Analytics</h3>
+                    <p className="pm-card-desc">
+                      Review question difficulty curves, track student response times, and export official CSV gradebooks for accreditation.
+                    </p>
+                  </div>
+                  <div className="pm-card-footer">
+                    <button
+                      className="pm-btn-secondary"
+                      onClick={() => navigate('/dashboard')}
+                      style={{ width: '100%', fontSize: '0.85rem' }}
+                    >
+                      View Reports →
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pm-portal-feature-card">
+                  <div>
+                    <div className="pm-card-top-icon">📱</div>
+                    <h3 className="pm-card-title">Test Participant View</h3>
+                    <p className="pm-card-desc">
+                      Enter a 6-digit session PIN to preview your live quiz from a student participant&apos;s mobile perspective.
+                    </p>
+                  </div>
+                  <form onSubmit={handleFastJoin} className="pm-card-footer" style={{ gap: '0.5rem' }}>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="\d{6}"
+                      maxLength={6}
+                      value={fastCode}
+                      onChange={(e) => setFastCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="PIN"
+                      className="pm-terminal-pin-input"
+                      style={{ height: '38px', fontSize: '0.95rem' }}
+                    />
+                    <button type="submit" className="pm-btn-secondary" style={{ padding: '0.4rem 0.85rem' }}>
+                      Join →
+                    </button>
+                  </form>
+                </div>
+              </section>
+            )}
+          </>
         ) : (
-          /* Unauthenticated Polaris Access Portal */
+          /* ─── UNAUTHENTICATED POLARIS ACCESS PORTAL ─── */
           <div className="pm-portal-grid">
             {/* Faculty & Admin Portal Card */}
             <div className="pm-portal-card pm-portal-card-faculty">
@@ -276,7 +434,7 @@ export default function LandingPage() {
                   style={{ width: '100%', padding: '0.85rem', fontSize: '0.92rem' }}
                   id="portal-faculty-signin-btn"
                 >
-                  <span>🔐 Sign In with University SSO</span>
+                  <span>🔐 Sign In with Faculty SSO</span>
                 </button>
               </div>
             </div>
@@ -309,7 +467,7 @@ export default function LandingPage() {
               </div>
 
               <div>
-                <form onSubmit={handleFastJoin} className="pm-portal-pin-row">
+                <form onSubmit={handleFastJoin} className="pm-terminal-pin-form" style={{ maxWidth: '100%' }}>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -318,14 +476,13 @@ export default function LandingPage() {
                     value={fastCode}
                     onChange={(e) => setFastCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     placeholder="123456"
-                    className="pm-portal-pin-input"
+                    className="pm-terminal-pin-input"
                     aria-label="Enter 6-digit session pin"
                     id="portal-pin-input"
                   />
                   <button
                     type="submit"
-                    className="pm-btn-primary"
-                    style={{ background: '#3B82F6', padding: '0 1.5rem', fontSize: '0.95rem' }}
+                    className="pm-terminal-join-btn"
                     id="portal-student-join-btn"
                   >
                     Enter Quiz →
@@ -352,7 +509,7 @@ export default function LandingPage() {
           </div>
           <div className="pm-portal-telemetry-item">
             <span>🔒</span>
-            <span>Medhavi EduCloud Security Verified</span>
+            <span>Medhavi &amp; Polaris EduCloud Security</span>
           </div>
         </div>
       </main>
