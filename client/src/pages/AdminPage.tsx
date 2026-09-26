@@ -50,6 +50,10 @@ export default function AdminPage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [adminTheme, setAdminTheme] = useState<Theme>(getActiveTheme());
 
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', adminTheme);
+  }, [adminTheme]);
+
   // Core Data
   const [overview, setOverview] = useState<UniversityOverview | null>(null);
   const [facultyList, setFacultyList] = useState<FacultyMember[]>([]);

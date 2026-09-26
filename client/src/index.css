@@ -10186,6 +10186,185 @@ html[data-theme="dark"] body {
   color: #F59E0B !important;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* ─── POLARIS LMS FINAL STANDINGS & QUESTIONS REVIEW (DARK THEME) ────────── */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+/* 1. Ended Canvas & Celebration Wrap */
+[data-theme="dark"] .page--ended,
+[data-theme="dark"] .page--ended .main-content,
+[data-theme="dark"] .container--showcase {
+  background-color: #09090B !important;
+  color: #F2F2F2 !important;
+}
+
+/* 2. Top Celebration Summary Bar */
+[data-theme="dark"] .final-standings-bar {
+  background: #111113 !important;
+  border: 1px solid #2A2A2F !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .final-standings-heading {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .final-standings-subtitle {
+  color: #9CA3AF !important;
+}
+
+/* 3. 2-Column Showcase Cards (Left = Podium, Right = Leaderboard) */
+[data-theme="dark"] .final-showcase-card {
+  background: #111113 !important;
+  border: 1px solid #2A2A2F !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6) !important;
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .final-showcase-card-header {
+  border-bottom: 1px solid #2A2A2F !important;
+}
+
+[data-theme="dark"] .final-showcase-card-title {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .final-showcase-badge--gold {
+  background: rgba(245, 158, 11, 0.15) !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+  color: #F59E0B !important;
+}
+
+[data-theme="dark"] .final-showcase-badge--blue {
+  background: rgba(56, 189, 248, 0.15) !important;
+  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+  color: #38BDF8 !important;
+}
+
+[data-theme="dark"] .podium-champion-card {
+  background: #151518 !important;
+  border: 1.5px solid rgba(245, 158, 11, 0.4) !important;
+  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.15) !important;
+}
+
+[data-theme="dark"] .podium-champion-badge {
+  color: #F59E0B !important;
+}
+
+[data-theme="dark"] .podium-champion-name {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .podium-champion-score {
+  color: #F59E0B !important;
+}
+
+/* 4. Questions Review Grid Section (Screenshot 2) */
+[data-theme="dark"] .final-questions-title {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .final-questions-count {
+  background: #18181C !important;
+  border: 1px solid #2A2A2F !important;
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .final-question-card {
+  background: #111113 !important;
+  border: 1px solid #2A2A2F !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .final-question-card:hover {
+  border-color: #3B3B42 !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7) !important;
+}
+
+[data-theme="dark"] .final-question-text {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .final-question-card .divider {
+  border-color: #2A2A2F !important;
+}
+
+[data-theme="dark"] .final-question-card .badge-neutral {
+  background: #1B1B1F !important;
+  border: 1px solid #2A2A2F !important;
+  color: #F59E0B !important;
+  font-weight: 800 !important;
+}
+
+/* 5. Horizontal Results Bars in Dark Mode (LiveBarChart compact / review) */
+[data-theme="dark"] .bars {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .bar-track {
+  background: #1B1B1F !important;
+}
+
+[data-theme="dark"] .bar-key {
+  background: #18181C !important;
+  border: 1px solid #2A2A2F !important;
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .bar-row.is-correct .bar-key {
+  background: #10B981 !important;
+  border-color: #10B981 !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .bar-text {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .bar-stat {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .bar-share {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .bar-status {
+  background: rgba(16, 185, 129, 0.16) !important;
+  color: #34D399 !important;
+  border: 1px solid rgba(16, 185, 129, 0.35) !important;
+}
+
+/* 6. Admin Portal Gateway Container & Modal (Screenshot 4) */
+[data-theme="dark"] .pm-gateway-container {
+  background-color: #09090B !important;
+}
+
+[data-theme="dark"] .pm-gateway-card {
+  background: #111113 !important;
+  border: 1px solid #2A2A2F !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8) !important;
+}
+
+[data-theme="dark"] .pm-auth-modal-card {
+  background: #111113 !important;
+  border: 1px solid #2A2A2F !important;
+  color: #F2F2F2 !important;
+  box-shadow: 0 25px 70px -15px rgba(0, 0, 0, 0.9) !important;
+}
+
+[data-theme="dark"] .pm-auth-header {
+  border-bottom: 1px solid #2A2A2F !important;
+}
+
+[data-theme="dark"] .pm-auth-footer {
+  border-top: 1px solid #2A2A2F !important;
+  color: #6B7280 !important;
+}
+
+
 
 
 

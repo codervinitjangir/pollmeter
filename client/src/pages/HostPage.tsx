@@ -1597,7 +1597,7 @@ export default function HostPage() {
 
   // ─── Ended ────────────────────────────────────────────────────────────────
   if (phase === 'ended') return (
-    <div className="page">
+    <div className="page page--ended">
       {sessionNav}
       <div className="main-content" style={{ padding: '1.25rem 1.5rem 3rem' }}>
         <div className="container--showcase">
