@@ -75,6 +75,11 @@ export default function HostPage() {
   const mainPanelRef = useRef<HTMLDivElement>(null);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [hostTheme, setHostTheme] = useState<Theme>(getActiveTheme());
+
+  // Keep data-theme attribute synchronized on document root
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', hostTheme);
+  }, [hostTheme]);
   const [authUser, setAuthUser] = useState<AuthUser | null>(() => getAuthUser());
   const [showAuthModal, setShowAuthModal] = useState(() => !getAuthUser());
   const [showPinModal, setShowPinModal] = useState(() => {
@@ -828,6 +833,17 @@ export default function HostPage() {
             {everyoneAnswered ? '✔ All answered' : `${answeredCount}/${connectedCount || '—'} answered`}
           </span>
         )}
+        <button
+          className="menti-stage-btn-ghost"
+          onClick={() => setHostTheme(toggleTheme())}
+          id="stage-theme-toggle-btn"
+          title={hostTheme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+          aria-label="Toggle theme"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+        >
+          <span>{hostTheme === 'dark' ? '☀️' : '🌙'}</span>
+          <span>{hostTheme === 'dark' ? 'Light' : 'Dark'}</span>
+        </button>
         <button
           className="menti-stage-btn-ghost"
           onClick={toggleFullscreen}
@@ -1853,8 +1869,8 @@ export default function HostPage() {
                           key={opt}
                           className="menti-stage-opt-card"
                           style={{
-                            background: `${color}18`,
-                            borderColor: `${color}60`,
+                            background: hostTheme === 'dark' ? '#151518' : `${color}18`,
+                            borderColor: hostTheme === 'dark' ? `${color}70` : `${color}60`,
                             '--opt-color': color,
                           } as React.CSSProperties}
                         >
@@ -1978,7 +1994,7 @@ export default function HostPage() {
           {phase === 'results' && (
             <div className="row row-2">
               {isReviewMode ? (
-                <span className="chip" style={{ background: 'rgba(245,158,11,0.15)', color: '#B45309', border: '1px solid rgba(245,158,11,0.3)' }}>
+                <span className="chip" style={{ background: 'rgba(245,158,11,0.15)', color: hostTheme === 'dark' ? '#F59E0B' : '#B45309', border: '1px solid rgba(245,158,11,0.3)' }}>
                   👁 Review mode — auto-advance paused
                 </span>
               ) : (

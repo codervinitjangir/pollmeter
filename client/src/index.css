@@ -9699,6 +9699,494 @@ html[data-theme="dark"] body {
   border: 1px solid rgba(16, 185, 129, 0.3) !important;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* ─── POLARIS LMS PRESENTER STAGE, RESULTS & LEADERBOARD (DARK THEME) ────── */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+/* 1. Canvas & Stage Page */
+[data-theme="dark"] .page--stage,
+[data-theme="dark"] .page--stage-lobby,
+[data-theme="dark"] .stage-main {
+  background-color: #09090B !important;
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .menti-stage-nav {
+  background: #111113 !important;
+  border-bottom: 1px solid #2A2A2F !important;
+}
+
+[data-theme="dark"] .stage-progress-labels {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .stage-progress-bar {
+  background: #1F1F24 !important;
+}
+
+[data-theme="dark"] .stage-progress-fill {
+  background: #F59E0B !important;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.4) !important;
+}
+
+/* 2. Main Stage Question Card (Screenshots 1, 2, 4) */
+[data-theme="dark"] .menti-stage-card {
+  background: #111113 !important;
+  border: 1px solid #2A2A2F !important;
+  box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.8) !important;
+  border-radius: 24px !important;
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .menti-stage-q-num {
+  color: #F59E0B !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="dark"] .menti-stage-question {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .menti-stage-timer-wrap {
+  background: rgba(245, 158, 11, 0.08) !important;
+}
+
+[data-theme="dark"] .menti-stage-divider {
+  background: #2A2A2F !important;
+}
+
+[data-theme="dark"] .menti-read-badge {
+  background: rgba(245, 158, 11, 0.16) !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+  color: #F59E0B !important;
+}
+
+/* 3. MCQ Option Preview Cards on Presenter Stage (Screenshot 1) */
+[data-theme="dark"] .menti-stage-opt-card {
+  background: #151518 !important;
+  border-width: 1.5px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .menti-stage-opt-card:hover {
+  background: #1B1B20 !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .menti-stage-opt-text {
+  color: #F2F2F2 !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="dark"] .menti-stage-hidden-tally {
+  background: #151518 !important;
+  border: 1px dashed #2A2A2F !important;
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .menti-stage-hidden-icon {
+  color: #F59E0B !important;
+}
+
+/* 4. Reading Time Buffer Card (Screenshot 4) */
+[data-theme="dark"] .menti-stage-reading-card {
+  background: #141418 !important;
+  border: 2px dashed rgba(245, 158, 11, 0.45) !important;
+  box-shadow: inset 0 0 30px rgba(245, 158, 11, 0.04), 0 12px 35px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .menti-stage-reading-badge {
+  background: rgba(245, 158, 11, 0.16) !important;
+  border: 1px solid rgba(245, 158, 11, 0.4) !important;
+  color: #F59E0B !important;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.25) !important;
+}
+
+[data-theme="dark"] .menti-stage-reading-title {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .menti-stage-reading-num {
+  background: #F59E0B !important;
+  color: #09090B !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4) !important;
+}
+
+[data-theme="dark"] .menti-stage-reading-sub {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .reading-dot {
+  background: #F59E0B !important;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6) !important;
+}
+
+/* 5. Live Results & Bar Chart (Screenshot 2) */
+[data-theme="dark"] .menti-stage-reveal-badge {
+  background: rgba(34, 197, 94, 0.15) !important;
+  border: 1px solid rgba(34, 197, 94, 0.35) !important;
+  color: #4ADE80 !important;
+}
+
+[data-theme="dark"] .col-track {
+  background: #18181C !important;
+  border: 1px solid #24242A !important;
+}
+
+[data-theme="dark"] .col-item--correct .col-track {
+  background: rgba(34, 197, 94, 0.12) !important;
+  border-color: rgba(34, 197, 94, 0.4) !important;
+}
+
+[data-theme="dark"] .col-count {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .col-count--zero {
+  color: #6B7280 !important;
+}
+
+[data-theme="dark"] .col-label-text {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .col-item--correct .col-label-text {
+  color: #4ADE80 !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="dark"] .col-item--wrong .col-label-text {
+  color: #6B7280 !important;
+}
+
+[data-theme="dark"] .col-share {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .col-axis {
+  background: #2A2A2F !important;
+}
+
+[data-theme="dark"] .col-total {
+  color: #9CA3AF !important;
+}
+
+/* 6. Standings & Racing Leaderboard (Screenshot 5) */
+[data-theme="dark"] .menti-correct-banner {
+  background: #111113 !important;
+  border: 1px solid rgba(34, 197, 94, 0.35) !important;
+  color: #4ADE80 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .menti-correct-banner strong {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .menti-correct-icon {
+  color: #22C55E !important;
+}
+
+[data-theme="dark"] .stage-lb-card {
+  background: #111113 !important;
+  border: 1px solid #2A2A2F !important;
+  box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.8) !important;
+  border-radius: 24px !important;
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .menti-race-header {
+  border-bottom: 1px solid #2A2A2F !important;
+  padding-bottom: 0.75rem !important;
+}
+
+[data-theme="dark"] .menti-race-title {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .menti-race-subtitle {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .menti-race-score {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .menti-race-unit {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .menti-race-track-wrap {
+  background: #18181C !important;
+  border-radius: 6px !important;
+}
+
+[data-theme="dark"] .menti-race-avatar {
+  background: #18181C !important;
+  border-color: #F59E0B !important;
+}
+
+[data-theme="dark"] .menti-race-name {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .menti-race-delta {
+  background: rgba(34, 197, 94, 0.16) !important;
+  border: 1px solid rgba(34, 197, 94, 0.35) !important;
+  color: #4ADE80 !important;
+}
+
+[data-theme="dark"] .menti-race-view-toggle {
+  background: #18181C !important;
+  border: 1px solid #2A2A2F !important;
+}
+
+[data-theme="dark"] .menti-race-toggle-btn {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .menti-race-toggle-btn.is-active {
+  background: #202024 !important;
+  color: #F59E0B !important;
+}
+
+[data-theme="dark"] .menti-race-live-chip {
+  background: rgba(16, 185, 129, 0.15) !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+  color: #10B981 !important;
+}
+
+/* 7. Presenter Control Strip (.host-bar) */
+[data-theme="dark"] .host-bar {
+  background: #111113 !important;
+  border: 1px solid #2A2A2F !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7) !important;
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .host-bar .btn-ghost {
+  color: #9CA3AF !important;
+  border: 1px solid #2A2A2F !important;
+  background: transparent !important;
+}
+
+[data-theme="dark"] .host-bar .btn-ghost:hover {
+  background: #1B1B1F !important;
+  color: #F2F2F2 !important;
+  border-color: #3B3B42 !important;
+}
+
+[data-theme="dark"] .host-bar .btn-quiet {
+  background: #18181C !important;
+  color: #F2F2F2 !important;
+  border: 1px solid #2A2A2F !important;
+}
+
+[data-theme="dark"] .host-bar .btn-quiet:hover {
+  background: #202024 !important;
+  border-color: #F59E0B !important;
+  color: #F59E0B !important;
+}
+
+[data-theme="dark"] .host-bar .btn-primary {
+  background: #F59E0B !important;
+  color: #09090B !important;
+  font-weight: 800 !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35) !important;
+}
+
+[data-theme="dark"] .host-bar .btn-primary:hover {
+  background: #F6A21A !important;
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5) !important;
+}
+
+[data-theme="dark"] .host-bar .btn-secondary {
+  background: #18181C !important;
+  color: #F2F2F2 !important;
+  border: 1px solid #2A2A2F !important;
+}
+
+[data-theme="dark"] .host-bar .btn-secondary:hover {
+  background: #202024 !important;
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .host-roster-pill {
+  background: #18181C !important;
+  border: 1px solid #2A2A2F !important;
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .host-roster-pill--open {
+  background: #202024 !important;
+  color: #F59E0B !important;
+  border-color: #F59E0B !important;
+}
+
+[data-theme="dark"] .host-roster-panel {
+  background: #111113 !important;
+  border: 1px solid #2A2A2F !important;
+  color: #F2F2F2 !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8) !important;
+}
+
+[data-theme="dark"] .host-roster-panel-head {
+  border-bottom: 1px solid #2A2A2F !important;
+}
+
+/* 8. Lobby Stage (Lobby View) */
+[data-theme="dark"] .menti-lobby-title {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .menti-lobby-subtitle {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .menti-lobby-badge {
+  background: rgba(245, 158, 11, 0.15) !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+  color: #F59E0B !important;
+}
+
+[data-theme="dark"] .menti-lobby-code-box {
+  background: #151518 !important;
+  border: 1.5px solid #2A2A2F !important;
+  color: #F2F2F2 !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .menti-lobby-url-row,
+[data-theme="dark"] .menti-lobby-code-row {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .menti-lobby-step-num {
+  background: #202024 !important;
+  color: #F59E0B !important;
+}
+
+[data-theme="dark"] .menti-lobby-code-val {
+  color: #F59E0B !important;
+}
+
+[data-theme="dark"] .menti-lobby-participants-box {
+  background: #151518 !important;
+  border: 1.5px solid #2A2A2F !important;
+  color: #F2F2F2 !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .menti-lobby-participants-header {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .menti-lobby-waiting {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .menti-lobby-qr-card {
+  background: #151518 !important;
+  border: 1.5px solid #2A2A2F !important;
+  color: #F2F2F2 !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .menti-lobby-qr-caption {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .menti-lobby-chip {
+  background: #1B1B1F !important;
+  border: 1px solid #2A2A2F !important;
+  color: #F2F2F2 !important;
+}
+
+/* 9. Olympic Podium (Final Standings) */
+[data-theme="dark"] .podium-avatar {
+  background: #1B1B1F !important;
+}
+
+[data-theme="dark"] .podium-name {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .podium-score-pill {
+  background: #202024 !important;
+  color: #9CA3AF !important;
+  border-color: #2A2A2F !important;
+}
+
+[data-theme="dark"] .podium-champion-card {
+  background: #111113 !important;
+  border: 1px solid #2A2A2F !important;
+  color: #F2F2F2 !important;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.7) !important;
+}
+
+[data-theme="dark"] .podium-champion-name {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .podium-champion-score {
+  color: #F59E0B !important;
+}
+
+/* 10. Dashboard Cards & Hero Polish (Screenshot 3 Guarantee) */
+[data-theme="dark"] .menti-card-mini {
+  background: #151518 !important;
+  border: 1px solid #2A2A2F !important;
+  color: #F2F2F2 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .menti-card-mini:hover {
+  border-color: #F59E0B !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-theme="dark"] .menti-mini-headline {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .menti-mini-desc {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .menti-mini-arrow {
+  background: #202024 !important;
+  border: 1px solid #2A2A2F !important;
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .menti-mini-arrow:hover {
+  background: #F59E0B !important;
+  color: #09090B !important;
+}
+
+[data-theme="dark"] .menti-card-live {
+  background: #151518 !important;
+  border: 1px solid #2A2A2F !important;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-theme="dark"] .menti-live-headline {
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .menti-live-desc {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .menti-live-pill {
+  background: rgba(245, 158, 11, 0.15) !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+  color: #F59E0B !important;
+}
+
+
 
 
 
