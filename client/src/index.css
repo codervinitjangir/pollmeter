@@ -9017,6 +9017,43 @@ html[data-theme="dark"] body {
   gap: 0.75rem;
 }
 
+/* Theme Toggle Button */
+.pm-theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.42rem 0.85rem;
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.pm-theme-toggle-btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+  transform: translateY(-1px);
+}
+
+[data-theme="dark"] .pm-theme-toggle-btn {
+  background: #18181f;
+  border-color: #2e2e38;
+  color: #f1f5f9;
+  box-shadow: none;
+}
+
+[data-theme="dark"] .pm-theme-toggle-btn:hover {
+  background: #24242e;
+  border-color: #3e3e4c;
+}
+
 /* User Identity Chip in Navbar */
 .pm-portal-nav-user-chip {
   display: flex;
@@ -9493,7 +9530,75 @@ html[data-theme="dark"] body {
   border-color: #dbeafe;
 }
 
-/* ─── Logged Out Dual Wings ─── */
+/* ─── Logged Out Hero Intro & Value Proposition ─── */
+.pm-portal-hero-intro {
+  text-align: center;
+  max-width: 840px;
+  margin: 0.5rem auto 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pm-portal-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  border-radius: 9999px;
+  padding: 0.35rem 0.95rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #2563eb;
+  margin-bottom: 1rem;
+  letter-spacing: 0.02em;
+}
+
+[data-theme="dark"] .pm-portal-hero-badge {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.25);
+  color: #f59e0b;
+}
+
+.pm-portal-hero-headline {
+  font-size: clamp(2rem, 4.5vw, 2.85rem);
+  font-weight: 850;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+  color: #0f172a;
+  margin: 0 0 0.85rem;
+}
+
+[data-theme="dark"] .pm-portal-hero-headline {
+  color: #f8fafc;
+}
+
+.pm-portal-hero-headline-accent {
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 50%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+[data-theme="dark"] .pm-portal-hero-headline-accent {
+  background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 50%, #f97316 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.pm-portal-hero-desc {
+  font-size: clamp(0.95rem, 1.8vw, 1.1rem);
+  line-height: 1.6;
+  color: #64748b;
+  max-width: 660px;
+  margin: 0;
+}
+
+[data-theme="dark"] .pm-portal-hero-desc {
+  color: #94a3b8;
+}
+
+/* ─── Logged Out Dual Wings Grid ─── */
 .pm-portal-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -9509,29 +9614,45 @@ html[data-theme="dark"] body {
 .pm-portal-card {
   background: rgba(18, 18, 23, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 20px;
+  border-radius: 22px;
   padding: 2.25rem 2rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   box-shadow: 0 18px 40px -10px rgba(0, 0, 0, 0.5);
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   backdrop-filter: blur(12px);
+  position: relative;
+  overflow: hidden;
 }
 
 [data-theme="light"] .pm-portal-card {
   background: #ffffff;
-  border-color: #e2e8f0;
-  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.06);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 12px 32px -6px rgba(15, 23, 42, 0.06), 0 4px 12px -2px rgba(15, 23, 42, 0.03);
 }
 
 .pm-portal-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
   border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 22px 48px -10px rgba(0, 0, 0, 0.6);
 }
 
 [data-theme="light"] .pm-portal-card:hover {
   border-color: #cbd5e1;
+  box-shadow: 0 16px 36px -6px rgba(15, 23, 42, 0.1);
+}
+
+.pm-portal-card-faculty {
+  border-top: 4px solid #f59e0b !important;
+}
+
+.pm-portal-card-student {
+  border-top: 4px solid #2563eb !important;
+}
+
+[data-theme="dark"] .pm-portal-card-student {
+  border-top-color: #3b82f6 !important;
 }
 
 .pm-portal-card-badge {
@@ -9549,14 +9670,24 @@ html[data-theme="dark"] body {
 
 .pm-portal-badge-faculty {
   background: rgba(245, 158, 11, 0.12);
-  color: #f59e0b;
+  color: #d97706;
   border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
+[data-theme="dark"] .pm-portal-badge-faculty {
+  color: #f59e0b;
+}
+
 .pm-portal-badge-student {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+  border: 1px solid rgba(37, 99, 235, 0.25);
+}
+
+[data-theme="dark"] .pm-portal-badge-student {
   background: rgba(59, 130, 246, 0.12);
-  color: #3b82f6;
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.3);
 }
 
 .pm-portal-card-title {
@@ -9587,7 +9718,7 @@ html[data-theme="dark"] body {
   flex-direction: column;
   gap: 0.6rem;
   margin-bottom: 1.75rem;
-  padding: 1rem 1.15rem;
+  padding: 1.15rem;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 14px;
@@ -9601,7 +9732,7 @@ html[data-theme="dark"] body {
 .pm-portal-feat-line {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.55rem;
   font-size: 0.82rem;
   color: #f8fafc;
 }
@@ -9613,6 +9744,224 @@ html[data-theme="dark"] body {
 .pm-portal-feat-check {
   color: #10b981;
   font-weight: 800;
+}
+
+/* Explicit Action Buttons in Portal Cards */
+.pm-btn-faculty-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.88rem 1.5rem;
+  font-size: 0.94rem;
+  font-weight: 700;
+  border-radius: 14px;
+  cursor: pointer;
+  border: none;
+  background: #0f172a;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.25);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+}
+
+.pm-btn-faculty-primary:hover {
+  background: #1e293b;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.35);
+}
+
+[data-theme="dark"] .pm-btn-faculty-primary {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #09090b;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.35);
+}
+
+[data-theme="dark"] .pm-btn-faculty-primary:hover {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  box-shadow: 0 8px 26px rgba(245, 158, 11, 0.5);
+}
+
+.pm-portal-pin-box {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.pm-portal-pin-input-field {
+  flex: 1;
+  height: 48px;
+  border-radius: 14px;
+  border: 2px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: 0.25em;
+  text-align: center;
+  font-family: monospace;
+  outline: none;
+  transition: all 0.18s ease;
+}
+
+.pm-portal-pin-input-field:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+[data-theme="dark"] .pm-portal-pin-input-field {
+  background: #0d0d12;
+  border-color: #2e2e38;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .pm-portal-pin-input-field:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+
+.pm-btn-student-submit {
+  height: 48px;
+  padding: 0 1.6rem;
+  border-radius: 14px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  transition: all 0.18s ease;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.pm-btn-student-submit:hover {
+  background: #1d4ed8;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(37, 99, 235, 0.45);
+}
+
+[data-theme="dark"] .pm-btn-student-submit {
+  background: #3b82f6;
+}
+
+[data-theme="dark"] .pm-btn-student-submit:hover {
+  background: #2563eb;
+}
+
+/* ─── 3-Step "How Live Campus Quizzing Works" Guide ─── */
+.pm-portal-how-it-works {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pm-how-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.pm-how-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+  margin: 0 0 0.35rem;
+}
+
+[data-theme="dark"] .pm-how-title {
+  color: #f8fafc;
+}
+
+.pm-how-subtitle {
+  font-size: 0.86rem;
+  color: #64748b;
+  margin: 0;
+}
+
+[data-theme="dark"] .pm-how-subtitle {
+  color: #94a3b8;
+}
+
+.pm-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.pm-step-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.03);
+  transition: all 0.2s ease;
+}
+
+[data-theme="dark"] .pm-step-card {
+  background: rgba(18, 18, 23, 0.85);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+.pm-step-card:hover {
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
+}
+
+[data-theme="dark"] .pm-step-card:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.pm-step-badge-num {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+  font-weight: 800;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-theme="dark"] .pm-step-badge-num {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+
+.pm-step-heading {
+  font-size: 1.05rem;
+  font-weight: 750;
+  color: #0f172a;
+  margin: 0;
+}
+
+[data-theme="dark"] .pm-step-heading {
+  color: #f8fafc;
+}
+
+.pm-step-text {
+  font-size: 0.84rem;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0;
+}
+
+[data-theme="dark"] .pm-step-text {
+  color: #94a3b8;
 }
 
 /* ─── Bottom Campus Telemetry Bar ─── */
@@ -9628,7 +9977,7 @@ html[data-theme="dark"] body {
   border-radius: 9999px;
   backdrop-filter: blur(12px);
   width: fit-content;
-  margin: 0 auto;
+  margin: 1rem auto 0;
 }
 
 [data-theme="light"] .pm-portal-telemetry {

@@ -399,98 +399,168 @@ export default function LandingPage() {
           </>
         ) : (
           /* ─── UNAUTHENTICATED POLARIS ACCESS PORTAL ─── */
-          <div className="pm-portal-grid">
-            {/* Faculty & Admin Portal Card */}
-            <div className="pm-portal-card pm-portal-card-faculty">
-              <div>
-                <span className="pm-portal-card-badge pm-portal-badge-faculty">
-                  <span>🏛️</span> TEACHERS &amp; ADMINISTRATORS
-                </span>
-                <h2 className="pm-portal-card-title">Academic Faculty Portal</h2>
-                <p className="pm-portal-card-desc">
-                  Sign in with your official @polariscampus.com credentials to generate AI questions, host projector polls, and track student attendance analytics.
-                </p>
-
-                <div className="pm-portal-features">
-                  <div className="pm-portal-feat-line">
-                    <span className="pm-portal-feat-check">✓</span>
-                    <span>Official @polariscampus.com Faculty SSO</span>
-                  </div>
-                  <div className="pm-portal-feat-line">
-                    <span className="pm-portal-feat-check">✓</span>
-                    <span>Deanonymized Student Quorum &amp; Gradebook</span>
-                  </div>
-                  <div className="pm-portal-feat-line">
-                    <span className="pm-portal-feat-check">✓</span>
-                    <span>AI Question Generator from Syllabus Topics</span>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <button
-                  className="pm-btn-primary"
-                  onClick={() => openSignIn('mentor')}
-                  style={{ width: '100%', padding: '0.85rem', fontSize: '0.92rem' }}
-                  id="portal-faculty-signin-btn"
-                >
-                  <span>🔐 Sign In with Faculty SSO</span>
-                </button>
-              </div>
+          <>
+            <div className="pm-portal-hero-intro">
+              <span className="pm-portal-hero-badge">
+                <span>⚡</span> Official Medhavi Skills University Arena &bull; Polaris Campus
+              </span>
+              <h1 className="pm-portal-hero-headline">
+                Interactive Classroom Quizzes.{' '}
+                <span className="pm-portal-hero-headline-accent">Real-Time Leaderboards.</span>
+              </h1>
+              <p className="pm-portal-hero-desc">
+                High-engagement campus polling and competitive arenas. Built for faculty projectors and mobile student responses with zero app installation.
+              </p>
             </div>
 
-            {/* Student & Participant Card */}
-            <div className="pm-portal-card pm-portal-card-student">
-              <div>
-                <span className="pm-portal-card-badge pm-portal-badge-student">
-                  <span>📱</span> STUDENTS &amp; AUDIENCE
-                </span>
-                <h2 className="pm-portal-card-title">Student Live Quiz Arena</h2>
-                <p className="pm-portal-card-desc">
-                  Enter the 6-digit session PIN displayed on your teacher&apos;s projector screen to join the live quiz. No app download needed.
-                </p>
+            <div className="pm-portal-grid">
+              {/* Faculty & Admin Portal Card */}
+              <div className="pm-portal-card pm-portal-card-faculty">
+                <div>
+                  <span className="pm-portal-card-badge pm-portal-badge-faculty">
+                    <span>🏛️</span> TEACHERS &amp; ADMINISTRATORS
+                  </span>
+                  <h2 className="pm-portal-card-title">Academic Faculty Portal</h2>
+                  <p className="pm-portal-card-desc">
+                    Sign in with your official @polariscampus.com credentials to generate AI questions, host projector polls, and track student attendance analytics.
+                  </p>
 
-                <div className="pm-portal-features">
-                  <div className="pm-portal-feat-line">
-                    <span className="pm-portal-feat-check">✓</span>
-                    <span>Instant Real-Time WebSocket Connection</span>
-                  </div>
-                  <div className="pm-portal-feat-line">
-                    <span className="pm-portal-feat-check">✓</span>
-                    <span>60FPS Racing Leaderboard &amp; Streak Bonuses</span>
-                  </div>
-                  <div className="pm-portal-feat-line">
-                    <span className="pm-portal-feat-check">✓</span>
-                    <span>Zero app install · Works directly in your mobile browser</span>
+                  <div className="pm-portal-features">
+                    <div className="pm-portal-feat-line">
+                      <span className="pm-portal-feat-check">✓</span>
+                      <span>Official @polariscampus.com Faculty SSO</span>
+                    </div>
+                    <div className="pm-portal-feat-line">
+                      <span className="pm-portal-feat-check">✓</span>
+                      <span>Deanonymized Student Quorum &amp; Gradebook</span>
+                    </div>
+                    <div className="pm-portal-feat-line">
+                      <span className="pm-portal-feat-check">✓</span>
+                      <span>AI Question Generator from Syllabus Topics</span>
+                    </div>
+                    <div className="pm-portal-feat-line">
+                      <span className="pm-portal-feat-check">✓</span>
+                      <span>Live 16:9 Big-Screen Projector Display Engine</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div>
-                <form onSubmit={handleFastJoin} className="pm-terminal-pin-form" style={{ maxWidth: '100%' }}>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="\d{6}"
-                    maxLength={6}
-                    value={fastCode}
-                    onChange={(e) => setFastCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="123456"
-                    className="pm-terminal-pin-input"
-                    aria-label="Enter 6-digit session pin"
-                    id="portal-pin-input"
-                  />
+                <div>
                   <button
-                    type="submit"
-                    className="pm-terminal-join-btn"
-                    id="portal-student-join-btn"
+                    className="pm-btn-faculty-primary"
+                    onClick={() => openSignIn('mentor')}
+                    id="portal-faculty-signin-btn"
                   >
-                    Enter Quiz →
+                    <span>🔐</span> Sign In with Faculty SSO (@polariscampus.com) →
                   </button>
-                </form>
+                </div>
+              </div>
+
+              {/* Student & Participant Card */}
+              <div className="pm-portal-card pm-portal-card-student">
+                <div>
+                  <span className="pm-portal-card-badge pm-portal-badge-student">
+                    <span>📱</span> STUDENTS &amp; AUDIENCE
+                  </span>
+                  <h2 className="pm-portal-card-title">Student Live Quiz Arena</h2>
+                  <p className="pm-portal-card-desc">
+                    Enter the 6-digit session PIN displayed on your teacher&apos;s projector screen to join the live quiz. No app download needed.
+                  </p>
+
+                  <div className="pm-portal-features">
+                    <div className="pm-portal-feat-line">
+                      <span className="pm-portal-feat-check">✓</span>
+                      <span>Instant Real-Time WebSocket Connection</span>
+                    </div>
+                    <div className="pm-portal-feat-line">
+                      <span className="pm-portal-feat-check">✓</span>
+                      <span>60FPS Racing Leaderboard &amp; Streak Bonuses</span>
+                    </div>
+                    <div className="pm-portal-feat-line">
+                      <span className="pm-portal-feat-check">✓</span>
+                      <span>Zero app install &middot; Works directly in your mobile browser</span>
+                    </div>
+                    <div className="pm-portal-feat-line">
+                      <span className="pm-portal-feat-check">✓</span>
+                      <span>Medhavi Google SSO (@medhaviskillsuniversity.edu.in)</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <form onSubmit={handleFastJoin} className="pm-portal-pin-box">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="\d{6}"
+                      maxLength={6}
+                      value={fastCode}
+                      onChange={(e) => setFastCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="123456"
+                      className="pm-portal-pin-input-field"
+                      aria-label="Enter 6-digit session pin"
+                      id="portal-pin-input"
+                    />
+                    <button
+                      type="submit"
+                      className="pm-btn-student-submit"
+                      id="portal-student-join-btn"
+                    >
+                      Enter Quiz →
+                    </button>
+                  </form>
+                  <div style={{ marginTop: '0.75rem', textAlign: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => openSignIn('student')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted, #64748b)',
+                        fontSize: '0.82rem',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        padding: '0.25rem',
+                      }}
+                    >
+                      Or sign in with @medhaviskillsuniversity.edu.in student account
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+
+            {/* 3-Step Campus Quizzing Walkthrough */}
+            <div className="pm-portal-how-it-works">
+              <div className="pm-how-header">
+                <h3 className="pm-how-title">How Live Campus Quizzing Works</h3>
+                <p className="pm-how-subtitle">Simple, zero-setup interactive learning designed for modern lecture halls</p>
+              </div>
+              <div className="pm-steps-grid">
+                <div className="pm-step-card">
+                  <div className="pm-step-badge-num">1</div>
+                  <h4 className="pm-step-heading">Professor Launches</h4>
+                  <p className="pm-step-text">
+                    Faculty creates AI questions or picks a topic, projecting the big-screen PIN code on the lecture hall display.
+                  </p>
+                </div>
+                <div className="pm-step-card">
+                  <div className="pm-step-badge-num">2</div>
+                  <h4 className="pm-step-heading">Students Enter PIN</h4>
+                  <p className="pm-step-text">
+                    Attendees enter the 6-digit code on their phones. Zero installations, instant WebSocket pairing in 200ms.
+                  </p>
+                </div>
+                <div className="pm-step-card">
+                  <div className="pm-step-badge-num">3</div>
+                  <h4 className="pm-step-heading">60FPS Live Podium</h4>
+                  <p className="pm-step-text">
+                    Answer speed &amp; accuracy boost rankings in real-time, instantly exported to campus gradebooks.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </>
         )}
 
         {/* Bottom Campus Telemetry Bar */}
