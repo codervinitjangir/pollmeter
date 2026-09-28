@@ -139,7 +139,7 @@ export default function LandingPage() {
               ⚡
             </div>
             <div>
-              <b>Polaris Campus</b>
+              <b>Pollmeter</b>
               <small>Live Classroom Quizzing &amp; Analytics</small>
             </div>
           </div>
@@ -254,7 +254,7 @@ export default function LandingPage() {
                       </span>
                     </div>
                     <p className="lp-welcome-sub">
-                      {authUser.email} · {isFacultyUser ? 'Polaris Campus Verified Faculty & Admin Portal' : 'Medhavi Skills University Verified Identity'}
+                      {authUser.email} · {isFacultyUser ? 'Pollmeter Verified Faculty & Admin Portal' : 'Pollmeter Verified Student Identity'}
                     </p>
                   </div>
                 </div>
@@ -694,7 +694,7 @@ export default function LandingPage() {
         {/* Footer */}
         <footer className="lp-footer">
           <div className="lp-wrap lp-footer-inner">
-            <span>Medhavi Skills University · Polaris Campus Live Quizzing &amp; Analytics Platform</span>
+            <span>Pollmeter · Live Classroom Quizzing &amp; Analytics Platform</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <a href="/privacy" style={{ color: 'var(--mute)', fontSize: '0.8rem', textDecoration: 'none' }}>Privacy Policy</a>
               <span style={{ color: 'var(--dim)' }}>•</span>

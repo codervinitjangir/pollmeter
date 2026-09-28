@@ -343,7 +343,7 @@ export default function AdminPage() {
               <span style={{ fontSize: '1.25rem' }}>🏛️</span>
             </div>
             <div>
-              <span className="pm-gateway-header-title">Polaris Campus</span>
+              <span className="pm-gateway-header-title">Pollmeter Admin</span>
               <span className="pm-gateway-header-sub">Central Institutional Administration</span>
             </div>
           </div>
@@ -440,7 +440,7 @@ export default function AdminPage() {
               <span style={{ fontSize: '1.25rem' }}>🏛️</span>
             </div>
             <div>
-              <span className="pm-gateway-header-title">Polaris Campus</span>
+              <span className="pm-gateway-header-title">Pollmeter Admin</span>
               <span className="pm-gateway-header-sub">Central Institutional Administration</span>
             </div>
           </div>
@@ -581,16 +581,16 @@ export default function AdminPage() {
             <div className="pm-admin-sidebar-crest">
               <span>🏛️</span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontWeight: 800, fontSize: '1.2rem', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
-                  Polaris
-                </span>
-                <span className="pm-badge-admin-seal">SUPER-ADMIN</span>
-              </div>
-              <span style={{ fontSize: '0.72rem', color: '#9CA3AF', fontWeight: 500 }}>
-                Central Academic Governance
+            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, justifyContent: 'center' }}>
+              <span style={{ fontWeight: 800, fontSize: '1.18rem', letterSpacing: '-0.025em', color: 'var(--text-primary)', lineHeight: 1.15 }}>
+                Pollmeter
               </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '3px' }}>
+                <span className="pm-badge-admin-sub">
+                  <span className="pm-sub-badge-dot pm-sub-badge-dot-amber" />
+                  Super-Admin
+                </span>
+              </div>
             </div>
           </a>
 
@@ -682,7 +682,7 @@ export default function AdminPage() {
             <button
               className="menti-nav-link"
               onClick={() => navigate('/student')}
-              title="View Medhavi Student Portal"
+              title="View Pollmeter Student Portal"
             >
               <span>🎓</span>
               <span>Student Portal</span>

@@ -157,8 +157,8 @@ export default function StudentDashboard() {
       {/* College Auth Modal if student is not logged in */}
       <CollegeAuthModal
         isOpen={showAuthModal || !authUser}
-        title="Medhavi Student Portal Login"
-        subtitle="Sign in with your official @medhaviskillsuniversity.edu.in account to view your quiz scores and attendance."
+        title="Pollmeter Student Portal Login"
+        subtitle="Sign in with your verified student account to view your quiz scores, attendance, and rank records."
         onSuccess={(u) => {
           setAuthUser(u);
           setShowAuthModal(false);
@@ -178,18 +178,16 @@ export default function StudentDashboard() {
             <div className="pm-admin-sidebar-crest">
               <span style={{ fontSize: '1.15rem' }}>⚡</span>
             </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontWeight: 800, fontSize: '1.05rem', letterSpacing: '-0.02em', color: 'inherit' }}>
-                  Polaris
-                </span>
-                <span className="pm-badge-admin-seal" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10B981', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
-                  STUDENT PORTAL
+            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, justifyContent: 'center' }}>
+              <span style={{ fontWeight: 800, fontSize: '1.18rem', letterSpacing: '-0.025em', color: 'var(--text-primary, #FFFFFF)', lineHeight: 1.15 }}>
+                Pollmeter
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '3px' }}>
+                <span className="pm-badge-student-sub">
+                  <span className="pm-sub-badge-dot pm-sub-badge-dot-emerald" />
+                  Student Portal
                 </span>
               </div>
-              <small style={{ fontSize: '0.68rem', color: '#64748B', display: 'block', fontWeight: 600 }}>
-                MEDHAVI CAMPUS
-              </small>
             </div>
           </a>
 
@@ -360,7 +358,7 @@ export default function StudentDashboard() {
             <div className="pm-admin-topbar-breadcrumb">
               <span className="pm-admin-topbar-title">Student Academic Arena</span>
               <small style={{ fontSize: '0.75rem', color: '#64748B' }}>
-                Medhavi Skills University · Live Classroom Arena &amp; Analytics
+                Pollmeter · Live Classroom Arena &amp; Analytics
               </small>
             </div>
           </div>
@@ -374,7 +372,7 @@ export default function StudentDashboard() {
                 borderColor: 'rgba(16, 185, 129, 0.3)',
               }}
             >
-              🎓 MSU Student Clearance
+              🎓 Student Clearance
             </span>
 
             {isFaculty && (
@@ -424,7 +422,7 @@ export default function StudentDashboard() {
                 <div>
                   <strong style={{ color: '#60A5FA' }}>Faculty / Mentor Clearance Detected</strong>
                   <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--mute, #94A3B8)' }}>
-                    You are signed in with a Polaris Faculty account. You can create questions, launch live quizzes, and export gradebooks.
+                    You are signed in with a Pollmeter Faculty account. You can create questions, launch live quizzes, and export gradebooks.
                   </p>
                 </div>
               </div>

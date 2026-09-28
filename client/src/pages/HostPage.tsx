@@ -939,18 +939,16 @@ export default function HostPage() {
             <div className="pm-admin-sidebar-crest">
               <span style={{ fontSize: '1.15rem' }}>⚡</span>
             </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontWeight: 800, fontSize: '1.05rem', letterSpacing: '-0.02em', color: 'inherit' }}>
-                  Polaris
-                </span>
-                <span className="pm-badge-admin-seal" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', borderColor: 'rgba(59, 130, 246, 0.3)' }}>
-                  HOST STUDIO
+            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, justifyContent: 'center' }}>
+              <span style={{ fontWeight: 800, fontSize: '1.18rem', letterSpacing: '-0.025em', color: 'var(--text-primary, #FFFFFF)', lineHeight: 1.15 }}>
+                Pollmeter
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '3px' }}>
+                <span className="pm-badge-host-sub">
+                  <span className="pm-sub-badge-dot pm-sub-badge-dot-blue" />
+                  Host Studio
                 </span>
               </div>
-              <small style={{ fontSize: '0.68rem', color: '#64748B', display: 'block', fontWeight: 600 }}>
-                FACULTY MENTOR
-              </small>
             </div>
           </a>
 

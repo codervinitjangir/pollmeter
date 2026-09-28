@@ -240,8 +240,8 @@ export default function CollegeAuthModal({
             <span className="pm-auth-badge-icon">🏛️</span>
             <span>
               {isFacultyRole
-                ? 'Polaris Campus Verified Faculty & Admin Portal'
-                : 'Polaris Campus Verified Student Portal'}
+                ? 'Pollmeter Verified Faculty & Admin Portal'
+                : 'Pollmeter Verified Student Portal'}
             </span>
           </div>
           <h2 className="pm-auth-title">{title || defaultTitle}</h2>
@@ -500,8 +500,8 @@ export default function CollegeAuthModal({
           <span className="pm-auth-lock-icon">🔒</span>
           <span>
             {isFacultyRole
-              ? 'End-to-End Institutional Security • Polaris Campus Verified'
-              : 'End-to-End Institutional Security • Polaris EduCloud Verified'}
+              ? 'End-to-End Institutional Security • Pollmeter Verified'
+              : 'End-to-End Institutional Security • Pollmeter Verified'}
           </span>
         </div>
       </div>
