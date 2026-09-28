@@ -479,6 +479,15 @@ export default function JoinPage() {
       setShowAuthModal(true);
       return;
     }
+    const studentEmail = (authUser.email || '').toLowerCase().trim();
+    const isMedhavi =
+      studentEmail.endsWith('@medhaviskillsuniversity.edu.in') ||
+      studentEmail.endsWith('@medhaviskillsunivercity.edu.in');
+    if (authUser.role === 'student' && !isMedhavi) {
+      setJoinError('Access Restricted: Students must sign in with their official Medhavi email (@medhaviskillsuniversity.edu.in).');
+      setShowAuthModal(true);
+      return;
+    }
     const code = codeInput.trim();
     const name = nameInput.trim();
 
@@ -753,8 +762,8 @@ export default function JoinPage() {
       <div className="menti-join-canvas">
         <CollegeAuthModal
           isOpen={showAuthModal || !authUser}
-          title="Polaris Student Portal"
-          subtitle="Sign in with your official college email ID to participate in live quizzes"
+          title="Medhavi Student Verification"
+          subtitle="Sign in with your official Medhavi email (@medhaviskillsuniversity.edu.in) to participate"
           onSuccess={(user) => {
             setAuthUser(user);
             setShowAuthModal(false);

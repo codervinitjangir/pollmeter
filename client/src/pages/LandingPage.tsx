@@ -39,11 +39,11 @@ export default function LandingPage() {
     <div className="pm-portal-landing">
       <CollegeAuthModal
         isOpen={showAuthModal}
-        title={authRoleHint === 'mentor' ? 'University Faculty & Admin Access' : 'Student Classroom Login'}
+        title={authRoleHint === 'mentor' ? 'University Faculty & Admin Access' : 'Medhavi Student Login'}
         subtitle={
           authRoleHint === 'mentor'
             ? 'Access restricted to verified @polariscampus.com faculty & administrators'
-            : 'Sign in with your official university credentials'
+            : 'Sign in with your official @medhaviskillsuniversity.edu.in student account'
         }
         onSuccess={(u) => {
           setAuthUser(u);
@@ -482,7 +482,7 @@ export default function LandingPage() {
                     </div>
                     <div className="pm-portal-feat-line">
                       <span className="pm-portal-feat-check">✓</span>
-                      <span>Polaris Google SSO (@polariscampus.com)</span>
+                      <span>Medhavi Google SSO (@medhaviskillsuniversity.edu.in)</span>
                     </div>
                   </div>
                 </div>

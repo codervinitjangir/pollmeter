@@ -46,7 +46,11 @@ const JWT_SECRET = requiredSecret('JWT_SECRET', 'pollmeter_dev_only_insecure_sec
 /** The one domain that can ever hold faculty or admin rights. */
 export const FACULTY_DOMAIN = (process.env.FACULTY_DOMAIN || 'polariscampus.com').toLowerCase().trim();
 
-const DEFAULT_DOMAINS = [FACULTY_DOMAIN, 'medhaviskillsuniversity.edu.in'];
+const DEFAULT_DOMAINS = [
+  FACULTY_DOMAIN,
+  'medhaviskillsuniversity.edu.in',
+  'medhaviskillsunivercity.edu.in',
+];
 
 export interface JwtPayload {
   id: string;

@@ -111,7 +111,7 @@ export async function fetchCollegeConfig(): Promise<{
     return await res.json();
   } catch {
     return {
-      allowedDomains: [FACULTY_DOMAIN, 'medhaviskillsuniversity.edu.in'],
+      allowedDomains: [FACULTY_DOMAIN, 'medhaviskillsuniversity.edu.in', 'medhaviskillsunivercity.edu.in'],
       googleClientId: null,
     };
   }

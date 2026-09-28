@@ -64,9 +64,8 @@ export default function CollegeAuthModal({
   const [loading, setLoading] = useState(false);
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
-  const primaryDomain = allowedDomains[0] || 'polariscampus.com';
   const isFacultyRole = roleHint === 'mentor';
-  const activeDomain = isFacultyRole ? 'polariscampus.com' : primaryDomain;
+  const activeDomain = isFacultyRole ? 'polariscampus.com' : 'medhaviskillsuniversity.edu.in';
 
   // Sync theme changes dynamically
   useEffect(() => {
@@ -110,8 +109,13 @@ export default function CollegeAuthModal({
           setError('');
           try {
             const data = await loginWithGoogleCredential(response.credential);
-            if (isFacultyRole && !data.user.email.endsWith('@polariscampus.com')) {
+            const userEmail = (data.user.email || '').toLowerCase().trim();
+            if (isFacultyRole && !userEmail.endsWith('@polariscampus.com')) {
               setError('Access Restricted: Faculty & Admin access is strictly limited to @polariscampus.com accounts.');
+              return;
+            }
+            if (!isFacultyRole && !userEmail.endsWith('@medhaviskillsuniversity.edu.in') && !userEmail.endsWith('@medhaviskillsunivercity.edu.in')) {
+              setError('Access Restricted: Student access is strictly limited to official Medhavi university emails (@medhaviskillsuniversity.edu.in).');
               return;
             }
             onSuccess(data.user);
@@ -158,9 +162,9 @@ export default function CollegeAuthModal({
         return;
       }
     } else {
-      const domain = cleanEmail.split('@')[1];
-      if (!domain || !allowedDomains.some((d) => domain === d || domain.endsWith(`.${d}`))) {
-        setError(`Access Restricted: Student email must end with @${primaryDomain}`);
+      const isMedhavi = cleanEmail.endsWith('@medhaviskillsuniversity.edu.in') || cleanEmail.endsWith('@medhaviskillsunivercity.edu.in');
+      if (!isMedhavi) {
+        setError('Access Restricted: Student login is strictly restricted to official Medhavi email addresses (@medhaviskillsuniversity.edu.in).');
         return;
       }
     }
@@ -244,9 +248,9 @@ export default function CollegeAuthModal({
           <p className="pm-auth-subtitle">
             Access restricted to verified{' '}
             <span className={`pm-auth-domain-chip ${isFacultyRole ? 'pm-auth-domain-chip-faculty' : 'pm-auth-domain-chip-student'}`}>
-              {isFacultyRole ? '@polariscampus.com' : `@${primaryDomain}`}
+              {isFacultyRole ? '@polariscampus.com' : '@medhaviskillsuniversity.edu.in'}
             </span>{' '}
-            {isFacultyRole ? 'faculty & administrators' : 'university members'}
+            {isFacultyRole ? 'faculty & administrators' : 'Medhavi students'}
           </p>
         </div>
 
@@ -310,7 +314,7 @@ export default function CollegeAuthModal({
               <p className="pm-sso-desc">
                 {isFacultyRole
                   ? 'Sign in with your official @polariscampus.com Google Workspace account. Faculty & admin privileges are automatically verified.'
-                  : 'Sign in with your official university Google account. Your student identity will be automatically verified with zero password hassle.'}
+                  : 'Sign in with your official @medhaviskillsuniversity.edu.in student account. Your student identity will be automatically verified with zero password hassle.'}
               </p>
 
               <div className="pm-sso-btn-container">
@@ -361,7 +365,7 @@ export default function CollegeAuthModal({
                     <input
                       id="college-email-input"
                       type="email"
-                      placeholder={isFacultyRole ? 'mentor.name@polariscampus.com' : `e.g. don@${primaryDomain}`}
+                      placeholder={isFacultyRole ? 'mentor.name@polariscampus.com' : 'student.name@medhaviskillsuniversity.edu.in'}
                       value={emailInput}
                       onChange={(e) => {
                         setEmailInput(e.target.value);
@@ -374,7 +378,7 @@ export default function CollegeAuthModal({
                     <span className="pm-auth-input-icon">✉️</span>
                   </div>
                   <span className="pm-auth-hint">
-                    {isFacultyRole ? 'Must end with @polariscampus.com' : `Must end with @${primaryDomain}`}
+                    {isFacultyRole ? 'Must end with @polariscampus.com' : 'Must end with @medhaviskillsuniversity.edu.in'}
                   </span>
                 </div>
 
