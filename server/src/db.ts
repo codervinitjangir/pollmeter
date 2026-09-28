@@ -96,6 +96,11 @@ interface LocalSchema {
 
 let pool: Pool | null = null;
 let usePostgres = false;
+
+export function isUsingPostgres(): boolean {
+  return usePostgres;
+}
+
 const DATA_DIR = path.resolve(__dirname, '../data');
 const LOCAL_DB_FILE = path.join(DATA_DIR, 'pollmeter_db.json');
 

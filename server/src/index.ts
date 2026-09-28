@@ -34,6 +34,7 @@ import {
   recordAuditLog,
   getRecentAuditLogs,
   closePool,
+  isUsingPostgres,
 } from './db';
 import {
   getAllowedDomains,
@@ -977,7 +978,12 @@ app.get('/api/network-info', (_req, res) => {
 });
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, sessions: sessionCount(), uptimeSeconds: Math.round(process.uptime()) });
+  res.json({
+    ok: true,
+    database: isUsingPostgres() ? 'postgresql' : 'json_store',
+    sessions: sessionCount(),
+    uptimeSeconds: Math.round(process.uptime()),
+  });
 });
 
 // Unknown API routes must 404 as JSON, not fall through to the SPA shell.
