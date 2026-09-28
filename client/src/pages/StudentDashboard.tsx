@@ -15,7 +15,7 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'podium' | 'recent'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'podium'>('all');
 
   // Live PIN join terminal
   const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
@@ -89,9 +89,11 @@ export default function StudentDashboard() {
     let totalQuestions = 0;
     let bestRank: number | null = null;
     let podiumFinishes = 0;
+    const subjectsMap = new Map<string, number>();
 
     for (const item of history) {
       const p = item.participant || {};
+      const s = item.session || {};
       totalScore += p.finalScore || 0;
       totalCorrect += p.correctCount || 0;
       totalQuestions += p.totalQuestions || 0;
@@ -104,9 +106,13 @@ export default function StudentDashboard() {
           podiumFinishes += 1;
         }
       }
+
+      const subj = s.subject || 'General';
+      subjectsMap.set(subj, (subjectsMap.get(subj) || 0) + 1);
     }
 
     const accuracy = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+    const subjectsList = Array.from(subjectsMap.entries()).map(([name, count]) => ({ name, count }));
 
     return {
       totalSessions,
@@ -116,6 +122,7 @@ export default function StudentDashboard() {
       accuracy,
       bestRank,
       podiumFinishes,
+      subjectsList,
     };
   }, [history]);
 
@@ -144,7 +151,7 @@ export default function StudentDashboard() {
   );
 
   return (
-    <div className="pm-admin-layout" style={{ minHeight: '100vh', background: 'var(--bg, #09090B)' }}>
+    <div className="pm-admin-layout">
       {/* College Auth Modal if student is not logged in */}
       <CollegeAuthModal
         isOpen={showAuthModal || !authUser}
@@ -161,83 +168,58 @@ export default function StudentDashboard() {
         roleHint="student"
       />
 
-      {/* Top Navigation Bar */}
-      <header className="pm-admin-topbar" style={{ borderBottom: '1px solid rgba(245, 158, 11, 0.2)' }}>
+      {/* Top Navigation Bar - Exact Polaris Admin/Host Design */}
+      <header className="pm-admin-topbar">
         <div className="pm-admin-brand" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
           <div
+            className="pm-admin-crest"
             style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '12px',
               background: '#16161D',
               border: '1.5px solid #F59E0B',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 0 16px rgba(245, 158, 11, 0.35)',
               color: '#F59E0B',
-              fontSize: '1.3rem',
+              boxShadow: '0 0 16px rgba(245, 158, 11, 0.35)',
             }}
           >
-            ⚡
+            <span>⚡</span>
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="pm-admin-title" style={{ letterSpacing: '-0.02em', fontWeight: 800 }}>Polaris Campus</span>
-              <span
-                style={{
-                  background: 'rgba(245, 158, 11, 0.12)',
-                  color: '#F59E0B',
-                  border: '1px solid rgba(245, 158, 11, 0.4)',
-                  fontSize: '0.68rem',
-                  fontWeight: 800,
-                  letterSpacing: '0.06em',
-                  padding: '0.2rem 0.6rem',
-                  borderRadius: '9999px',
-                }}
-              >
-                STUDENT PORTAL
-              </span>
+              <span className="pm-admin-title">Polaris Campus</span>
+              <span className="pm-portal-role-badge">STUDENT PORTAL</span>
             </div>
-            <span className="pm-admin-sub" style={{ color: 'var(--mute, #8B8B94)' }}>
+            <span className="pm-admin-sub">
               Medhavi Skills University · Live Classroom Arena &amp; Academic Analytics
             </span>
           </div>
         </div>
 
-        <div className="pm-admin-topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div className="pm-admin-topbar-actions">
           {/* Theme Toggle */}
           <button
             className="pm-theme-toggle-btn"
             onClick={() => setTheme(toggleTheme())}
             type="button"
             title="Toggle Light / Dark mode"
+            id="student-theme-toggle-btn"
           >
             {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
           </button>
 
           {/* Student Profile Info */}
           {authUser ? (
-            <div className="pm-admin-profile" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div className="pm-admin-profile">
               <div
+                className="pm-admin-avatar"
                 style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '10px',
-                  background: '#16161D',
-                  border: '1.5px solid #F59E0B',
-                  color: '#F59E0B',
-                  fontWeight: 800,
-                  fontSize: '0.88rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+                  color: '#000000',
+                  border: '1px solid rgba(245, 158, 11, 0.5)',
                 }}
               >
                 {authUser.realName.slice(0, 2).toUpperCase()}
               </div>
               <div className="pm-admin-profile-text">
-                <strong style={{ color: 'var(--fg, #F4F4F5)' }}>{authUser.realName}</strong>
+                <strong>{authUser.realName}</strong>
                 <small style={{ color: '#F59E0B' }}>
                   🎓 MSU Verified ({authUser.email.split('@')[0]})
                 </small>
@@ -250,14 +232,14 @@ export default function StudentDashboard() {
                   navigate('/');
                 }}
                 type="button"
-                style={{ color: '#EF4444', fontWeight: 700 }}
+                title="Sign out of Student Portal"
               >
                 Sign Out
               </button>
             </div>
           ) : (
             <button
-              className="pm-btn-primary"
+              className="btn btn-primary"
               onClick={() => setShowAuthModal(true)}
               type="button"
               style={{ background: '#F59E0B', color: '#000000', fontWeight: 800 }}
@@ -269,7 +251,7 @@ export default function StudentDashboard() {
       </header>
 
       {/* Main Content Area */}
-      <main className="pm-admin-content" style={{ maxWidth: '1240px', margin: '0 auto', padding: '2rem 1.5rem 4rem' }}>
+      <main className="pm-admin-content">
         {/* Mentor Switch Notice if Faculty logs in */}
         {isFaculty && (
           <div
@@ -278,7 +260,7 @@ export default function StudentDashboard() {
               border: '1px solid rgba(59, 130, 246, 0.3)',
               borderRadius: '14px',
               padding: '1rem 1.25rem',
-              marginBottom: '1.5rem',
+              marginBottom: '1.75rem',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -296,7 +278,7 @@ export default function StudentDashboard() {
               </div>
             </div>
             <button
-              className="pm-btn-primary"
+              className="btn btn-primary"
               onClick={() => navigate('/dashboard')}
               type="button"
               style={{ padding: '0.45rem 1rem', fontSize: '0.85rem' }}
@@ -306,150 +288,172 @@ export default function StudentDashboard() {
           </div>
         )}
 
-        {/* ─── Hero: Live Classroom PIN Join Terminal ────────────────────── */}
+        {/* ─── Hero: Live Classroom PIN Join Terminal Card ────────────────── */}
         <section
+          className="pm-admin-panel-card"
           style={{
-            background: 'var(--panel, #121217)',
-            border: '1.5px solid rgba(245, 158, 11, 0.35)',
-            borderTop: '4px solid #F59E0B',
-            borderRadius: '20px',
-            padding: '2rem',
-            marginBottom: '2.5rem',
-            boxShadow: '0 12px 36px -8px rgba(0, 0, 0, 0.5), 0 0 24px rgba(245, 158, 11, 0.08)',
+            borderTop: '3.5px solid #F59E0B',
+            marginBottom: '2rem',
+            boxShadow: '0 8px 30px -4px rgba(0, 0, 0, 0.4), 0 0 20px rgba(245, 158, 11, 0.08)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '1.5rem' }}>🚀</span>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, color: 'var(--fg, #F4F4F5)', letterSpacing: '-0.02em' }}>
-                  Join Live Classroom Quiz
-                </h2>
+          <div className="pm-panel-header-row">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              <div
+                className="pm-kpi-icon-wrap"
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  background: 'rgba(245, 158, 11, 0.1)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  color: '#F59E0B',
+                  fontSize: '1.3rem',
+                  borderRadius: '12px',
+                }}
+              >
+                🚀
               </div>
-              <p style={{ margin: '0.35rem 0 0', color: 'var(--mute, #9CA3AF)', fontSize: '0.9rem' }}>
-                Enter the 6-digit session PIN shown on your instructor&rsquo;s projector screen to race in real-time.
-              </p>
+              <div>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--fg, #F4F4F5)', letterSpacing: '-0.015em' }}>
+                  Live Classroom Quiz Terminal
+                </h2>
+                <span style={{ fontSize: '0.82rem', color: 'var(--mute, #94A3B8)' }}>
+                  Enter the 6-digit session PIN shown on your instructor&rsquo;s projector screen to join live.
+                </span>
+              </div>
             </div>
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                background: 'rgba(16, 185, 129, 0.1)',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
-                padding: '0.35rem 0.85rem',
-                borderRadius: '9999px',
-                fontSize: '0.78rem',
-                color: '#10B981',
-                fontWeight: 700,
-              }}
-            >
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', boxShadow: '0 0 8px #10B981' }} />
+
+            <div className="pm-status-verified">
+              <span className="pm-status-dot" />
               Live Server Active · Verified Attendance Ready
             </div>
           </div>
 
-          <form onSubmit={handleJoinSubmit}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: '1.5rem' }}>
-              {/* PIN boxes */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#F59E0B', marginBottom: '0.5rem' }}>
-                  6-Digit Session PIN
-                </label>
-                <div style={{ display: 'flex', gap: '0.5rem' }} onPaste={handlePaste}>
-                  {digits.map((digit, idx) => (
-                    <input
-                      key={idx}
-                      ref={(el) => { digitRefs.current[idx] = el; }}
-                      type="text"
-                      inputMode="numeric"
-                      pattern="\d*"
-                      maxLength={1}
-                      value={digit}
-                      onChange={(e) => handleDigitChange(idx, e.target.value)}
-                      onKeyDown={(e) => handleDigitKeyDown(idx, e)}
-                      placeholder="•"
-                      style={{
-                        width: '48px',
-                        height: '56px',
-                        textAlign: 'center',
-                        fontSize: '1.6rem',
-                        fontWeight: 800,
-                        fontFamily: 'var(--mono, monospace)',
-                        background: 'var(--bg, #0A0A0C)',
-                        border: digit ? '2px solid #F59E0B' : '1.5px solid var(--border, #27272A)',
-                        borderRadius: '12px',
-                        color: '#F59E0B',
-                        boxShadow: digit ? '0 0 12px rgba(245, 158, 11, 0.3)' : 'none',
-                        outline: 'none',
-                        transition: 'all 0.15s ease',
-                      }}
-                    />
-                  ))}
+          <div style={{ padding: '1.5rem 1.75rem' }}>
+            <form onSubmit={handleJoinSubmit}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: '1.25rem' }}>
+                {/* 6 Individual PIN Digit Boxes */}
+                <div>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '0.78rem',
+                      fontWeight: 800,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      color: '#F59E0B',
+                      marginBottom: '0.5rem',
+                    }}
+                  >
+                    6-Digit Session PIN
+                  </label>
+                  <div style={{ display: 'flex', gap: '0.45rem' }} onPaste={handlePaste}>
+                    {digits.map((digit, idx) => (
+                      <input
+                        key={idx}
+                        ref={(el) => { digitRefs.current[idx] = el; }}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="\d*"
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e) => handleDigitChange(idx, e.target.value)}
+                        onKeyDown={(e) => handleDigitKeyDown(idx, e)}
+                        placeholder="•"
+                        aria-label={`PIN Digit ${idx + 1}`}
+                        style={{
+                          width: '46px',
+                          height: '52px',
+                          textAlign: 'center',
+                          fontSize: '1.5rem',
+                          fontWeight: 800,
+                          fontFamily: 'var(--mono, monospace)',
+                          background: 'var(--bg, #0A0A0C)',
+                          border: digit ? '2px solid #F59E0B' : '1.5px solid var(--border, #27272A)',
+                          borderRadius: '10px',
+                          color: '#F59E0B',
+                          boxShadow: digit ? '0 0 12px rgba(245, 158, 11, 0.3)' : 'none',
+                          outline: 'none',
+                          transition: 'all 0.15s ease',
+                        }}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* Screen name input */}
-              <div style={{ flex: '1', minWidth: '220px' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--mute, #9CA3AF)', marginBottom: '0.5rem' }}>
-                  Participant Nickname
-                </label>
-                <input
-                  type="text"
-                  value={screenName}
-                  onChange={(e) => setScreenName(e.target.value)}
-                  placeholder="e.g. Alex (Leaderboard handle)"
-                  maxLength={24}
+                {/* Nickname input */}
+                <div style={{ flex: '1', minWidth: '220px' }}>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '0.78rem',
+                      fontWeight: 800,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      color: 'var(--mute, #9CA3AF)',
+                      marginBottom: '0.5rem',
+                    }}
+                  >
+                    Participant Nickname
+                  </label>
+                  <input
+                    type="text"
+                    value={screenName}
+                    onChange={(e) => setScreenName(e.target.value)}
+                    placeholder="e.g. Alex (Leaderboard handle)"
+                    maxLength={24}
+                    style={{
+                      width: '100%',
+                      height: '52px',
+                      padding: '0 1rem',
+                      background: 'var(--bg, #0A0A0C)',
+                      border: '1.5px solid var(--border, #27272A)',
+                      borderRadius: '10px',
+                      color: 'var(--fg, #F4F4F5)',
+                      fontSize: '0.95rem',
+                      fontWeight: 600,
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+
+                {/* Submit CTA */}
+                <button
+                  type="submit"
+                  id="student-dashboard-join-btn"
+                  className="btn btn-primary"
                   style={{
-                    width: '100%',
-                    height: '56px',
-                    padding: '0 1.15rem',
-                    background: 'var(--bg, #0A0A0C)',
-                    border: '1.5px solid var(--border, #27272A)',
-                    borderRadius: '12px',
-                    color: 'var(--fg, #F4F4F5)',
-                    fontSize: '1.05rem',
-                    fontWeight: 600,
-                    outline: 'none',
+                    height: '52px',
+                    padding: '0 1.75rem',
+                    background: '#F59E0B',
+                    color: '#000000',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontSize: '1rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    boxShadow: '0 4px 18px rgba(245, 158, 11, 0.35)',
+                    transition: 'all 0.15s ease',
                   }}
-                />
+                >
+                  <span>Enter Live Arena</span>
+                  <span style={{ fontSize: '1.15rem' }}>⚡</span>
+                </button>
               </div>
 
-              {/* Submit CTA */}
-              <button
-                type="submit"
-                id="student-dashboard-join-btn"
-                style={{
-                  height: '56px',
-                  padding: '0 2rem',
-                  background: '#F59E0B',
-                  color: '#000000',
-                  border: 'none',
-                  borderRadius: '12px',
-                  fontSize: '1.05rem',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.65rem',
-                  boxShadow: '0 4px 20px rgba(245, 158, 11, 0.4)',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <span>Enter Live Arena</span>
-                <span style={{ fontSize: '1.2rem' }}>⚡</span>
-              </button>
-            </div>
-
-            {pinError && (
-              <div style={{ marginTop: '0.85rem', color: '#EF4444', fontSize: '0.88rem', fontWeight: 600 }}>
-                ⚠️ {pinError}
-              </div>
-            )}
-          </form>
+              {pinError && (
+                <div style={{ marginTop: '0.75rem', color: '#EF4444', fontSize: '0.85rem', fontWeight: 600 }}>
+                  ⚠️ {pinError}
+                </div>
+              )}
+            </form>
+          </div>
         </section>
 
-        {/* ─── Metric KPI Cards ────────────────────────────────────────────── */}
+        {/* ─── Metric KPI Cards Grid ───────────────────────────────────────── */}
         <section className="pm-admin-kpi-grid">
           {/* KPI 1: Attended */}
           <div className="pm-kpi-card pm-kpi-card-blue">
@@ -514,257 +518,184 @@ export default function StudentDashboard() {
           </div>
         </section>
 
-        {/* ─── Past Quizzes & Attendance Journey ───────────────────────────── */}
-        <section
-          style={{
-            background: 'var(--panel, #121217)',
-            border: '1px solid var(--border, #1F1F24)',
-            borderRadius: '20px',
-            padding: '1.75rem',
-            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.3)',
-          }}
-        >
-          {/* Section Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border, #1F1F24)', paddingBottom: '1.25rem' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '1.4rem' }}>📜</span>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--fg, #F4F4F5)' }}>
-                  My Quiz Journey &amp; Attendance Records
-                </h3>
-              </div>
-              <p style={{ margin: '0.25rem 0 0', color: 'var(--mute, #8B8B94)', fontSize: '0.85rem' }}>
-                Individual performance ledger linked to your official Medhavi University identity.
-              </p>
+        {/* ─── Active Subjects Pill Section ────────────────────────────────── */}
+        {stats.subjectsList.length > 0 && (
+          <section className="pm-admin-subjects-section" style={{ marginBottom: '1.5rem' }}>
+            <span className="pm-subjects-heading">My Course Participation:</span>
+            <div className="pm-subject-tags-list">
+              {stats.subjectsList.map((sub, i) => (
+                <div key={i} className="pm-subject-pill">
+                  <span className="pm-subject-dot" />
+                  <strong>{sub.name}</strong>
+                  <span className="pm-subject-count">{sub.count} {sub.count === 1 ? 'quiz' : 'quizzes'}</span>
+                </div>
+              ))}
             </div>
+          </section>
+        )}
 
-            {/* Filter buttons */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type="text"
-                  placeholder="Filter by subject or topic..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{
-                    height: '36px',
-                    padding: '0 0.85rem',
-                    background: 'var(--bg, #0A0A0C)',
-                    border: '1px solid var(--border, #27272A)',
-                    borderRadius: '8px',
-                    color: 'var(--fg, #F4F4F5)',
-                    fontSize: '0.85rem',
-                    outline: 'none',
-                    minWidth: '220px',
-                  }}
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setFilterType('all')}
-                style={{
-                  height: '36px',
-                  padding: '0 0.85rem',
-                  borderRadius: '8px',
-                  border: filterType === 'all' ? '1px solid #F59E0B' : '1px solid var(--border, #27272A)',
-                  background: filterType === 'all' ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
-                  color: filterType === 'all' ? '#F59E0B' : 'var(--mute, #8B8B94)',
-                  fontWeight: 700,
-                  fontSize: '0.82rem',
-                  cursor: 'pointer',
-                }}
-              >
-                All ({history.length})
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setFilterType('podium')}
-                style={{
-                  height: '36px',
-                  padding: '0 0.85rem',
-                  borderRadius: '8px',
-                  border: filterType === 'podium' ? '1px solid #F59E0B' : '1px solid var(--border, #27272A)',
-                  background: filterType === 'podium' ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
-                  color: filterType === 'podium' ? '#F59E0B' : 'var(--mute, #8B8B94)',
-                  fontWeight: 700,
-                  fontSize: '0.82rem',
-                  cursor: 'pointer',
-                }}
-              >
-                🏆 Top Podiums ({stats.podiumFinishes})
-              </button>
-            </div>
+        {/* ─── Filter Tabs Bar ─────────────────────────────────────────────── */}
+        <div className="pm-admin-tabs-bar">
+          <div className="pm-admin-tabs">
+            <button
+              className={`pm-admin-tab-btn ${filterType === 'all' ? 'active' : ''}`}
+              onClick={() => setFilterType('all')}
+              type="button"
+            >
+              <span>📜 All Quiz Records</span>
+              <span className="pm-tab-pill">{history.length}</span>
+            </button>
+            <button
+              className={`pm-admin-tab-btn ${filterType === 'podium' ? 'active' : ''}`}
+              onClick={() => setFilterType('podium')}
+              type="button"
+            >
+              <span>🏆 Top Podiums (Rank 1–3)</span>
+              <span className="pm-tab-pill">{stats.podiumFinishes}</span>
+            </button>
           </div>
 
-          {/* List Content */}
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '3.5rem 1rem' }}>
-              <div className="pm-spinner" style={{ margin: '0 auto 1rem' }} />
-              <p style={{ color: 'var(--mute, #8B8B94)', margin: 0 }}>Syncing your academic quiz records...</p>
-            </div>
-          ) : error ? (
-            <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '12px', padding: '1.25rem', color: '#EF4444' }}>
-              ⚠️ {error}
-            </div>
-          ) : filteredHistory.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem' }}>
-              <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem' }}>🎯</span>
-              <h4 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0 0 0.5rem', color: 'var(--fg, #F4F4F5)' }}>
-                {searchQuery ? 'No matching quiz records found' : 'No quiz records yet'}
-              </h4>
-              <p style={{ maxWidth: '440px', margin: '0 auto', color: 'var(--mute, #8B8B94)', fontSize: '0.88rem', lineHeight: 1.5 }}>
-                {searchQuery
-                  ? 'Try searching with a different keyword or clear the search filter.'
-                  : 'When your mentor launches an active session in class, enter the 6-digit PIN above to join. Your scores, rank, and attendance will appear here automatically!'}
-              </p>
-            </div>
-          ) : (
-            <div className="pm-quizzes-card-list">
-              {filteredHistory.map(({ session, participant }, idx) => {
-                const accuracy =
-                  participant.totalQuestions > 0
-                    ? Math.round((participant.correctCount / participant.totalQuestions) * 100)
-                    : 0;
-                const isPodium = participant.rank && participant.rank <= 3;
+          <span className="pm-table-count">
+            Showing <strong>{filteredHistory.length}</strong> record{filteredHistory.length === 1 ? '' : 's'}
+          </span>
+        </div>
 
-                return (
-                  <div
-                    key={participant.id || idx}
-                    className="pm-student-history-card"
-                    style={{
-                      borderTop: isPodium ? '3.5px solid #F59E0B' : '3.5px solid #3B82F6',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      flexWrap: 'wrap',
-                      gap: '1rem',
-                      padding: '1.25rem 1.5rem',
-                      borderRadius: '14px',
-                    }}
-                  >
-                    {/* Left: Rank & Session Details */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.1rem', flex: '1', minWidth: '280px' }}>
-                      <span
-                        className="pm-rank-pill"
-                        style={{
-                          background:
+        {/* ─── Past Quizzes & Journey Panel ─────────────────────────────────── */}
+        <section className="pm-admin-panel-card">
+          <div className="pm-panel-header-row">
+            <div className="pm-search-input-wrap">
+              <span>🔍</span>
+              <input
+                type="text"
+                placeholder="Search by subject, topic, or mentor name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button className="pm-search-clear" onClick={() => setSearchQuery('')} type="button">
+                  ✕
+                </button>
+              )}
+            </div>
+
+            <span className="pm-table-count">
+              Linked to <strong>{authUser?.email}</strong>
+            </span>
+          </div>
+
+          {/* List Body */}
+          <div style={{ padding: '1.25rem 1.5rem' }}>
+            {loading ? (
+              <div className="pm-history-loading">
+                <div className="pm-spinner" />
+                <p>Syncing your academic quiz records...</p>
+              </div>
+            ) : error ? (
+              <div className="pm-auth-error-alert" style={{ margin: '0' }}>
+                <span>⚠️ {error}</span>
+              </div>
+            ) : filteredHistory.length === 0 ? (
+              <div className="pm-history-empty">
+                <span style={{ fontSize: '3rem' }}>🎯</span>
+                <h3>{searchQuery ? 'No matching quiz records' : 'No quiz records found yet'}</h3>
+                <p>
+                  {searchQuery
+                    ? 'Try searching with a different keyword or clearing the search query.'
+                    : 'When your mentor launches an active session in class, enter the 6-digit PIN above to join! Your attendance and ranks will appear here automatically.'}
+                </p>
+              </div>
+            ) : (
+              <div className="pm-quizzes-card-list">
+                {filteredHistory.map(({ session, participant }, idx) => {
+                  const accuracy =
+                    participant.totalQuestions > 0
+                      ? Math.round((participant.correctCount / participant.totalQuestions) * 100)
+                      : 0;
+                  const isPodium = participant.rank && participant.rank <= 3;
+
+                  return (
+                    <div
+                      key={participant.id || idx}
+                      className="pm-student-history-card"
+                      style={{
+                        borderTop: isPodium ? '3.5px solid #F59E0B' : '3.5px solid #3B82F6',
+                      }}
+                    >
+                      {/* Left: Rank & Session Details */}
+                      <div className="pm-quiz-card-left">
+                        <span
+                          className={`pm-rank-pill ${
                             participant.rank === 1
-                              ? 'linear-gradient(135deg, #F59E0B, #D97706)'
+                              ? 'pm-rank-gold'
                               : participant.rank === 2
-                              ? 'linear-gradient(135deg, #94A3B8, #64748B)'
+                              ? 'pm-rank-silver'
                               : participant.rank === 3
-                              ? 'linear-gradient(135deg, #D97706, #B45309)'
-                              : 'rgba(245, 158, 11, 0.1)',
-                          color: participant.rank && participant.rank <= 3 ? '#000000' : '#F59E0B',
-                          border: '1px solid rgba(245, 158, 11, 0.3)',
-                          fontWeight: 800,
-                          fontSize: '0.85rem',
-                          padding: '0.35rem 0.75rem',
-                          borderRadius: '8px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {participant.rank === 1
-                          ? '👑 Rank #1'
-                          : participant.rank === 2
-                          ? '🥈 Rank #2'
-                          : participant.rank === 3
-                          ? '🥉 Rank #3'
-                          : `Rank #${participant.rank || '—'}`}
-                      </span>
+                              ? 'pm-rank-bronze'
+                              : ''
+                          }`}
+                          style={
+                            participant.rank === 1
+                              ? { background: 'linear-gradient(135deg, #F59E0B, #D97706)', color: '#000000', fontWeight: 800 }
+                              : undefined
+                          }
+                        >
+                          {participant.rank === 1
+                            ? '👑 Rank #1'
+                            : participant.rank === 2
+                            ? '🥈 Rank #2'
+                            : participant.rank === 3
+                            ? '🥉 Rank #3'
+                            : `Rank #${participant.rank || '—'}`}
+                        </span>
 
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
-                          <h4 style={{ fontSize: '1.05rem', fontWeight: 800, margin: 0, color: 'var(--fg, #F4F4F5)' }}>
-                            {session.topic || 'Classroom Quiz Session'}
-                          </h4>
-                          <span
-                            className="pm-subject-badge"
-                            style={{
-                              background: 'rgba(59, 130, 246, 0.12)',
-                              color: '#60A5FA',
-                              border: '1px solid rgba(59, 130, 246, 0.3)',
-                              fontSize: '0.72rem',
-                              fontWeight: 700,
-                              padding: '0.15rem 0.5rem',
-                              borderRadius: '6px',
-                            }}
-                          >
-                            {session.subject || 'General'}
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
+                            <h4 className="pm-quiz-card-topic">
+                              {session.topic || 'Classroom Quiz Session'}
+                            </h4>
+                            <span className="pm-subject-badge">
+                              {session.subject || 'General'}
+                            </span>
+                            <span className="pm-batch-badge">
+                              🎓 {session.batch || participant.batch || 'Batch'}
+                            </span>
+                          </div>
+
+                          <span className="pm-quiz-card-date">
+                            👨‍🏫 Mentor: <strong style={{ color: 'var(--fg, #F4F4F5)' }}>{session.hostName || 'Faculty'}</strong> • Played as &ldquo;<strong style={{ color: '#F59E0B' }}>{participant.screenName}</strong>&rdquo; • {session.createdAt ? new Date(session.createdAt).toLocaleDateString() : 'Recent'}
                           </span>
-                          <span
-                            className="pm-batch-badge"
-                            style={{
-                              background: 'rgba(16, 185, 129, 0.12)',
-                              color: '#10B981',
-                              border: '1px solid rgba(16, 185, 129, 0.3)',
-                              fontSize: '0.72rem',
-                              fontWeight: 700,
-                              padding: '0.15rem 0.5rem',
-                              borderRadius: '6px',
-                            }}
-                          >
-                            🎓 {session.batch || participant.batch || 'Batch'}
+                        </div>
+                      </div>
+
+                      {/* Right: Scores & Stats */}
+                      <div className="pm-quiz-card-right">
+                        <div className="pm-quiz-card-stat">
+                          <span className="pm-stat-num" style={{ color: '#F59E0B' }}>
+                            {participant.finalScore || 0}
+                          </span>
+                          <span className="pm-stat-label">Points</span>
+                        </div>
+
+                        <div className="pm-quiz-card-stat">
+                          <span className="pm-stat-num" style={{ color: accuracy >= 70 ? '#10B981' : '#60A5FA' }}>
+                            {accuracy}%
+                          </span>
+                          <span className="pm-stat-label">
+                            {participant.correctCount || 0}/{participant.totalQuestions || 0} Right
                           </span>
                         </div>
 
-                        <div style={{ fontSize: '0.8rem', color: 'var(--mute, #8B8B94)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <span>👨‍🏫 Mentor: <strong style={{ color: 'var(--fg, #F4F4F5)' }}>{session.hostName || 'Faculty'}</strong></span>
-                          <span>•</span>
-                          <span>Played as &ldquo;<strong style={{ color: '#F59E0B' }}>{participant.screenName}</strong>&rdquo;</span>
-                          <span>•</span>
-                          <span>📅 {session.createdAt ? new Date(session.createdAt).toLocaleDateString() : 'Recent'}</span>
-                        </div>
+                        <span className="pm-status-verified">
+                          <span className="pm-status-dot" />
+                          Recorded
+                        </span>
                       </div>
                     </div>
-
-                    {/* Right: Scores & Stats */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-                      <div className="pm-quiz-card-stat" style={{ textAlign: 'right' }}>
-                        <span className="pm-stat-num" style={{ fontSize: '1.25rem', fontWeight: 800, color: '#F59E0B' }}>
-                          {participant.finalScore || 0}
-                        </span>
-                        <span className="pm-stat-label" style={{ fontSize: '0.72rem', color: 'var(--mute, #8B8B94)' }}>
-                          Points
-                        </span>
-                      </div>
-
-                      <div className="pm-quiz-card-stat" style={{ textAlign: 'right' }}>
-                        <span className="pm-stat-num" style={{ fontSize: '1.25rem', fontWeight: 800, color: accuracy >= 70 ? '#10B981' : '#60A5FA' }}>
-                          {accuracy}%
-                        </span>
-                        <span className="pm-stat-label" style={{ fontSize: '0.72rem', color: 'var(--mute, #8B8B94)' }}>
-                          {participant.correctCount || 0}/{participant.totalQuestions || 0} Right
-                        </span>
-                      </div>
-
-                      <div
-                        style={{
-                          background: 'rgba(16, 185, 129, 0.1)',
-                          border: '1px solid rgba(16, 185, 129, 0.3)',
-                          color: '#10B981',
-                          padding: '0.35rem 0.75rem',
-                          borderRadius: '8px',
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                        }}
-                      >
-                        ✅ Recorded
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </section>
       </main>
     </div>
