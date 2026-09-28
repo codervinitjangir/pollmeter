@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchMentorQuizzes, fetchQuizDetails, fetchBatches, getAuthToken } from '../auth';
-import { apiUrl } from '../api';
+import { fetchMentorQuizzes, fetchQuizDetails, fetchBatches, downloadQuizCsv } from '../auth';
 
 interface Props {
   isOpen: boolean;
@@ -18,6 +17,7 @@ export default function MentorQuizHistoryModal({ isOpen, onClose }: Props) {
     responses: any[];
   } | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   // Multi-horizon date and batch filter states
   const [timeRange, setTimeRange] = useState<string>('all');
@@ -73,58 +73,31 @@ export default function MentorQuizHistoryModal({ isOpen, onClose }: Props) {
     }
   }
 
-  function handleExportCsv() {
-    if (!details?.participants?.length) return;
-
-    const session = details.session;
-    const rows = [
-      ['Rank', 'Real Name (College ID)', 'Screen Name (Used in Quiz)', 'College Email', 'Batch / Class', 'Final Score', 'Correct Answers', 'Total Questions', 'Accuracy %'],
-    ];
-
-    details.participants.forEach((p) => {
-      const accuracy = p.totalQuestions > 0 ? Math.round((p.correctCount / p.totalQuestions) * 100) : 0;
-      rows.push([
-        String(p.rank || '-'),
-        `"${(p.realName || '').replace(/"/g, '""')}"`,
-        `"${(p.screenName || '').replace(/"/g, '""')}"`,
-        `"${(p.email || '').replace(/"/g, '""')}"`,
-        `"${(p.batch || session?.batch || 'General').replace(/"/g, '""')}"`,
-        String(p.finalScore || 0),
-        String(p.correctCount || 0),
-        String(p.totalQuestions || session?.questionCount || 0),
-        `${accuracy}%`,
-      ]);
-    });
-
-    const csvContent = 'data:text/csv;charset=utf-8,' + rows.map((e) => e.join(',')).join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    const filename = `MSU_Quiz_${session?.code || 'report'}_${(session?.batch || 'Class').replace(/[^a-zA-Z0-9]/g, '_')}_${new Date(session?.createdAt || Date.now()).toISOString().split('T')[0]}.csv`;
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    // Audit log record for export (§8 of architecture spec)
-    const token = getAuthToken();
-    if (token) {
-      fetch(apiUrl('/api/audit/log'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          action: 'REPORT_EXPORTED',
-          targetId: session?.code,
-          metadata: {
-            topic: session?.topic,
-            batch: session?.batch,
-            participantCount: details.participants.length,
-          },
-        }),
-      }).catch(() => {});
+  /**
+   * Downloads the gradebook from the server rather than assembling it here.
+   *
+   * The previous version built the CSV out of the already-fetched participant
+   * summaries and handed it to the browser as a `data:` URI. Three things were
+   * wrong with that: `encodeURI` silently truncates the file at the first `#`
+   * in a student's answer, there was no UTF-8 BOM so Excel rendered Devanagari
+   * names as mojibake, and a value beginning with `=` was still a live formula
+   * when the file was opened. The server route escapes those, emits per-answer
+   * rows instead of per-student totals, and records the export in the audit log
+   * itself — so the separate audit POST that used to live here is gone too.
+   */
+  async function handleExportCsv() {
+    if (!selectedQuizId) return;
+    setExporting(true);
+    setError('');
+    try {
+      await downloadQuizCsv(
+        selectedQuizId,
+        `${details?.session?.code || 'report'}-${details?.session?.batch || 'class'}`
+      );
+    } catch (err) {
+      setError((err as Error).message || 'Failed to export quiz results');
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -175,9 +148,10 @@ export default function MentorQuizHistoryModal({ isOpen, onClose }: Props) {
                 <button
                   className="pm-btn pm-btn-primary pm-export-csv-btn"
                   onClick={handleExportCsv}
+                  disabled={exporting}
                   id="export-csv-btn"
                 >
-                  📥 Export Gradebook CSV
+                  {exporting ? '⏳ Preparing CSV...' : '📥 Export Gradebook CSV'}
                 </button>
               ) : null}
             </div>

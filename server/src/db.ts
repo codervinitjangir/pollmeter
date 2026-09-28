@@ -13,6 +13,12 @@ export interface User {
   subject?: string;
   batches?: string[];
   picture?: string;
+  /**
+   * Faculty approval gate. A campus email alone never grants mentor rights —
+   * an administrator must approve the account (or the account must predate
+   * this column, in which case initDb backfills it to true).
+   */
+  approved?: boolean;
   createdAt: string;
 }
 
@@ -93,6 +99,9 @@ let usePostgres = false;
 const DATA_DIR = path.resolve(__dirname, '../data');
 const LOCAL_DB_FILE = path.join(DATA_DIR, 'pollmeter_db.json');
 
+/** Key recorded in `schema_meta` once the faculty backfill has run. */
+const MIGRATION_APPROVE_EXISTING = 'approve_existing_faculty_v1';
+
 let localDb: LocalSchema = {
   users: {},
   sessions: {},
@@ -108,12 +117,32 @@ function loadLocalDb() {
     if (fs.existsSync(LOCAL_DB_FILE)) {
       const raw = fs.readFileSync(LOCAL_DB_FILE, 'utf-8');
       localDb = JSON.parse(raw);
+      backfillApprovals();
     } else {
       saveLocalDb();
     }
   } catch (err) {
     console.warn('[db] Failed to load local file db, initializing fresh:', (err as Error).message);
     localDb = { users: {}, sessions: {}, participants: [], responses: [] };
+  }
+}
+
+/**
+ * Local-store counterpart of the `approve_existing_faculty_v1` migration.
+ * `approved === undefined` can only mean a record written before the approval
+ * gate existed, so the check is naturally one-time per record.
+ */
+function backfillApprovals(): void {
+  let changed = 0;
+  for (const user of Object.values(localDb.users ?? {})) {
+    if (user.approved === undefined) {
+      user.approved = user.role === 'mentor' || user.role === 'admin';
+      changed++;
+    }
+  }
+  if (changed > 0) {
+    saveLocalDb();
+    console.log(`[db] Migration: initialised approval state for ${changed} existing account(s).`);
   }
 }
 
@@ -160,6 +189,7 @@ export async function initDb(): Promise<void> {
           ALTER TABLE users ADD COLUMN IF NOT EXISTS department VARCHAR(160);
           ALTER TABLE users ADD COLUMN IF NOT EXISTS subject VARCHAR(160);
           ALTER TABLE users ADD COLUMN IF NOT EXISTS batches JSONB DEFAULT '[]';
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS approved BOOLEAN DEFAULT false;
 
           CREATE TABLE IF NOT EXISTS quiz_sessions (
             id VARCHAR(64) PRIMARY KEY,
@@ -217,7 +247,30 @@ export async function initDb(): Promise<void> {
             metadata JSONB,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           );
+
+          CREATE TABLE IF NOT EXISTS schema_meta (
+            key VARCHAR(80) PRIMARY KEY,
+            applied_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          );
         `);
+
+        // One-time data migration, recorded in schema_meta so a later
+        // revocation is never silently undone on the next boot: everyone who
+        // already held faculty rights before the approval gate existed keeps
+        // them.
+        const applied = await client.query(`SELECT 1 FROM schema_meta WHERE key = $1`, [
+          MIGRATION_APPROVE_EXISTING,
+        ]);
+        if (applied.rowCount === 0) {
+          const backfilled = await client.query(
+            `UPDATE users SET approved = true WHERE role IN ('mentor', 'admin')`
+          );
+          await client.query(`INSERT INTO schema_meta (key) VALUES ($1)`, [MIGRATION_APPROVE_EXISTING]);
+          console.log(
+            `[db] Migration '${MIGRATION_APPROVE_EXISTING}': approved ${backfilled.rowCount ?? 0} existing faculty account(s).`
+          );
+        }
+
         usePostgres = true;
         console.log('[db] Connected to PostgreSQL database successfully.');
       } finally {
@@ -239,8 +292,8 @@ export async function initDb(): Promise<void> {
 export async function upsertUser(user: User): Promise<User> {
   if (usePostgres && pool) {
     const res = await pool.query(
-      `INSERT INTO users (id, email, real_name, role, college_domain, department, subject, picture, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO users (id, email, real_name, role, college_domain, department, subject, picture, approved, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        ON CONFLICT (email) DO UPDATE
        SET real_name = EXCLUDED.real_name,
            picture = EXCLUDED.picture,
@@ -248,7 +301,7 @@ export async function upsertUser(user: User): Promise<User> {
            department = COALESCE(EXCLUDED.department, users.department),
            subject = COALESCE(EXCLUDED.subject, users.subject),
            role = CASE WHEN users.role = 'admin' THEN 'admin' ELSE EXCLUDED.role END
-       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, created_at as "createdAt"`,
+       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, COALESCE(approved, false) as approved, created_at as "createdAt"`,
       [
         user.id,
         user.email.toLowerCase(),
@@ -258,6 +311,7 @@ export async function upsertUser(user: User): Promise<User> {
         user.department ?? null,
         user.subject ?? null,
         user.picture ?? null,
+        user.approved ?? false,
         user.createdAt,
       ]
     );
@@ -271,11 +325,12 @@ export async function upsertUser(user: User): Promise<User> {
     existing.collegeDomain = user.collegeDomain;
     existing.department = user.department ?? existing.department;
     existing.subject = user.subject ?? existing.subject;
+    existing.role = existing.role === 'admin' ? 'admin' : user.role;
     saveLocalDb();
     return existing;
   }
 
-  localDb.users[user.id] = { ...user, email: user.email.toLowerCase() };
+  localDb.users[user.id] = { ...user, email: user.email.toLowerCase(), approved: user.approved ?? false };
   saveLocalDb();
   return localDb.users[user.id];
 }
@@ -284,7 +339,7 @@ export async function getUserByEmail(email: string): Promise<User | null> {
   const cleanEmail = email.toLowerCase().trim();
   if (usePostgres && pool) {
     const res = await pool.query(
-      `SELECT id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, created_at as "createdAt"
+      `SELECT id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, COALESCE(approved, false) as approved, created_at as "createdAt"
        FROM users WHERE LOWER(email) = $1`,
       [cleanEmail]
     );
@@ -298,7 +353,7 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 export async function getUserById(id: string): Promise<User | null> {
   if (usePostgres && pool) {
     const res = await pool.query(
-      `SELECT id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, created_at as "createdAt"
+      `SELECT id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, COALESCE(approved, false) as approved, created_at as "createdAt"
        FROM users WHERE id = $1`,
       [id]
     );
@@ -313,7 +368,7 @@ export async function setUserRole(email: string, role: 'mentor' | 'student' | 'a
   if (usePostgres && pool) {
     const res = await pool.query(
       `UPDATE users SET role = $1 WHERE LOWER(email) = $2
-       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, created_at as "createdAt"`,
+       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, COALESCE(approved, false) as approved, created_at as "createdAt"`,
       [role, cleanEmail]
     );
     return res.rows[0] ?? null;
@@ -326,6 +381,47 @@ export async function setUserRole(email: string, role: 'mentor' | 'student' | 'a
     return found;
   }
   return null;
+}
+
+/**
+ * Flips the faculty approval gate. Approving grants the mentor role; revoking
+ * drops it back to student so the two can never disagree — a user left with
+ * `role = 'mentor'` and `approved = false` would be re-approved by the
+ * `approve_existing_faculty_v1` backfill on some future fresh database.
+ */
+export async function setUserApproval(email: string, approved: boolean): Promise<User | null> {
+  const cleanEmail = email.toLowerCase().trim();
+  if (usePostgres && pool) {
+    const res = await pool.query(
+      `UPDATE users
+          SET approved = $1,
+              role = CASE
+                       WHEN role = 'admin' THEN 'admin'
+                       WHEN $1 THEN 'mentor'
+                       ELSE 'student'
+                     END
+        WHERE LOWER(email) = $2
+       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, COALESCE(approved, false) as approved, created_at as "createdAt"`,
+      [approved, cleanEmail]
+    );
+    return res.rows[0] ?? null;
+  }
+
+  const found = Object.values(localDb.users).find((u) => u.email.toLowerCase() === cleanEmail);
+  if (!found) return null;
+  found.approved = approved;
+  if (found.role !== 'admin') found.role = approved ? 'mentor' : 'student';
+  saveLocalDb();
+  return found;
+}
+
+/** Used by the one-time admin bootstrap endpoint, which refuses to run twice. */
+export async function countAdmins(): Promise<number> {
+  if (usePostgres && pool) {
+    const res = await pool.query(`SELECT COUNT(*)::int as count FROM users WHERE role = 'admin'`);
+    return res.rows[0]?.count ?? 0;
+  }
+  return Object.values(localDb.users).filter((u) => u.role === 'admin').length;
 }
 
 export async function saveQuizSession(session: QuizSessionRecord): Promise<void> {
@@ -671,21 +767,41 @@ export async function getStudentQuizzes(studentEmail: string): Promise<Array<{
 
 // ─── Admin & University Management ──────────────────────────────────────────
 
-export async function getAllFaculty(): Promise<User[]> {
+/**
+ * Everyone who already holds faculty rights, plus — when `pendingDomain` is
+ * supplied — accounts on the faculty domain still waiting for a decision.
+ * Without the second group an administrator would have no way to see, let
+ * alone approve, a new lecturer who has just signed in.
+ */
+export async function getAllFaculty(pendingDomain?: string): Promise<User[]> {
+  const domain = pendingDomain?.toLowerCase().trim() || null;
+
   if (usePostgres && pool) {
     const res = await pool.query(
       `SELECT id, email, real_name as "realName", role, college_domain as "collegeDomain",
-              department, subject, COALESCE(batches, '[]'::jsonb) as batches, picture, created_at as "createdAt"
+              department, subject, COALESCE(batches, '[]'::jsonb) as batches, picture,
+              COALESCE(approved, false) as approved, created_at as "createdAt"
        FROM users
        WHERE role IN ('mentor', 'admin')
-       ORDER BY real_name ASC`
+          OR ($1::text IS NOT NULL AND LOWER(college_domain) = $1::text)
+       ORDER BY COALESCE(approved, false) ASC, real_name ASC`,
+      [domain]
     );
     return res.rows;
   }
 
   return Object.values(localDb.users)
-    .filter((u) => u.role === 'mentor' || u.role === 'admin')
-    .sort((a, b) => a.realName.localeCompare(b.realName));
+    .filter(
+      (u) =>
+        u.role === 'mentor' ||
+        u.role === 'admin' ||
+        (domain !== null && u.collegeDomain?.toLowerCase() === domain)
+    )
+    .sort(
+      (a, b) =>
+        Number(a.approved ?? false) - Number(b.approved ?? false) ||
+        a.realName.localeCompare(b.realName)
+    );
 }
 
 export async function addOrUpdateFaculty(data: {
@@ -697,21 +813,22 @@ export async function addOrUpdateFaculty(data: {
   role?: 'mentor' | 'admin';
 }): Promise<User> {
   const cleanEmail = data.email.toLowerCase().trim();
-  const collegeDomain = cleanEmail.split('@')[1] || 'medhaviskillsuniversity.edu.in';
+  const collegeDomain = cleanEmail.split('@')[1] || 'polariscampus.com';
   const role = data.role || 'mentor';
   const batches = data.batches ?? [];
 
   if (usePostgres && pool) {
     const res = await pool.query(
-      `INSERT INTO users (id, email, real_name, role, college_domain, department, subject, batches, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
+      `INSERT INTO users (id, email, real_name, role, college_domain, department, subject, batches, approved, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, CURRENT_TIMESTAMP)
        ON CONFLICT (email) DO UPDATE
        SET real_name = EXCLUDED.real_name,
            role = CASE WHEN users.role = 'admin' THEN 'admin' ELSE EXCLUDED.role END,
            department = COALESCE(EXCLUDED.department, users.department),
            subject = COALESCE(EXCLUDED.subject, users.subject),
-           batches = COALESCE(EXCLUDED.batches, users.batches)
-       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, batches, picture, created_at as "createdAt"`,
+           batches = COALESCE(EXCLUDED.batches, users.batches),
+           approved = true
+       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, batches, picture, COALESCE(approved, false) as approved, created_at as "createdAt"`,
       [uuidv4(), cleanEmail, data.realName, role, collegeDomain, data.department ?? null, data.subject ?? null, JSON.stringify(batches)]
     );
     return res.rows[0];
@@ -724,6 +841,7 @@ export async function addOrUpdateFaculty(data: {
     existing.department = data.department ?? existing.department;
     existing.subject = data.subject ?? existing.subject;
     existing.batches = batches.length > 0 ? batches : existing.batches;
+    existing.approved = true;
     saveLocalDb();
     return existing;
   }
@@ -737,6 +855,7 @@ export async function addOrUpdateFaculty(data: {
     department: data.department,
     subject: data.subject,
     batches,
+    approved: true,
     createdAt: new Date().toISOString(),
   };
   localDb.users[newUser.id] = newUser;
@@ -748,7 +867,7 @@ export async function removeFaculty(email: string): Promise<boolean> {
   const cleanEmail = email.toLowerCase().trim();
   if (usePostgres && pool) {
     const res = await pool.query(
-      `UPDATE users SET role = 'student' WHERE LOWER(email) = $1 AND role != 'admin' RETURNING id`,
+      `UPDATE users SET role = 'student', approved = false WHERE LOWER(email) = $1 AND role != 'admin' RETURNING id`,
       [cleanEmail]
     );
     return (res.rowCount ?? 0) > 0;
@@ -757,6 +876,7 @@ export async function removeFaculty(email: string): Promise<boolean> {
   const user = Object.values(localDb.users).find((u) => u.email.toLowerCase() === cleanEmail);
   if (user && user.role !== 'admin') {
     user.role = 'student';
+    user.approved = false;
     saveLocalDb();
     return true;
   }
@@ -938,5 +1058,28 @@ export async function getRecentAuditLogs(limit = 100): Promise<AuditLogRecord[]>
     .slice()
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, limit);
+}
+
+/**
+ * Releases the Postgres connection pool so the process can exit on its own.
+ *
+ * Without this a SIGTERM leaves the pool's idle sockets open and Node keeps the
+ * event loop alive until the platform's kill timeout fires — which reads as a
+ * hung deploy. The JSON-file store needs no teardown: every write already lands
+ * atomically via a `.tmp` rename, so there is nothing buffered to flush.
+ */
+export async function closePool(): Promise<void> {
+  if (!pool) return;
+  const closing = pool;
+  // Cleared first so a request that arrives mid-shutdown falls through to the
+  // local store instead of querying a pool that is already draining.
+  pool = null;
+  usePostgres = false;
+  try {
+    await closing.end();
+    console.log('[db] Postgres pool closed.');
+  } catch (err) {
+    console.error('[db] Error closing postgres pool:', (err as Error).message);
+  }
 }
 

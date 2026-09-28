@@ -19,5 +19,7 @@ Thumbs.db
 *.zip
 .vscode/
 .idea/
+.claude/
 server/data/
-
+GitHub clone/
+github-clone/

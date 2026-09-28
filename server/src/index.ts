@@ -21,15 +21,19 @@ import {
   getMentorQuizzes,
   getQuizDetails,
   getStudentQuizzes,
-  setUserRole,
   getAllFaculty,
   addOrUpdateFaculty,
   removeFaculty,
+  setUserRole,
+  setUserApproval,
+  countAdmins,
+  getUserByEmail,
   getUniversityOverview,
   searchStudents,
   STANDARD_BATCHES,
   recordAuditLog,
   getRecentAuditLogs,
+  closePool,
 } from './db';
 import {
   getAllowedDomains,
@@ -38,13 +42,14 @@ import {
   sendCollegeOtp,
   verifyCollegeOtp,
   verifyAndPromoteMentorPin,
-  isAdminEmail,
-  isMentorEmail,
+  resolveEffectiveRole,
+  isFacultyDomain,
+  generateToken,
+  FACULTY_DOMAIN,
   requireAuth,
   requireMentor,
   requireAdmin,
   AuthenticatedRequest,
-  verifyToken,
 } from './auth';
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
@@ -77,7 +82,9 @@ const corsOptions: cors.CorsOptions = {
     isAllowedOrigin(origin)
       ? callback(null, true)
       : callback(new Error(`Origin ${origin} is not allowed.`)),
-  methods: ['GET', 'POST'],
+  // DELETE is needed for revoking a faculty member; without it the browser's
+  // preflight for that route fails cross-origin.
+  methods: ['GET', 'POST', 'DELETE'],
 };
 
 // ─── Express app ──────────────────────────────────────────────────────────────
@@ -86,6 +93,26 @@ const app = express();
 app.set('trust proxy', true);
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '256kb' }));
+
+/**
+ * The handful of response headers that matter for an app like this, set by
+ * hand rather than pulling in helmet — the same reasoning as the rate limiter
+ * below. No CSP: the client loads Google Identity Services at runtime, and a
+ * policy narrow enough to be worth having would need the script hashes that
+ * only the Vite build knows.
+ */
+app.use((_req: Request, res: Response, next: NextFunction) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-DNS-Prefetch-Control', 'off');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
+  }
+  next();
+});
 
 // These endpoints can allocate memory or spend an external AI quota. Keep a
 // small dependency-free limiter in front of them; the classroom socket flow is
@@ -124,6 +151,12 @@ function rateLimit(windowMs: number, maxRequests: number) {
 
 const sessionCreationLimiter = rateLimit(60_000, 30);
 const aiGenerationLimiter = rateLimit(60_000, 10);
+
+// Both of these hand out or check a credential, so they are brute-force
+// targets in a way the rest of the API is not.
+const otpSendLimiter = rateLimit(15 * 60_000, 5);
+const pinAttemptLimiter = rateLimit(15 * 60_000, 10);
+const bootstrapLimiter = rateLimit(60 * 60_000, 5);
 
 // ─── Question validation ──────────────────────────────────────────────────────
 
@@ -221,14 +254,18 @@ function validateQuestions(raw: unknown): ValidationResult {
 
 // ─── REST: Session management ─────────────────────────────────────────────────
 
-app.post('/api/sessions', sessionCreationLimiter, async (req: Request, res: Response) => {
+/**
+ * Faculty only. The host identity comes from the verified token and nothing
+ * else — accepting `hostEmail` from the body would let any caller file a
+ * session under another mentor's name, and that name is exactly what the
+ * per-mentor report isolation is keyed on.
+ */
+app.post('/api/sessions', sessionCreationLimiter, requireMentor, async (req: AuthenticatedRequest, res: Response) => {
   const body = req.body as {
     questions?: unknown;
     topic?: string;
     subject?: string;
     batch?: string;
-    hostEmail?: string;
-    hostName?: string;
   };
   const result = validateQuestions(body?.questions);
 
@@ -237,16 +274,8 @@ app.post('/api/sessions', sessionCreationLimiter, async (req: Request, res: Resp
     return;
   }
 
-  let hostEmail = body?.hostEmail;
-  let hostName = body?.hostName;
-  const authHeader = req.headers.authorization;
-  if (authHeader?.startsWith('Bearer ')) {
-    const decoded = verifyToken(authHeader.substring(7));
-    if (decoded) {
-      hostEmail = hostEmail || decoded.email;
-      hostName = hostName || decoded.realName;
-    }
-  }
+  const hostEmail = req.user!.email.toLowerCase();
+  const hostName = req.user!.realName || 'Faculty Mentor';
 
   const topic = body?.topic?.trim() || (result.questions[0]?.text ? `Quiz: ${result.questions[0].text.slice(0, 40)}...` : 'Classroom Quiz');
   const subject = body?.subject?.trim() || 'General';
@@ -256,8 +285,8 @@ app.post('/api/sessions', sessionCreationLimiter, async (req: Request, res: Resp
     topic,
     subject,
     batch,
-    hostEmail: hostEmail || 'mentor@medhaviskillsuniversity.edu.in',
-    hostName: hostName || 'Faculty Mentor',
+    hostEmail,
+    hostName,
   });
 
   try {
@@ -267,7 +296,7 @@ app.post('/api/sessions', sessionCreationLimiter, async (req: Request, res: Resp
       topic,
       subject,
       batch,
-      hostEmail: session.hostEmail || 'mentor@medhaviskillsuniversity.edu.in',
+      hostEmail: session.hostEmail,
       hostName: session.hostName,
       questionCount: session.questions.length,
       participantCount: 0,
@@ -276,7 +305,7 @@ app.post('/api/sessions', sessionCreationLimiter, async (req: Request, res: Resp
     });
 
     await recordAuditLog(
-      session.hostEmail || 'mentor@medhaviskillsuniversity.edu.in',
+      session.hostEmail,
       'SESSION_CREATED',
       session.code,
       { topic, subject, batch, questionCount: session.questions.length }
@@ -285,7 +314,7 @@ app.post('/api/sessions', sessionCreationLimiter, async (req: Request, res: Resp
     console.error('[db] Error pre-saving session to DB:', err);
   }
 
-  console.log(`[session] created ${session.code} with ${result.questions.length} question(s) [${topic}] [${subject}] [${batch}]`);
+  console.log(`[session] created ${session.code} with ${result.questions.length} question(s) [${topic}] [${subject}] [${batch}] by ${hostEmail}`);
   res.status(201).json({
     code: session.code,
     hostId: session.hostId,
@@ -350,7 +379,7 @@ app.post('/api/auth/demo', async (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/auth/otp/send', async (req: Request, res: Response) => {
+app.post('/api/auth/otp/send', otpSendLimiter, async (req: Request, res: Response) => {
   try {
     const { email } = req.body as { email?: string };
     if (!email) {
@@ -382,20 +411,49 @@ app.post('/api/auth/otp/verify', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * Re-reads the role from the database and re-issues the token. Roles change
+ * out of band (an administrator approves or revokes faculty), so the claim
+ * inside a 30-day token goes stale; this is how the client catches up.
+ */
 app.get('/api/auth/me', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  if (req.user?.email) {
-    if (isAdminEmail(req.user.email)) {
-      req.user.role = 'admin';
-      await setUserRole(req.user.email, 'admin');
-    } else if (isMentorEmail(req.user.email)) {
-      req.user.role = 'mentor';
-      await setUserRole(req.user.email, 'mentor');
-    }
+  if (!req.user?.email) {
+    res.status(401).json({ error: 'Not authenticated.' });
+    return;
   }
-  res.json({ user: req.user });
+
+  try {
+    const { role, approved } = await resolveEffectiveRole(req.user.email);
+    const record = await getUserByEmail(req.user.email);
+
+    const user = {
+      id: record?.id ?? req.user.id,
+      email: req.user.email,
+      realName: record?.realName ?? req.user.realName,
+      role,
+      picture: record?.picture ?? req.user.picture,
+      approved,
+      /** True for an unapproved campus account: faculty access is pending. */
+      facultyPending: isFacultyDomain(req.user.email) && !approved,
+    };
+
+    res.json({
+      user,
+      token: role === req.user.role ? undefined : generateToken({
+        id: user.id,
+        email: user.email,
+        realName: user.realName,
+        role,
+        picture: user.picture,
+      }),
+    });
+  } catch (err) {
+    console.error('[auth] Failed to resolve current user:', err);
+    res.status(503).json({ error: 'Could not load your account right now. Please try again.' });
+  }
 });
 
-app.post('/api/auth/verify-mentor-pin', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+app.post('/api/auth/verify-mentor-pin', pinAttemptLimiter, requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { pin } = req.body as { pin?: string };
     if (!pin) {
@@ -407,9 +465,66 @@ app.post('/api/auth/verify-mentor-pin', requireAuth, async (req: AuthenticatedRe
       return;
     }
     const result = await verifyAndPromoteMentorPin(req.user.email, pin);
+    await recordAuditLog(req.user.email, 'FACULTY_SELF_PROMOTED', req.user.email, { via: 'mentor_pin' });
     res.json(result);
   } catch (err) {
     res.status(403).json({ error: (err as Error).message });
+  }
+});
+
+/**
+ * Seeds the very first administrator, and only the first: once any admin row
+ * exists the route is closed for good. This is the documented
+ * `ADMIN_BOOTSTRAP_SECRET` path, and it is the only way to obtain admin rights
+ * without either an existing admin row or an `ADMIN_EMAILS` entry.
+ */
+app.post('/api/admin/bootstrap', bootstrapLimiter, requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const secret = process.env.ADMIN_BOOTSTRAP_SECRET?.trim();
+    if (!secret) {
+      res.status(404).json({ error: 'Administrator bootstrap is not enabled on this server.' });
+      return;
+    }
+
+    const { bootstrapSecret } = req.body as { bootstrapSecret?: string };
+    if (!bootstrapSecret || bootstrapSecret.trim() !== secret) {
+      console.warn(`[admin] Rejected bootstrap attempt by ${req.user?.email}`);
+      res.status(403).json({ error: 'Invalid bootstrap secret.' });
+      return;
+    }
+
+    const email = req.user?.email;
+    if (!email || !isFacultyDomain(email)) {
+      res.status(403).json({ error: `The first administrator must hold an @${FACULTY_DOMAIN} account.` });
+      return;
+    }
+
+    if ((await countAdmins()) > 0) {
+      res.status(409).json({
+        error: 'An administrator already exists. Ask them to grant you access from the admin console.',
+      });
+      return;
+    }
+
+    const user = await setUserRole(email, 'admin');
+    await setUserApproval(email, true);
+    await recordAuditLog(email, 'ADMIN_BOOTSTRAPPED', email);
+    console.log(`[admin] Bootstrapped first administrator: ${email}`);
+
+    res.json({
+      success: true,
+      user,
+      token: generateToken({
+        id: user?.id ?? req.user!.id,
+        email,
+        realName: user?.realName ?? req.user!.realName,
+        role: 'admin',
+        picture: user?.picture ?? req.user!.picture,
+      }),
+    });
+  } catch (err) {
+    console.error('[admin] Bootstrap failed:', err);
+    res.status(500).json({ error: 'Failed to bootstrap administrator.' });
   }
 });
 
@@ -465,6 +580,154 @@ app.get('/api/mentor/quizzes/:id', requireMentor, async (req: AuthenticatedReque
   }
 });
 
+/**
+ * Per-mentor summary across every session they have hosted: the aggregate view
+ * the README promises. Admins may narrow it to one mentor with `?mentorEmail=`;
+ * everyone else sees only their own sessions, same rule as the list above.
+ */
+app.get('/api/mentor/reports', requireMentor, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const mentorEmail = req.user?.role === 'admin'
+      ? (req.query.mentorEmail as string) || undefined
+      : req.user?.email;
+
+    const quizzes = await getMentorQuizzes(mentorEmail, {
+      batch: req.query.batch as string | undefined,
+      timeRange: req.query.timeRange as string | undefined,
+      startDate: req.query.startDate as string | undefined,
+      endDate: req.query.endDate as string | undefined,
+    });
+
+    const reports = [];
+    for (const quiz of quizzes) {
+      const details = await getQuizDetails(quiz.id);
+      const participants = details?.participants ?? [];
+      const responses = details?.responses ?? [];
+      const graded = responses.filter((r) => r.selectedOption);
+
+      reports.push({
+        id: quiz.id,
+        code: quiz.code,
+        topic: quiz.topic,
+        subject: quiz.subject ?? 'General',
+        batch: quiz.batch ?? 'General',
+        hostEmail: quiz.hostEmail,
+        hostName: quiz.hostName,
+        createdAt: quiz.createdAt,
+        endedAt: quiz.endedAt,
+        questionCount: quiz.questionCount,
+        participantCount: participants.length || quiz.participantCount,
+        responseCount: responses.length,
+        averageScore: participants.length
+          ? Math.round(participants.reduce((sum, p) => sum + p.finalScore, 0) / participants.length)
+          : 0,
+        accuracyPercent: graded.length
+          ? Math.round((graded.filter((r) => r.isCorrect).length / graded.length) * 100)
+          : 0,
+        averageTimeSeconds: graded.length
+          ? Math.round(graded.reduce((sum, r) => sum + (r.timeTakenMs || 0), 0) / graded.length / 100) / 10
+          : 0,
+        topScorer: participants[0]
+          ? { realName: participants[0].realName, finalScore: participants[0].finalScore }
+          : null,
+      });
+    }
+
+    res.json({
+      reports,
+      totals: {
+        sessions: reports.length,
+        participants: reports.reduce((sum, r) => sum + r.participantCount, 0),
+        responses: reports.reduce((sum, r) => sum + r.responseCount, 0),
+        accuracyPercent: reports.length
+          ? Math.round(reports.reduce((sum, r) => sum + r.accuracyPercent, 0) / reports.length)
+          : 0,
+      },
+    });
+  } catch (err) {
+    console.error('[mentor] Failed to build reports:', err);
+    res.status(500).json({ error: 'Failed to build mentor reports.' });
+  }
+});
+
+/**
+ * Gradebook download for one session. Spreadsheets treat a leading `=`, `+`,
+ * `-` or `@` as a formula, and every field here is student-supplied, so those
+ * are prefixed with a quote before quoting.
+ */
+function csvCell(value: unknown): string {
+  if (value === null || value === undefined) return '""';
+  let text = String(value);
+  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+app.get('/api/mentor/quizzes/:id/export.csv', requireMentor, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const details = await getQuizDetails(req.params.id);
+    if (!details) {
+      res.status(404).json({ error: 'Quiz session not found.' });
+      return;
+    }
+
+    if (
+      req.user?.role !== 'admin' &&
+      details.session.hostEmail.toLowerCase() !== req.user?.email?.toLowerCase()
+    ) {
+      res.status(403).json({ error: 'Access denied: You can only export your own sessions.' });
+      return;
+    }
+
+    const { session, participants, responses } = details;
+    const questions = (session.questions ?? []) as Array<{ text?: string; correctAnswer?: string }>;
+    const rankByEmail = new Map(participants.map((p) => [p.email.toLowerCase(), p.rank]));
+
+    const header = [
+      'Session Code', 'Topic', 'Subject', 'Batch', 'Question #', 'Question',
+      'Student Name', 'Email', 'Display Name', 'Rank', 'Answer', 'Correct Answer',
+      'Is Correct', 'Score', 'Time Taken (s)', 'Answered At',
+    ];
+
+    const rows = responses.map((r) => [
+      session.code,
+      session.topic,
+      session.subject ?? 'General',
+      session.batch ?? 'General',
+      r.questionIndex + 1,
+      questions[r.questionIndex]?.text ?? '',
+      r.realName,
+      r.email,
+      r.screenName,
+      rankByEmail.get(r.email.toLowerCase()) ?? '',
+      r.selectedOption,
+      questions[r.questionIndex]?.correctAnswer ?? '',
+      r.isCorrect ? 'Yes' : 'No',
+      r.score,
+      Math.round((r.timeTakenMs || 0) / 100) / 10,
+      r.createdAt,
+    ]);
+
+    // Leading BOM so Excel reads the file as UTF-8 rather than as the local
+    // code page, which mangles any non-ASCII student name.
+    const csv = '﻿' + [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n') + '\r\n';
+    const filename = `pollmeter-${session.code}-${(session.subject ?? 'general').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.csv`;
+
+    await recordAuditLog(req.user?.email || 'unknown', 'REPORT_EXPORTED', session.code, {
+      topic: session.topic,
+      rows: rows.length,
+      participants: participants.length,
+    });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(csv);
+  } catch (err) {
+    console.error('[mentor] CSV export failed:', err);
+    res.status(500).json({ error: 'Failed to export the gradebook.' });
+  }
+});
+
 app.get('/api/student/quizzes', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user?.email) {
@@ -492,11 +755,57 @@ app.get('/api/admin/overview', requireAdmin, async (_req: AuthenticatedRequest, 
 
 app.get('/api/admin/faculty', requireAdmin, async (_req: AuthenticatedRequest, res: Response) => {
   try {
-    const faculty = await getAllFaculty();
+    // Includes campus accounts still awaiting approval, so the administrator
+    // can see who is waiting rather than having to be told out of band.
+    const faculty = await getAllFaculty(FACULTY_DOMAIN);
     res.json({ faculty });
   } catch (err) {
     console.error('[admin] Failed to fetch faculty list:', err);
     res.status(500).json({ error: 'Failed to fetch faculty list.' });
+  }
+});
+
+/** Grants or withdraws the faculty role for one campus account. */
+app.post('/api/admin/faculty/approve', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { email, approved } = req.body as { email?: string; approved?: boolean };
+    if (!email) {
+      res.status(400).json({ error: 'Faculty email is required.' });
+      return;
+    }
+    if (typeof approved !== 'boolean') {
+      res.status(400).json({ error: 'Specify whether the account is approved.' });
+      return;
+    }
+
+    const clean = email.toLowerCase().trim();
+    if (!isFacultyDomain(clean)) {
+      res.status(400).json({ error: `Faculty accounts must belong to the @${FACULTY_DOMAIN} domain.` });
+      return;
+    }
+    if (clean === req.user?.email?.toLowerCase()) {
+      res.status(400).json({ error: 'You cannot change your own approval state.' });
+      return;
+    }
+
+    const updated = await setUserApproval(clean, approved);
+    if (!updated) {
+      res.status(404).json({ error: 'No account found for that email. Ask them to sign in once first.' });
+      return;
+    }
+
+    await recordAuditLog(
+      req.user?.email || 'admin',
+      approved ? 'FACULTY_APPROVED' : 'FACULTY_REVOKED',
+      clean,
+      { role: updated.role }
+    );
+    console.log(`[admin] Faculty ${clean} ${approved ? 'approved' : 'revoked'} by ${req.user?.email}`);
+
+    res.json({ success: true, faculty: updated });
+  } catch (err) {
+    console.error('[admin] Failed to change faculty approval:', err);
+    res.status(500).json({ error: 'Failed to update faculty approval.' });
   }
 });
 
@@ -516,8 +825,8 @@ app.post('/api/admin/faculty', requireAdmin, async (req: AuthenticatedRequest, r
       return;
     }
 
-    if (!email.toLowerCase().trim().endsWith('@polariscampus.com')) {
-      res.status(400).json({ error: 'Faculty and admin email must belong to @polariscampus.com domain.' });
+    if (!email.toLowerCase().trim().endsWith(`@${FACULTY_DOMAIN}`)) {
+      res.status(400).json({ error: `Faculty and admin email must belong to the @${FACULTY_DOMAIN} domain.` });
       return;
     }
 
@@ -714,5 +1023,61 @@ httpServer.listen(PORT, '0.0.0.0', () => {
     `  AI        ${ai.enabled ? `live — ${ai.model}` : 'no API key — using the built-in question bank'}\n`
   );
 });
+
+// ─── Graceful shutdown ────────────────────────────────────────────────────────
+
+/**
+ * On a deploy or a Ctrl-C, close down in the order that loses the least: stop
+ * accepting new HTTP connections, tell every connected client the server is
+ * going away, then drain the database pool.
+ *
+ * Disconnecting sockets explicitly matters more here than it usually would.
+ * A classroom full of phones that is merely dropped will each hit the
+ * reconnect backoff and stampede the replacement process at the same instant;
+ * a clean `io.close()` sends a disconnect frame so the client reconnects on its
+ * own schedule instead. Live sessions are in memory and do not survive either
+ * way — that is what the RFC's persistence work is for — but the mentor sees a
+ * "reconnecting" state rather than a frozen screen.
+ *
+ * The 10s timer is the backstop: if a socket refuses to close or the pool hangs
+ * on a stuck query, exit anyway rather than let the platform SIGKILL us at an
+ * arbitrary point.
+ */
+let shuttingDown = false;
+
+async function shutdown(signal: string): Promise<void> {
+  // A second Ctrl-C should kill immediately — someone pressing it twice has
+  // decided they are done waiting.
+  if (shuttingDown) {
+    console.log(`\n[shutdown] ${signal} received again — exiting now.`);
+    process.exit(1);
+  }
+  shuttingDown = true;
+  console.log(`\n[shutdown] ${signal} received — closing down.`);
+
+  const forceExit = setTimeout(() => {
+    console.error('[shutdown] Timed out after 10s — forcing exit.');
+    process.exit(1);
+  }, 10_000);
+  forceExit.unref?.();
+
+  try {
+    await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+    console.log('[shutdown] HTTP server closed.');
+
+    await new Promise<void>((resolve) => io.close(() => resolve()));
+    console.log('[shutdown] Socket.io closed.');
+
+    await closePool();
+  } catch (err) {
+    console.error('[shutdown] Error while closing down:', (err as Error).message);
+  }
+
+  clearTimeout(forceExit);
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('SIGINT', () => void shutdown('SIGINT'));
 
 export { app, io };

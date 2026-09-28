@@ -6,7 +6,18 @@ export interface AuthUser {
   realName: string;
   role: 'student' | 'mentor' | 'admin';
   picture?: string;
+  /** Whether an administrator has approved this account for faculty rights. */
+  approved?: boolean;
+  /**
+   * True for a campus-domain account that is waiting on approval. Lets the UI
+   * say "your request is pending" instead of the flatly wrong "you are a
+   * student" — the distinction only the server can make.
+   */
+  facultyPending?: boolean;
 }
+
+/** Campus domain for faculty. Kept in one place so the UI copy stays truthful. */
+export const FACULTY_DOMAIN = 'polariscampus.com';
 
 const AUTH_KEY = 'pollmeter_auth_session';
 
@@ -23,49 +34,37 @@ export function getStoredAuth(): { token: string; user: AuthUser } | null {
   }
 }
 
-export function isAdminEmail(email?: string): boolean {
-  if (!email) return false;
-  const clean = email.toLowerCase().trim();
-  if (!clean.endsWith('@polariscampus.com')) return false;
-  const defaultAdmins = [
-    'vinit@polariscampus.com',
-    'admin@polariscampus.com',
-    'codervinitjangir@polariscampus.com',
-  ];
-  return defaultAdmins.includes(clean) || clean.startsWith('admin@polariscampus.com');
-}
-
+/**
+ * Whether the address belongs to the campus domain. A UI hint only — it says
+ * the account *could* hold faculty rights, never that it does. Whether it
+ * actually does is `role`/`approved`, which only the server decides.
+ */
 export function isFacultyEmail(email?: string): boolean {
   if (!email) return false;
-  const clean = email.toLowerCase().trim();
-  return clean.endsWith('@polariscampus.com');
+  return email.toLowerCase().trim().endsWith(`@${FACULTY_DOMAIN}`);
 }
 
 export function getAuthToken(): string | null {
   return getStoredAuth()?.token ?? null;
 }
 
+/**
+ * The signed-in user exactly as the server last described them.
+ *
+ * This used to rewrite `role` locally — promoting anyone on a hardcoded email
+ * list to admin and demoting everyone else. That was theatre: localStorage is
+ * editable by whoever is sitting at the browser, so the guess could only ever
+ * be wrong in one of two ways — hiding a screen from someone entitled to it,
+ * or showing a screen that every API call behind it then rejects. The server
+ * checks the role on every privileged request now, so the client just reports
+ * what it was told.
+ */
 export function getAuthUser(): AuthUser | null {
-  const session = getStoredAuth();
-  if (!session?.user) return null;
-  // Non-polariscampus users can only ever have student role
-  if (!session.user.email.endsWith('@polariscampus.com') && session.user.role !== 'student') {
-    session.user.role = 'student';
-    setStoredAuth(session.token, session.user);
-  } else if (isAdminEmail(session.user.email) && session.user.role !== 'admin') {
-    session.user.role = 'admin';
-    setStoredAuth(session.token, session.user);
-  }
-  return session.user;
+  return getStoredAuth()?.user ?? null;
 }
 
 export function setStoredAuth(token: string, user: AuthUser): void {
   try {
-    if (!user.email.endsWith('@polariscampus.com')) {
-      user.role = 'student';
-    } else if (isAdminEmail(user.email)) {
-      user.role = 'admin';
-    }
     localStorage.setItem(AUTH_KEY, JSON.stringify({ token, user }));
   } catch (err) {
     console.error('[auth] Failed to persist auth session:', err);
@@ -82,10 +81,10 @@ export async function refreshAuthUser(): Promise<AuthUser | null> {
     if (!res.ok) return null;
     const data = await res.json();
     if (data.user) {
-      if (isAdminEmail(data.user.email)) {
-        data.user.role = 'admin';
-      }
-      setStoredAuth(token, data.user);
+      // `/api/auth/me` re-issues a token when the resolved role has changed
+      // since it was minted — an approval or a revocation. Keep the new one,
+      // otherwise the stale claim rides along for up to 30 days.
+      setStoredAuth(data.token || token, data.user);
       return data.user;
     }
   } catch (err) {
@@ -112,7 +111,7 @@ export async function fetchCollegeConfig(): Promise<{
     return await res.json();
   } catch {
     return {
-      allowedDomains: ['polariscampus.com', 'medhaviskillsuniversity.edu.in', 'medhaviskillsunivercity.edu.in'],
+      allowedDomains: [FACULTY_DOMAIN, 'medhaviskillsuniversity.edu.in'],
       googleClientId: null,
     };
   }
@@ -292,19 +291,123 @@ export async function fetchStudentQuizzes(): Promise<any[]> {
   return data.history || [];
 }
 
+/**
+ * Downloads a quiz gradebook as CSV.
+ *
+ * Fetched rather than linked, because the export route is behind
+ * `Authorization: Bearer` and a plain `<a href>` cannot carry a header — a
+ * link would hit the route unauthenticated and download a 401 body as a
+ * `.csv` file. The blob URL is revoked immediately; the browser has already
+ * copied the data by the time the click handler returns.
+ */
+export async function downloadQuizCsv(id: string, filenameHint?: string): Promise<void> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Authentication required');
+
+  const res = await fetch(apiUrl(`/api/mentor/quizzes/${id}/export.csv`), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to export quiz results');
+  }
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const safeHint = (filenameHint || 'quiz')
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60) || 'quiz';
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `pollmeter-${safeHint}-${id.slice(0, 8)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+export interface MentorReportRow {
+  id: string;
+  code: string;
+  topic: string;
+  subject: string;
+  batch: string;
+  hostEmail: string;
+  hostName: string;
+  createdAt: string;
+  endedAt?: string | null;
+  questionCount: number;
+  participantCount: number;
+  responseCount: number;
+  averageScore: number;
+  accuracyPercent: number;
+  averageTimeSeconds: number;
+  topScorer?: { name: string; email?: string; totalScore: number } | null;
+}
+
+export interface MentorReports {
+  reports: MentorReportRow[];
+  totals: {
+    quizzes: number;
+    participants: number;
+    responses: number;
+    averageScore: number;
+    accuracyPercent: number;
+  };
+}
+
+export async function fetchMentorReports(options?: {
+  batch?: string;
+  timeRange?: string;
+  startDate?: string;
+  endDate?: string;
+  mentorEmail?: string;
+}): Promise<MentorReports> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Authentication required');
+
+  const params = new URLSearchParams();
+  if (options?.batch && options.batch !== 'all') params.set('batch', options.batch);
+  if (options?.timeRange && options.timeRange !== 'all') params.set('timeRange', options.timeRange);
+  if (options?.startDate) params.set('startDate', options.startDate);
+  if (options?.endDate) params.set('endDate', options.endDate);
+  if (options?.mentorEmail) params.set('mentorEmail', options.mentorEmail);
+
+  const qs = params.toString();
+  const res = await fetch(apiUrl(qs ? `/api/mentor/reports?${qs}` : '/api/mentor/reports'), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to fetch mentor reports');
+  }
+
+  return await res.json();
+}
+
 // ─── University Administration API ──────────────────────────────────────────
 
 export interface FacultyMember {
   id: string;
   email: string;
   realName: string;
-  role: 'mentor' | 'admin';
+  role: 'student' | 'mentor' | 'admin';
   collegeDomain: string;
   department?: string;
   subject?: string;
   batches?: string[];
   picture?: string;
   createdAt: string;
+  /**
+   * False for a campus account that has signed in but has not been approved.
+   * The roster deliberately includes these so an administrator can see who is
+   * waiting instead of having to be told out-of-band.
+   */
+  approved?: boolean;
 }
 
 export interface UniversityOverview {
@@ -420,6 +523,37 @@ export async function removeAdminFaculty(email: string): Promise<boolean> {
   }
 
   return data.success;
+}
+
+/**
+ * Grants or withdraws the faculty approval flag. Separate from
+ * `addAdminFaculty` because approving somebody who already signed in should
+ * not require re-typing their department and batches — and separate from
+ * `removeAdminFaculty` because a pending account was never on the roster to
+ * remove in the first place.
+ */
+export async function setFacultyApproval(
+  email: string,
+  approved: boolean
+): Promise<FacultyMember> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Administrator authentication required');
+
+  const res = await fetch(apiUrl('/api/admin/faculty/approve'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ email, approved }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to update faculty approval');
+  }
+
+  return data.faculty;
 }
 
 export async function searchStudentAudit(q?: string): Promise<StudentAuditItem[]> {

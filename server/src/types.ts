@@ -42,6 +42,13 @@ export interface Response {
   participantId: string;
   value: string;
   answeredAt: number;          // epoch ms — for speed scoring
+  /**
+   * How long this student took, measured from the moment the question went up.
+   * Recorded here because the session only keeps one `timerStartedAt` at a
+   * time — by the time a session is persisted it points at the last question,
+   * so the duration cannot be reconstructed after the fact.
+   */
+  timeTakenMs: number;
   isCorrect: boolean;
   graded: boolean;             // false for polls / open text (no answer key)
   score: number;               // 0 for ungraded, 0–1500 for graded
@@ -96,8 +103,9 @@ export interface Session {
   topic?: string;
   subject?: string;
   batch?: string;
-  hostEmail?: string;
-  hostName?: string;
+  /** The authenticated mentor who created the session. Never client-supplied. */
+  hostEmail: string;
+  hostName: string;
   questions: Question[];
   currentIndex: number;          // -1 = lobby
   /**

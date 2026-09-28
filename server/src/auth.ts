@@ -1,11 +1,37 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
-import { User, getUserByEmail, upsertUser, setUserRole } from './db';
+import { User, getUserByEmail, upsertUser, setUserApproval } from './db';
 import { v4 as uuidv4 } from 'uuid';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'pollmeter_jwt_secret_polaris_2026_secured';
-const DEFAULT_DOMAINS = ['polariscampus.com', 'medhaviskillsuniversity.edu.in', 'medhaviskillsunivercity.edu.in'];
-const DEFAULT_MENTOR_PIN = process.env.MENTOR_PIN || 'polaris2026';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
+/**
+ * A secret that must never fall back to a value committed to the repository.
+ * In production an unset variable is a deployment fault, so fail at import
+ * time — a server running on a public default secret is worse than one that
+ * refuses to boot, because every token it issues can be forged.
+ */
+function requiredSecret(name: string, devFallback: string): string {
+  const value = process.env[name]?.trim();
+  if (value) return value;
+  if (IS_PRODUCTION) {
+    throw new Error(
+      `[config] ${name} is not set. Refusing to start in production with a default secret — ` +
+        `set ${name} in the environment.`
+    );
+  }
+  console.warn(
+    `[config] ${name} is not set — falling back to an insecure development value. Do not deploy this.`
+  );
+  return devFallback;
+}
+
+const JWT_SECRET = requiredSecret('JWT_SECRET', 'pollmeter_dev_only_insecure_secret');
+
+/** The one domain that can ever hold faculty or admin rights. */
+export const FACULTY_DOMAIN = (process.env.FACULTY_DOMAIN || 'polariscampus.com').toLowerCase().trim();
+
+const DEFAULT_DOMAINS = [FACULTY_DOMAIN, 'medhaviskillsuniversity.edu.in'];
 
 export interface JwtPayload {
   id: string;
@@ -32,27 +58,51 @@ export function isDomainAllowed(email: string): boolean {
   return allowed.some((d) => domain === d || domain.endsWith(`.${d}`));
 }
 
-export function isAdminEmail(email: string): boolean {
-  const clean = email.toLowerCase().trim();
-  if (!clean.endsWith('@polariscampus.com')) return false;
-  const defaultAdmins = [
-    'vinit@polariscampus.com',
-    'admin@polariscampus.com',
-    'codervinitjangir@polariscampus.com',
-  ];
-  const adminList = (process.env.ADMIN_EMAILS || '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter((e) => e.endsWith('@polariscampus.com'));
-  return (
-    [...defaultAdmins, ...adminList].includes(clean) ||
-    clean.startsWith('admin@polariscampus.com')
-  );
+/** Necessary for faculty rights, never sufficient on its own. */
+export function isFacultyDomain(email?: string): boolean {
+  if (!email) return false;
+  return email.toLowerCase().trim().endsWith(`@${FACULTY_DOMAIN}`);
 }
 
-export function isMentorEmail(email: string): boolean {
+/**
+ * Admins named in the `ADMIN_EMAILS` environment variable. Configuration is
+ * the only source besides the database `role` column — there is deliberately
+ * no hardcoded list, because an address baked into the source grants whoever
+ * can read the repository a route to the admin console.
+ */
+export function isConfiguredAdmin(email?: string): boolean {
+  if (!email) return false;
   const clean = email.toLowerCase().trim();
-  return clean.endsWith('@polariscampus.com');
+  if (!isFacultyDomain(clean)) return false;
+  return (process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+    .includes(clean);
+}
+
+/**
+ * The role an account actually holds right now, read from the database on
+ * every call. A campus email grants nothing by itself: faculty rights need an
+ * administrator's approval (`users.approved`), and admin rights need either a
+ * seeded database row or an `ADMIN_EMAILS` entry.
+ */
+export async function resolveEffectiveRole(
+  email: string
+): Promise<{ role: 'student' | 'mentor' | 'admin'; approved: boolean }> {
+  const clean = email.toLowerCase().trim();
+  const record = await getUserByEmail(clean);
+
+  if (!isFacultyDomain(clean)) {
+    return { role: 'student', approved: false };
+  }
+  if (record?.role === 'admin' || isConfiguredAdmin(clean)) {
+    return { role: 'admin', approved: true };
+  }
+  if (record?.approved) {
+    return { role: 'mentor', approved: true };
+  }
+  return { role: 'student', approved: false };
 }
 
 export function generateToken(payload: JwtPayload): string {
@@ -115,26 +165,16 @@ export async function authenticateGoogleUser(credential: string): Promise<{
   }
 
   const existing = await getUserByEmail(info.email);
-  const collegeDomain = info.email.split('@')[1];
-  let role: 'student' | 'mentor' | 'admin' = existing?.role ?? 'student';
-
-  if (info.email.endsWith('@polariscampus.com')) {
-    if (isAdminEmail(info.email)) {
-      role = 'admin';
-    } else {
-      role = existing?.role === 'admin' ? 'admin' : 'mentor';
-    }
-  } else {
-    role = 'student';
-  }
+  const { role, approved } = await resolveEffectiveRole(info.email);
 
   const userRecord: User = {
     id: existing?.id || info.sub || uuidv4(),
     email: info.email,
     realName: info.name || existing?.realName || info.email.split('@')[0],
     role,
-    collegeDomain,
+    collegeDomain: info.email.split('@')[1],
     picture: info.picture || existing?.picture,
+    approved,
     createdAt: existing?.createdAt || new Date().toISOString(),
   };
 
@@ -161,26 +201,16 @@ export async function authenticateDevDemoUser(email: string, realName?: string):
   }
 
   const existing = await getUserByEmail(cleanEmail);
-  const collegeDomain = cleanEmail.split('@')[1];
-  let role: 'student' | 'mentor' | 'admin' = existing?.role ?? 'student';
-
-  if (cleanEmail.endsWith('@polariscampus.com')) {
-    if (isAdminEmail(cleanEmail)) {
-      role = 'admin';
-    } else {
-      role = existing?.role === 'admin' ? 'admin' : 'mentor';
-    }
-  } else {
-    role = 'student';
-  }
+  const { role, approved } = await resolveEffectiveRole(cleanEmail);
 
   const userRecord: User = {
     id: existing?.id || uuidv4(),
     email: cleanEmail,
     realName: realName?.trim() || existing?.realName || cleanEmail.split('@')[0],
     role,
-    collegeDomain,
+    collegeDomain: cleanEmail.split('@')[1],
     picture: existing?.picture,
+    approved,
     createdAt: existing?.createdAt || new Date().toISOString(),
   };
 
@@ -264,22 +294,40 @@ export async function verifyCollegeOtp(
   return authenticateDevDemoUser(cleanEmail, realName);
 }
 
+/**
+ * The shared faculty passcode, or null when promotion by PIN is unavailable.
+ * In production an unset `MENTOR_PIN` disables the route outright rather than
+ * accepting a fallback — the previous default was a literal in this file, so
+ * anyone who had read the repository could promote themselves to faculty.
+ */
+function getMentorPin(): string | null {
+  const configured = process.env.MENTOR_PIN?.trim();
+  if (configured) return configured;
+  if (IS_PRODUCTION) return null;
+  console.warn('[config] MENTOR_PIN is not set — using a development passcode. Do not deploy this.');
+  return 'polaris-dev-pin';
+}
+
 export async function verifyAndPromoteMentorPin(email: string, pin: string): Promise<{
   token: string;
   user: User;
 }> {
   const cleanEmail = email.toLowerCase().trim();
-  const configuredPin = process.env.MENTOR_PIN || DEFAULT_MENTOR_PIN;
+  const configuredPin = getMentorPin();
 
-  if (pin.trim() !== configuredPin.trim() && pin.trim() !== 'polaris2026' && pin.trim() !== 'medhavi2026') {
+  if (!configuredPin) {
+    throw new Error('Passcode promotion is disabled. Ask a university administrator to approve your faculty account.');
+  }
+
+  if (pin.trim() !== configuredPin) {
     throw new Error('Incorrect Mentor Passcode.');
   }
 
-  if (!cleanEmail.endsWith('@polariscampus.com') && !isMentorEmail(cleanEmail)) {
-    throw new Error('Faculty status is strictly restricted to verified @polariscampus.com accounts.');
+  if (!isFacultyDomain(cleanEmail)) {
+    throw new Error(`Faculty status is strictly restricted to verified @${FACULTY_DOMAIN} accounts.`);
   }
 
-  const updated = await setUserRole(cleanEmail, 'mentor');
+  const updated = await setUserApproval(cleanEmail, true);
   if (!updated) {
     throw new Error('User not found.');
   }
@@ -319,27 +367,48 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
   next();
 }
 
-export function requireMentor(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  requireAuth(req, res, () => {
-    if (!req.user || !req.user.email.endsWith('@polariscampus.com') || (req.user.role !== 'mentor' && req.user.role !== 'admin')) {
-      res.status(403).json({
-        error: 'Faculty privileges required. Access is restricted to verified @polariscampus.com faculty.',
-        needsPin: false,
-      });
-      return;
-    }
-    next();
-  });
+/**
+ * Privilege checks read the database rather than trusting the `role` claim in
+ * the token. Tokens live for 30 days, so a claim-only check would leave a
+ * revoked mentor with working faculty access for up to a month. The freshly
+ * resolved role is written back onto `req.user` so handlers downstream — the
+ * ones that widen a query for admins — see the current value, not the claim.
+ */
+function requireRole(
+  allowed: Array<'mentor' | 'admin'>,
+  denial: string
+): (req: AuthenticatedRequest, res: Response, next: NextFunction) => void {
+  return (req, res, next) => {
+    requireAuth(req, res, () => {
+      const email = req.user?.email;
+      if (!email || !isFacultyDomain(email)) {
+        res.status(403).json({ error: denial, needsPin: false });
+        return;
+      }
+
+      resolveEffectiveRole(email)
+        .then(({ role }) => {
+          if (!allowed.includes(role as 'mentor' | 'admin')) {
+            res.status(403).json({ error: denial, needsPin: false });
+            return;
+          }
+          if (req.user) req.user.role = role;
+          next();
+        })
+        .catch((err) => {
+          console.error('[auth] Role lookup failed:', (err as Error).message);
+          res.status(503).json({ error: 'Could not verify your privileges right now. Please try again.' });
+        });
+    });
+  };
 }
 
-export function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  requireAuth(req, res, () => {
-    if (!req.user || !req.user.email.endsWith('@polariscampus.com') || req.user.role !== 'admin') {
-      res.status(403).json({
-        error: 'University Administrator privileges required (@polariscampus.com).',
-      });
-      return;
-    }
-    next();
-  });
-}
+export const requireMentor = requireRole(
+  ['mentor', 'admin'],
+  `Faculty privileges required. Access is restricted to approved @${FACULTY_DOMAIN} faculty — ask a university administrator to approve your account.`
+);
+
+export const requireAdmin = requireRole(
+  ['admin'],
+  `University Administrator privileges required (@${FACULTY_DOMAIN}).`
+);

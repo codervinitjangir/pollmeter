@@ -30,7 +30,7 @@ import AIGenerateModal from '../components/AIGenerateModal';
 import { apiUrl } from '../api';
 import { cleanText } from '../cleanText';
 import { getAvatar } from '../utils/avatars';
-import { getAuthUser, getAuthToken, setStoredAuth, clearStoredAuth, AuthUser, fetchBatches } from '../auth';
+import { getAuthUser, getAuthToken, clearStoredAuth, AuthUser, fetchBatches, refreshAuthUser } from '../auth';
 import CollegeAuthModal from '../components/CollegeAuthModal';
 import MentorPinModal from '../components/MentorPinModal';
 import MentorQuizHistoryModal from '../components/MentorQuizHistoryModal';
@@ -100,19 +100,16 @@ export default function HostPage() {
       .catch(() => {});
   }, []);
 
-  // Synchronize auth state and auto-detect whitelisted mentors
+  // Ask the server what this account may actually do. Goes through
+  // `refreshAuthUser` so a re-issued token (an approval or a revocation since
+  // this one was minted) replaces the stored one — the inline fetch this
+  // replaced kept writing the old token back alongside the new role.
   useEffect(() => {
-    const token = getAuthToken();
-    if (!token) return;
-    fetch(apiUrl('/api/auth/me'), {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.user) {
-          setStoredAuth(token, data.user);
-          setAuthUser(data.user);
-          if (data.user.role === 'mentor' || data.user.role === 'admin') {
+    refreshAuthUser()
+      .then((synced) => {
+        if (synced) {
+          setAuthUser(synced);
+          if (synced.role === 'mentor' || synced.role === 'admin') {
             setShowPinModal(false);
           }
         }
@@ -485,25 +482,42 @@ export default function HostPage() {
     setLoading(true);
     try {
       const token = getAuthToken();
+      if (!token) {
+        setLoading(false);
+        setShowAuthModal(true);
+        return;
+      }
       const topic = aiInitialTopic || (questions[0]?.text ? `Quiz: ${questions[0].text.slice(0, 40)}...` : 'Classroom Quiz');
 
+      // No `hostEmail` / `hostName` in the body: the server takes the host
+      // identity from this token and ignores anything the client claims.
+      // Sending them anyway would suggest they still carry weight, and the
+      // whole point of per-mentor report isolation is that they must not.
       const res = await fetch(apiUrl('/api/sessions'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           questions,
           topic,
           subject: quizSubject || 'General',
           batch: quizBatch || 'General',
-          hostEmail: authUser.email,
-          hostName: authUser.realName,
         }),
       });
       const d = await res.json();
-      if (!res.ok) throw new Error(d.error ?? 'Could not create the session.');
+      if (!res.ok) {
+        // A stored token can still claim `mentor` after an administrator has
+        // revoked or not yet granted approval. Re-sync so the rest of the UI
+        // stops offering faculty controls, and let the server's own wording
+        // explain what to do about it.
+        if (res.status === 403 || res.status === 401) {
+          const synced = await refreshAuthUser();
+          if (synced) setAuthUser(synced);
+        }
+        throw new Error(d.error ?? 'Could not create the session.');
+      }
 
       credentials.current = { code: d.code, hostId: d.hostId };
       localStorage.setItem(HOST_LS_KEY, JSON.stringify(credentials.current));

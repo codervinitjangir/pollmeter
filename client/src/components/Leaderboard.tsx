@@ -229,6 +229,7 @@ function LbRow({
   maxScore,
   isMe,
   prevScore,
+  isNew,
   slotHeight,
   isProjector = false,
   rowRef,
@@ -240,6 +241,8 @@ function LbRow({
   maxScore: number;
   isMe: boolean;
   prevScore: number;
+  /** First appearance on the board, so there is no previous rank to compare to. */
+  isNew: boolean;
   slotHeight: number;
   isProjector?: boolean;
   rowRef?: React.Ref<HTMLDivElement>;
@@ -266,7 +269,11 @@ function LbRow({
 
   // Rank position change (0-indexed)
   const rankDelta = initialRank - idx; // positive = climbed!
-  const hasClimbed = rankDelta > 0;
+  // A newcomer has no previous position, so `initialRank` falls back to the
+  // current index and the delta reads as 0. Badge it as NEW rather than letting
+  // a first appearance look like "held their place".
+  const hasClimbed = !isNew && rankDelta > 0;
+  const hasDropped = !isNew && rankDelta < 0;
 
   // Vertical transform translation:
   // In 'initial', row sits at its previous vertical rank slot: (initialRank - idx) * slotHeight.
@@ -348,9 +355,19 @@ function LbRow({
                   🔥 {streak}x
                 </span>
               )}
+              {isNew && isSurgingOrSettled && (
+                <span className="menti-lb-new-badge" aria-label="New on the leaderboard">
+                  NEW
+                </span>
+              )}
               {hasClimbed && isSurgingOrSettled && (
                 <span className="menti-lb-climb-badge" aria-label={`Climbed ${rankDelta} spots`}>
                   ▲ +{rankDelta}
+                </span>
+              )}
+              {hasDropped && isSurgingOrSettled && (
+                <span className="menti-lb-drop-badge" aria-label={`Dropped ${-rankDelta} spots`}>
+                  ▼ {rankDelta}
                 </span>
               )}
               {delta > 0 && isSurgingOrSettled && (
@@ -480,6 +497,10 @@ export default function Leaderboard({
     }
     return map;
   }, [prevEntries]);
+
+  // Whether there is a previous board at all. Without this guard the very first
+  // leaderboard of a session would badge every single participant as NEW.
+  const hasPrevBoard = (prevEntries?.length ?? 0) > 0;
 
   // Initial rank (0-indexed) before this round
   const initialRankMap = useMemo(() => {
@@ -624,6 +645,7 @@ export default function Leaderboard({
             maxScore={maxScore}
             isMe={entry.participantId === myParticipantId}
             prevScore={prevScoreMap.get(entry.participantId) ?? 0}
+            isNew={hasPrevBoard && !prevScoreMap.has(entry.participantId)}
             slotHeight={slotHeight}
             isProjector={isProjector}
             rowRef={idx === 0 ? firstRowRef : undefined}

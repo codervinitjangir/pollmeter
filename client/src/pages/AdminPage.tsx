@@ -7,6 +7,7 @@ import {
   fetchAdminFaculty,
   addAdminFaculty,
   removeAdminFaculty,
+  setFacultyApproval,
   searchStudentAudit,
   AuthUser,
   FacultyMember,
@@ -15,8 +16,9 @@ import {
   fetchBatches,
   fetchAdminAuditLogs,
   AuditLogItem,
-  isAdminEmail,
+  isFacultyEmail,
   refreshAuthUser,
+  FACULTY_DOMAIN,
 } from '../auth';
 import CollegeAuthModal from '../components/CollegeAuthModal';
 import { getActiveTheme, toggleTheme, Theme } from '../theme';
@@ -89,14 +91,13 @@ export default function AdminPage() {
   const [modalSaving, setModalSaving] = useState(false);
   const [modalError, setModalError] = useState('');
   const [rechecking, setRechecking] = useState(false);
+  /** Email currently mid-approval, so only that row's button shows a spinner. */
+  const [approvingEmail, setApprovingEmail] = useState('');
 
-  // Synchronize and auto-resolve admin privileges on mount
+  // Ask the server what this account may actually do. The client used to
+  // promote known-looking emails to admin on its own; now the only source is
+  // `/api/auth/me`, which re-issues the token when the role has changed.
   useEffect(() => {
-    const current = getAuthUser();
-    if (current && isAdminEmail(current.email) && current.role !== 'admin') {
-      current.role = 'admin';
-      setAuthUser({ ...current });
-    }
     refreshAuthUser().then((synced) => {
       if (synced) {
         setAuthUser({ ...synced });
@@ -199,6 +200,16 @@ export default function AdminPage() {
     );
   }, [facultyList, facultySearch]);
 
+  /**
+   * Campus accounts that have signed in but hold no faculty rights yet. The
+   * roster returns them mixed in with approved staff, so without a count here
+   * an administrator would have to scroll the table to notice anyone waiting.
+   */
+  const pendingCount = useMemo(
+    () => facultyList.filter((f) => f.approved === false).length,
+    [facultyList]
+  );
+
   // Open modal for adding
   const handleOpenAdd = () => {
     setEditingFaculty(null);
@@ -219,7 +230,10 @@ export default function AdminPage() {
     setFormEmail(f.email);
     setFormDept(f.department || POPULAR_DEPARTMENTS[0]);
     setFormSubject(f.subject || POPULAR_SUBJECTS[0]);
-    setFormRole(f.role);
+    // A pending account still carries role 'student' — the edit form only
+    // offers faculty roles, so default it to mentor rather than widening the
+    // dropdown with a role this screen cannot assign.
+    setFormRole(f.role === 'admin' ? 'admin' : 'mentor');
     setFormBatches(f.batches && f.batches.length > 0 ? f.batches : []);
     setModalError('');
     setIsFacultyModalOpen(true);
@@ -238,8 +252,8 @@ export default function AdminPage() {
       return;
     }
 
-    if (!cleanEmail.endsWith('@polariscampus.com')) {
-      setModalError('Faculty email must belong to official @polariscampus.com domain.');
+    if (!isFacultyEmail(cleanEmail)) {
+      setModalError(`Faculty email must belong to official @${FACULTY_DOMAIN} domain.`);
       return;
     }
 
@@ -277,6 +291,31 @@ export default function AdminPage() {
       await loadAllData();
     } catch (err: any) {
       alert(err.message || 'Failed to revoke faculty member.');
+    }
+  };
+
+  // Approve / revoke the faculty gate for an account that has already signed in
+  const handleSetApproval = async (fac: FacultyMember, approve: boolean) => {
+    if (!approve) {
+      const confirmed = window.confirm(
+        `Withdraw faculty approval for ${fac.realName} (${fac.email})? They will drop back to student access and lose the ability to host quizzes.`
+      );
+      if (!confirmed) return;
+    }
+
+    setApprovingEmail(fac.email);
+    try {
+      await setFacultyApproval(fac.email, approve);
+      showToast(
+        approve
+          ? `Approved ${fac.realName} as faculty mentor`
+          : `Withdrew faculty approval for ${fac.realName}`
+      );
+      await loadAllData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to update faculty approval.');
+    } finally {
+      setApprovingEmail('');
     }
   };
 
@@ -373,7 +412,11 @@ export default function AdminPage() {
 
   // ─── Guard: Signed in but not an Admin ─────────────────────────────────────
   if (authUser.role !== 'admin') {
-    const isKnownAdmin = isAdminEmail(authUser.email);
+    // A campus address is a prerequisite for admin rights, never a grant of
+    // them — the server decides, and it has just told us no. The most this
+    // screen can offer is a re-check, in case an administrator granted access
+    // after this token was minted.
+    const couldBeFaculty = isFacultyEmail(authUser.email);
 
     return (
       <div className="pm-admin-gateway-page">
@@ -451,13 +494,17 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Dynamic notice if known admin email or standard mentor */}
-            {isKnownAdmin ? (
+            {/* Dynamic notice: campus account awaiting approval vs. outsider */}
+            {couldBeFaculty ? (
               <div className="pm-gateway-alert-box pm-alert-sync">
                 <span className="pm-alert-icon">⚡</span>
                 <div className="pm-alert-content">
-                  <strong>Registered Administrator Identity Detected</strong>
-                  <p>Your institutional email matches the university administrator register. Click below to synchronize your active token.</p>
+                  <strong>Campus Account Verified — Administrator Rights Not Granted</strong>
+                  <p>
+                    {authUser.facultyPending
+                      ? 'Your faculty request is awaiting approval from a university administrator. Re-check below once they confirm it.'
+                      : 'Administrator rights are granted by an existing university administrator. If yours were granted just now, re-check below to pick them up.'}
+                  </p>
                 </div>
               </div>
             ) : (
@@ -468,19 +515,19 @@ export default function AdminPage() {
 
             {/* Action Buttons */}
             <div className="pm-gateway-actions">
-              {isKnownAdmin && (
+              {couldBeFaculty && (
                 <button
                   className="pm-btn-gateway-primary"
                   onClick={handleRecheckPrivileges}
                   disabled={rechecking}
                   style={{ width: '100%' }}
                 >
-                  <span>{rechecking ? '🔄 Synchronizing Privileges...' : '⚡ Establish Administrator Session'}</span>
+                  <span>{rechecking ? '🔄 Re-checking Privileges...' : '⚡ Re-check My Privileges'}</span>
                 </button>
               )}
               <div className="pm-gateway-actions-row">
                 <button
-                  className={isKnownAdmin ? "pm-btn-gateway-secondary" : "pm-btn-gateway-primary"}
+                  className={couldBeFaculty ? "pm-btn-gateway-secondary" : "pm-btn-gateway-primary"}
                   onClick={() => navigate('/dashboard')}
                 >
                   ⚡ Open Mentor Studio →
@@ -738,6 +785,21 @@ export default function AdminPage() {
               </span>
             </div>
 
+            {pendingCount > 0 && (
+              <div className="pm-pending-banner">
+                <span className="pm-pending-banner-icon">⏳</span>
+                <div>
+                  <strong>
+                    {pendingCount} campus {pendingCount === 1 ? 'account is' : 'accounts are'} awaiting faculty approval
+                  </strong>
+                  <span>
+                    A verified @{FACULTY_DOMAIN} address no longer grants mentor access on its own. Approve each
+                    account below before they can host quizzes.
+                  </span>
+                </div>
+              </div>
+            )}
+
             {loading ? (
               <div className="pm-history-loading">
                 <div className="pm-spinner" />
@@ -805,27 +867,52 @@ export default function AdminPage() {
                         <td>
                           <span
                             className={`pm-role-pill ${
-                              fac.role === 'admin' ? 'pm-role-admin' : 'pm-role-mentor'
+                              fac.role === 'admin'
+                                ? 'pm-role-admin'
+                                : fac.approved === false
+                                ? 'pm-role-pending'
+                                : 'pm-role-mentor'
                             }`}
                           >
-                            {fac.role === 'admin' ? '🏛️ Administrator' : '🎓 Faculty Mentor'}
+                            {fac.role === 'admin'
+                              ? '🏛️ Administrator'
+                              : fac.approved === false
+                              ? '⏳ Awaiting Approval'
+                              : '🎓 Faculty Mentor'}
                           </span>
                         </td>
                         <td>
-                          <span className="pm-status-verified">
-                            <span className="pm-status-dot" /> Verified Faculty
-                          </span>
+                          {fac.approved === false ? (
+                            <span className="pm-status-pending">
+                              <span className="pm-status-dot" /> Pending — cannot host quizzes
+                            </span>
+                          ) : (
+                            <span className="pm-status-verified">
+                              <span className="pm-status-dot" /> Verified Faculty
+                            </span>
+                          )}
                         </td>
                         <td style={{ textAlign: 'right' }}>
                           <div className="pm-actions-row">
-                            <button
-                              className="pm-btn-icon-action"
-                              onClick={() => handleOpenEdit(fac)}
-                              title="Edit specialization and department"
-                            >
-                              ✏️ Edit
-                            </button>
-                            {fac.role !== 'admin' && (
+                            {fac.approved === false ? (
+                              <button
+                                className="pm-btn-icon-action pm-action-approve"
+                                onClick={() => handleSetApproval(fac, true)}
+                                disabled={approvingEmail === fac.email}
+                                title="Grant faculty mentor privileges"
+                              >
+                                {approvingEmail === fac.email ? '⏳ Approving...' : '✓ Approve'}
+                              </button>
+                            ) : (
+                              <button
+                                className="pm-btn-icon-action"
+                                onClick={() => handleOpenEdit(fac)}
+                                title="Edit specialization and department"
+                              >
+                                ✏️ Edit
+                              </button>
+                            )}
+                            {fac.role !== 'admin' && fac.approved !== false && (
                               <button
                                 className="pm-btn-icon-action pm-action-danger"
                                 onClick={() => handleRemoveFaculty(fac.email, fac.realName)}

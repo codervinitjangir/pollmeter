@@ -45,6 +45,13 @@ import {
 /** Host-only broadcasts (participant names/ids) go to this room, never to students. */
 const hostRoom = (code: string) => `host:${code}`;
 
+/**
+ * Placeholder for a participant who joined without signing in. Uses a reserved
+ * `.invalid` TLD (RFC 2606) so a gradebook export can never be mistaken for —
+ * or mailed to — a real campus address.
+ */
+const ANONYMOUS_EMAIL = 'anonymous@guest.invalid';
+
 const ALLOWED_REACTIONS = ['👍', '❤️', '👏', '🔥', '💡', '🎉', '🤯', '😂'];
 const REACTION_WINDOW_MS = 3000;
 const REACTION_LIMIT = 5;
@@ -303,7 +310,7 @@ async function persistEndedSession(session: Session, leaderboard: LeaderboardEnt
         sessionId: session.code,
         userId: rec?.userId,
         realName: rec?.realName || entry.realName || entry.name,
-        email: rec?.email || entry.email || 'anonymous@medhaviskillsuniversity.edu.in',
+        email: rec?.email || entry.email || ANONYMOUS_EMAIL,
         screenName: entry.name,
         batch: session.batch || 'General',
         finalScore: entry.totalScore,
@@ -325,14 +332,18 @@ async function persistEndedSession(session: Session, leaderboard: LeaderboardEnt
           sessionId: session.code,
           questionIndex: qIdx,
           userId: rec?.userId,
-          email: rec?.email || 'anonymous@medhaviskillsuniversity.edu.in',
+          email: rec?.email || ANONYMOUS_EMAIL,
           realName: rec?.realName || rec?.name || 'Student',
           screenName: rec?.name || 'Student',
           selectedOption: r.value,
           isCorrect: r.isCorrect,
           score: r.score,
-          timeTakenMs: r.answeredAt,
-          createdAt: new Date().toISOString(),
+          timeTakenMs: r.timeTakenMs,
+          // When the student actually answered, not when the host ended the
+          // session. Stamping `Date.now()` here gave every row in an exported
+          // gradebook the identical timestamp, which makes the column useless
+          // for spotting who answered in the first second and who waited.
+          createdAt: new Date(r.answeredAt).toISOString(),
         });
       }
     }
@@ -343,7 +354,7 @@ async function persistEndedSession(session: Session, leaderboard: LeaderboardEnt
       topic: session.topic || (session.questions[0]?.text ? `Quiz: ${session.questions[0].text.slice(0, 40)}...` : 'Classroom Quiz'),
       subject: session.subject || 'General',
       batch: session.batch || 'General',
-      hostEmail: session.hostEmail || 'mentor@medhaviskillsuniversity.edu.in',
+      hostEmail: session.hostEmail,
       hostName: session.hostName,
       questionCount: session.questions.length,
       participantCount: session.participants.size,

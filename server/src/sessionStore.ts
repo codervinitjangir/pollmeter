@@ -43,7 +43,14 @@ function generateCode(): string {
 
 export function createSession(
   questions: Question[],
-  meta?: { topic?: string; subject?: string; batch?: string; hostEmail?: string; hostName?: string }
+  meta: {
+    topic?: string;
+    subject?: string;
+    batch?: string;
+    /** Always the authenticated mentor — the API derives it from the JWT. */
+    hostEmail: string;
+    hostName: string;
+  }
 ): Session {
   const now = Date.now();
   const session: Session = {
@@ -52,8 +59,8 @@ export function createSession(
     topic: meta?.topic,
     subject: meta?.subject,
     batch: meta?.batch,
-    hostEmail: meta?.hostEmail,
-    hostName: meta?.hostName,
+    hostEmail: meta.hostEmail,
+    hostName: meta.hostName,
     questions,
     currentIndex: -1,
     maxAskedIndex: -1,
@@ -332,11 +339,18 @@ export function addResponse(
     ? computeScore(question, isCorrect, answeredAt, session.unlocksAt ?? session.timerStartedAt)
     : 0;
 
+  // Measured from when the question appeared, not from when answering
+  // unlocked — the read-time delay is part of what the class experienced.
+  const timeTakenMs = session.timerStartedAt
+    ? Math.max(0, answeredAt - session.timerStartedAt)
+    : 0;
+
   const response: Response = {
     questionId,
     participantId,
     value,
     answeredAt,
+    timeTakenMs,
     isCorrect,
     graded,
     score,
