@@ -6,6 +6,9 @@
  * - Otherwise (local development or Render fullstack), use relative path ('' or window.location.origin).
  */
 export function getApiBaseUrl(): string {
+  if (import.meta.env.DEV && !import.meta.env.VITE_FORCE_REMOTE) {
+    return '';
+  }
   if (import.meta.env.VITE_SERVER_URL) {
     return import.meta.env.VITE_SERVER_URL.replace(/\/+$/, '');
   }
