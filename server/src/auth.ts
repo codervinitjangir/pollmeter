@@ -2,24 +2,39 @@ import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import { User, getUserByEmail, upsertUser, setUserApproval } from './db';
 import { v4 as uuidv4 } from 'uuid';
+import { randomBytes } from 'crypto';
 
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 /**
  * A secret that must never fall back to a value committed to the repository.
- * In production an unset variable is a deployment fault, so fail at import
- * time — a server running on a public default secret is worse than one that
- * refuses to boot, because every token it issues can be forged.
+ *
+ * An unset variable in production is a deployment fault, but refusing to boot
+ * is the wrong way to report it: the service is usually already live, and the
+ * people who find out are a lecture hall full of students staring at a dead
+ * page. So production generates a random secret instead and complains loudly.
+ * The service stays up and no token can be forged from the repo — the only
+ * cost is that a restart invalidates existing logins, which is precisely the
+ * annoyance that gets `JWT_SECRET` set properly.
+ *
+ * Development still gets a stable fallback so `npm run dev` needs no setup.
  */
 function requiredSecret(name: string, devFallback: string): string {
   const value = process.env[name]?.trim();
   if (value) return value;
+
   if (IS_PRODUCTION) {
-    throw new Error(
-      `[config] ${name} is not set. Refusing to start in production with a default secret — ` +
-        `set ${name} in the environment.`
+    console.error(
+      `\n[config] ******************************************************************\n` +
+        `[config] ${name} is NOT SET in production.\n` +
+        `[config] Using a random secret generated at startup. The server will run,\n` +
+        `[config] but every restart will sign users out. Set ${name} in the\n` +
+        `[config] environment to fix this permanently.\n` +
+        `[config] ******************************************************************\n`
     );
+    return randomBytes(48).toString('hex');
   }
+
   console.warn(
     `[config] ${name} is not set — falling back to an insecure development value. Do not deploy this.`
   );

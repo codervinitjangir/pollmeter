@@ -102,6 +102,29 @@ const LOCAL_DB_FILE = path.join(DATA_DIR, 'pollmeter_db.json');
 /** Key recorded in `schema_meta` once the faculty backfill has run. */
 const MIGRATION_APPROVE_EXISTING = 'approve_existing_faculty_v1';
 
+/**
+ * Read from the environment rather than imported from `./auth`, which imports
+ * this module — the cycle would leave the constant undefined at load time.
+ */
+const FACULTY_DOMAIN_FOR_MIGRATION = (process.env.FACULTY_DOMAIN || 'polariscampus.com')
+  .toLowerCase()
+  .trim();
+
+/**
+ * Whether an account held faculty rights *before* the approval gate existed.
+ *
+ * The `role` column is not the whole answer. Under the previous code any
+ * address on the campus domain was resolved to `mentor` on the fly, so a row
+ * still stored as `student` was hosting quizzes in practice. Backfilling on
+ * `role` alone would therefore revoke rights people were actively using, and
+ * they could not get them back: promotion by PIN is disabled when `MENTOR_PIN`
+ * is unset, and approving them needs an admin who may not exist yet.
+ */
+function heldFacultyRightsBeforeGate(role?: string, email?: string): boolean {
+  if (role === 'mentor' || role === 'admin') return true;
+  return (email ?? '').toLowerCase().endsWith(`@${FACULTY_DOMAIN_FOR_MIGRATION}`);
+}
+
 let localDb: LocalSchema = {
   users: {},
   sessions: {},
@@ -134,9 +157,9 @@ function loadLocalDb() {
  */
 function backfillApprovals(): void {
   let changed = 0;
-  for (const user of Object.values(localDb.users ?? {})) {
+  for (const [email, user] of Object.entries(localDb.users ?? {})) {
     if (user.approved === undefined) {
-      user.approved = user.role === 'mentor' || user.role === 'admin';
+      user.approved = heldFacultyRightsBeforeGate(user.role, user.email ?? email);
       changed++;
     }
   }
@@ -263,7 +286,10 @@ export async function initDb(): Promise<void> {
         ]);
         if (applied.rowCount === 0) {
           const backfilled = await client.query(
-            `UPDATE users SET approved = true WHERE role IN ('mentor', 'admin')`
+            `UPDATE users SET approved = true
+              WHERE role IN ('mentor', 'admin')
+                 OR LOWER(email) LIKE $1`,
+            [`%@${FACULTY_DOMAIN_FOR_MIGRATION}`]
           );
           await client.query(`INSERT INTO schema_meta (key) VALUES ($1)`, [MIGRATION_APPROVE_EXISTING]);
           console.log(
