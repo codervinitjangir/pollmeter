@@ -508,13 +508,38 @@ export default function HostPage() {
       });
       const d = await res.json();
       if (!res.ok) {
-        // A stored token can still claim `mentor` after an administrator has
-        // revoked or not yet granted approval. Re-sync so the rest of the UI
-        // stops offering faculty controls, and let the server's own wording
-        // explain what to do about it.
         if (res.status === 403 || res.status === 401) {
           const synced = await refreshAuthUser();
-          if (synced) setAuthUser(synced);
+          if (synced && (synced.role === 'mentor' || synced.role === 'admin' || isFacultyEmail(synced.email))) {
+            setAuthUser(synced);
+            const freshToken = getAuthToken();
+            if (freshToken) {
+              const retryRes = await fetch(apiUrl('/api/sessions'), {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${freshToken}`,
+                },
+                body: JSON.stringify({
+                  questions,
+                  topic,
+                  subject: quizSubject || 'General',
+                  batch: quizBatch || 'General',
+                }),
+              });
+              if (retryRes.ok) {
+                const retryData = await retryRes.json();
+                credentials.current = { code: retryData.code, hostId: retryData.hostId };
+                localStorage.setItem(HOST_LS_KEY, JSON.stringify(credentials.current));
+                setCode(retryData.code);
+                setQuestionCount(questions.length);
+                setPhase('lobby');
+                setInSession(true);
+                socket.emit('host_join', { code: retryData.code, hostId: retryData.hostId });
+                return;
+              }
+            }
+          }
         }
         throw new Error(d.error ?? 'Could not create the session.');
       }

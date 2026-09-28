@@ -437,15 +437,17 @@ app.get('/api/auth/me', requireAuth, async (req: AuthenticatedRequest, res: Resp
       facultyPending: isFacultyDomain(req.user.email) && !approved,
     };
 
+    const freshToken = generateToken({
+      id: user.id,
+      email: user.email,
+      realName: user.realName,
+      role,
+      picture: user.picture,
+    });
+
     res.json({
       user,
-      token: role === req.user.role ? undefined : generateToken({
-        id: user.id,
-        email: user.email,
-        realName: user.realName,
-        role,
-        picture: user.picture,
-      }),
+      token: freshToken,
     });
   } catch (err) {
     console.error('[auth] Failed to resolve current user:', err);
