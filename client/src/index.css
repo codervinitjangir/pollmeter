@@ -1860,51 +1860,52 @@ fieldset.field {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  background: #FFFFFF;
+  background: var(--surface, #FFFFFF);
   border: 1.5px solid var(--border);
   border-radius: 14px;
   padding: 0.4rem 0.75rem;
   transition: all var(--duration) var(--ease);
 }
 .opt:focus-within {
-  border-color: var(--menti-blue);
+  border-color: var(--menti-blue, #3B82F6);
   box-shadow: 0 0 0 3px rgba(31, 105, 255, 0.12);
 }
 .opt.is-correct {
-  border-color: var(--secondary);
-  background: var(--secondary-light);
+  border-color: var(--secondary, #10B981);
+  background: var(--secondary-light, #ECFDF5);
 }
 
 .opt-key {
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  background: #F3F4F6;
-  color: #191C21;
+  background: var(--surface-mid, #F3F4F6);
+  color: var(--text-primary, #191C21);
   font-weight: 700;
   font-size: 0.82rem;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  border: 1px solid var(--border);
 }
 
 .opt input[type="text"] {
   flex: 1;
   border: none;
-  background: transparent;
+  background: transparent !important;
   padding: 0.45rem 0.5rem;
   font-size: 0.95rem;
   font-weight: 500;
-  color: #191C21;
+  color: var(--text-primary, #191C21) !important;
   outline: none;
-  box-shadow: none;
+  box-shadow: none !important;
   border-radius: 0;
 }
 
 .opt-mark {
   border: 1px solid var(--border);
-  background: #FFFFFF;
+  background: var(--surface-mid, #FFFFFF);
   color: var(--text-muted);
   padding: 0.35rem 0.75rem;
   border-radius: var(--r-full);
@@ -1915,19 +1916,19 @@ fieldset.field {
   flex-shrink: 0;
 }
 .opt-mark:hover:not(:disabled) {
-  border-color: var(--secondary);
-  color: var(--secondary);
+  border-color: var(--secondary, #10B981);
+  color: var(--secondary, #10B981);
 }
 .opt-mark.is-correct {
-  background: var(--secondary);
-  border-color: var(--secondary);
+  background: var(--secondary, #10B981);
+  border-color: var(--secondary, #10B981);
   color: #FFFFFF;
 }
 
 .opt-remove {
   border: none;
   background: transparent;
-  color: #9CA3AF;
+  color: var(--text-muted, #9CA3AF);
   padding: 0.35rem 0.5rem;
   cursor: pointer;
   border-radius: 6px;
@@ -1936,7 +1937,7 @@ fieldset.field {
 }
 .opt-remove:hover {
   color: #EF4444;
-  background: #FEE2E2;
+  background: rgba(239, 68, 68, 0.12);
 }
 
 .qform-hint {
@@ -11663,4 +11664,121 @@ html[data-theme="dark"] body {
   .answers--projector .answers-total {
     font-size: 0.8125rem;
   }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* ─── Question Builder & Form Dark Theme (Obsidian Host Mode) ─────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+[data-theme="dark"] .seg {
+  background: #151518 !important;
+  border-color: #2A2A2F !important;
+}
+
+[data-theme="dark"] .seg-btn {
+  color: #9CA3AF !important;
+}
+
+[data-theme="dark"] .seg-btn.is-active {
+  background: #242429 !important;
+  color: #F59E0B !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .qform-time select {
+  background-color: #151518 !important;
+  border-color: #2A2A2F !important;
+  color: #F2F2F2 !important;
+}
+
+[data-theme="dark"] .opt {
+  background: #151518 !important;
+  border-color: #2A2A2F !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .opt:focus-within {
+  border-color: #F59E0B !important;
+  background: #19191D !important;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18) !important;
+}
+
+[data-theme="dark"] .opt.is-correct {
+  border-color: #10B981 !important;
+  background: rgba(16, 185, 129, 0.12) !important;
+}
+
+[data-theme="dark"] .opt-key {
+  background: #242429 !important;
+  color: #F2F2F2 !important;
+  border-color: #2A2A2F !important;
+}
+
+[data-theme="dark"] .opt.is-correct .opt-key {
+  background: #10B981 !important;
+  color: #FFFFFF !important;
+  border-color: #10B981 !important;
+}
+
+[data-theme="dark"] .opt input[type="text"] {
+  color: #F2F2F2 !important;
+  background: transparent !important;
+}
+
+[data-theme="dark"] .opt input[type="text"]::placeholder {
+  color: #64748B !important;
+}
+
+[data-theme="dark"] .opt-mark {
+  background: #202024 !important;
+  border-color: #2A2A2F !important;
+  color: #94A3B8 !important;
+}
+
+[data-theme="dark"] .opt-mark:hover:not(:disabled) {
+  border-color: #10B981 !important;
+  color: #10B981 !important;
+  background: #28282F !important;
+}
+
+[data-theme="dark"] .opt-mark.is-correct {
+  background: #10B981 !important;
+  border-color: #10B981 !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .opt-remove {
+  color: #64748B !important;
+  background: transparent !important;
+}
+
+[data-theme="dark"] .opt-remove:hover {
+  color: #EF4444 !important;
+  background: rgba(239, 68, 68, 0.15) !important;
+}
+
+[data-theme="dark"] .poll-chip-btn {
+  background: #151518 !important;
+  border-color: #2A2A2F !important;
+  color: #94A3B8 !important;
+}
+
+[data-theme="dark"] .poll-chip-btn:hover {
+  background: #1E1E24 !important;
+  border-color: #F59E0B !important;
+  color: #F59E0B !important;
+}
+
+[data-theme="dark"] .poll-chip-btn.is-active {
+  background: #F59E0B !important;
+  border-color: #F59E0B !important;
+  color: #09090B !important;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3) !important;
+}
+
+[data-theme="dark"] .qform-hint--poll {
+  background: rgba(109, 40, 217, 0.12) !important;
+  border-color: rgba(109, 40, 217, 0.3) !important;
+  color: #C4B5FD !important;
 }

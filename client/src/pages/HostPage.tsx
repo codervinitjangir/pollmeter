@@ -910,11 +910,11 @@ export default function HostPage() {
         <div>
           <a href="/dashboard" className="menti-sidebar-brand">
             <svg width="28" height="28" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M6 9H11V27H6V9Z" fill="#191C21" />
+              <path d="M6 9H11V27H6V9Z" fill="currentColor" />
               <rect x="14" y="14" width="5" height="13" rx="1" fill="#F43F5E" />
               <rect x="22" y="7" width="5" height="20" rx="1" fill="#3B82F6" />
             </svg>
-            <span style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.02em', color: '#191C21' }}>
+            <span style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
               PollMeter
             </span>
           </a>
