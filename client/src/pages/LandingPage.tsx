@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getActiveTheme, toggleTheme, Theme } from '../theme';
 import { getAuthUser, clearStoredAuth, AuthUser, refreshAuthUser, isFacultyEmail } from '../auth';
@@ -121,19 +121,21 @@ export default function LandingPage() {
       <header className="lp-header">
         <div className="lp-wrap lp-bar">
           <div className="lp-brand" onClick={() => navigate('/')} role="button" tabIndex={0}>
-            <div style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '10px',
-              background: '#16161D',
-              border: '1.5px solid #F59E0B',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 0 14px rgba(245, 158, 11, 0.35)',
-              color: '#F59E0B',
-              fontSize: '1.25rem'
-            }}>
+            <div
+              style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '10px',
+                background: '#16161D',
+                border: '1.5px solid #F59E0B',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 0 14px rgba(245, 158, 11, 0.35)',
+                color: '#F59E0B',
+                fontSize: '1.25rem',
+              }}
+            >
               ⚡
             </div>
             <div>
@@ -148,6 +150,7 @@ export default function LandingPage() {
               onClick={() => setCurrentTheme(toggleTheme())}
               id="portal-theme-toggle-btn"
               type="button"
+              title="Toggle Light / Dark theme"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" style={{ width: '1em', height: '1em' }}>
                 <circle cx="12" cy="12" r="4" />
@@ -159,18 +162,47 @@ export default function LandingPage() {
             {authUser ? (
               <>
                 {isFacultyUser && (
-                  <button className="lp-lnk lp-hide-s" onClick={() => navigate('/dashboard')} type="button">Host Studio</button>
+                  <button className="lp-lnk lp-hide-s" onClick={() => navigate('/dashboard')} type="button">
+                    👨‍🏫 Host Studio
+                  </button>
                 )}
                 {authUser.role === 'admin' && (
-                  <button className="lp-lnk lp-hide-s" onClick={() => navigate('/admin')} type="button">Admin Console</button>
+                  <button className="lp-lnk lp-hide-s" onClick={() => navigate('/admin')} type="button">
+                    🏛️ Admin Console
+                  </button>
                 )}
                 {!isFacultyUser && authUser.role !== 'admin' && (
-                  <button className="lp-lnk lp-hide-s" onClick={() => navigate('/student')} type="button">Student Portal</button>
+                  <button className="lp-lnk lp-hide-s" onClick={() => navigate('/student')} type="button">
+                    🎓 Student Portal
+                  </button>
                 )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px' }}>
+                  <div
+                    style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '8px',
+                      background: '#16161D',
+                      border: '1px solid #F59E0B',
+                      color: '#F59E0B',
+                      fontSize: '0.8rem',
+                      fontWeight: 800,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {authUser.realName.slice(0, 2).toUpperCase()}
+                  </div>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--fg)' }}>
+                    {authUser.realName.split(' ')[0]}
+                  </span>
+                </div>
                 <button
                   className="lp-btn"
                   onClick={() => { clearStoredAuth(); setAuthUser(null); }}
                   type="button"
+                  style={{ height: '38px', padding: '0 16px', fontSize: '0.85rem' }}
                 >
                   Sign Out
                 </button>
@@ -178,8 +210,16 @@ export default function LandingPage() {
             ) : (
               <>
                 <a className="lp-lnk lp-hide-s" href="#how">How it works</a>
+                <a className="lp-lnk lp-hide-s" href="#scoring">Scoring</a>
                 <a className="lp-lnk lp-hide-s" href="#faq">FAQ</a>
-                <button className="lp-lnk lp-hide-s" type="button" onClick={() => openSignIn('student')}>Student Login</button>
+                <button
+                  className="lp-lnk lp-hide-s"
+                  type="button"
+                  onClick={() => openSignIn('student')}
+                  style={{ color: '#10B981' }}
+                >
+                  🎓 Student Login
+                </button>
                 <button className="lp-btn" type="button" onClick={() => openSignIn('mentor')}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1em', height: '1em' }}>
                     <rect x="5" y="11" width="14" height="10" rx="2" />
@@ -228,7 +268,9 @@ export default function LandingPage() {
                     </button>
                   )}
                   {authUser.role === 'admin' && (
-                    <button className="lp-btn lp-btn-ghost" onClick={() => navigate('/admin')} id="welcome-admin-btn" type="button">🏛️ Admin Console</button>
+                    <button className="lp-btn lp-btn-ghost" onClick={() => navigate('/admin')} id="welcome-admin-btn" type="button">
+                      🏛️ Admin Console
+                    </button>
                   )}
                   {!isFacultyUser && authUser.role !== 'admin' && (
                     <button
@@ -244,7 +286,9 @@ export default function LandingPage() {
                       Open Student Dashboard →
                     </button>
                   )}
-                  <button className="lp-btn lp-btn-ghost" onClick={() => { clearStoredAuth(); setAuthUser(null); }} type="button" style={{ color: 'var(--err, #e5675a)' }}>Sign Out</button>
+                  <button className="lp-btn lp-btn-ghost" onClick={() => { clearStoredAuth(); setAuthUser(null); }} type="button" style={{ color: 'var(--err, #e5675a)' }}>
+                    Sign Out
+                  </button>
                 </div>
               </div>
 
@@ -253,21 +297,32 @@ export default function LandingPage() {
                   <div className="lp-quick-card">
                     <div className="lp-quick-head">
                       <span style={{ color: 'var(--blue)' }}>⚡</span>
-                      <strong>Active Classroom Host</strong>
+                      <strong>Active Classroom Host Studio</strong>
                     </div>
-                    <p>Launch question banks, generate syllabus MCQs, or view cross-cohort gradebook exports.</p>
-                    <button className="lp-btn lp-btn-ghost" onClick={() => navigate('/dashboard')} type="button" style={{ width: '100%', fontSize: '0.82rem' }}>
+                    <p>Launch question banks, generate syllabus MCQs with AI, or download student attendance gradebooks.</p>
+                    <button className="lp-btn lp-btn-ghost" onClick={() => navigate('/dashboard')} type="button" style={{ width: '100%', fontSize: '0.85rem' }}>
                       Manage Quizzes &amp; Host Sessions →
                     </button>
                   </div>
-                ) : null}
+                ) : (
+                  <div className="lp-quick-card">
+                    <div className="lp-quick-head">
+                      <span style={{ color: '#F59E0B' }}>📊</span>
+                      <strong>Student Academic Dashboard</strong>
+                    </div>
+                    <p>View your completed quizzes, attendance records, accuracy breakdown, and top-3 podium finishes.</p>
+                    <button className="lp-btn" onClick={() => navigate('/student')} type="button" style={{ width: '100%', fontSize: '0.85rem' }}>
+                      Open My Student Dashboard →
+                    </button>
+                  </div>
+                )}
 
                 <div className="lp-quick-card">
                   <div className="lp-quick-head">
                     <span style={{ color: 'var(--grn)' }}>📱</span>
-                    <strong>Join a Live Quiz as Participant</strong>
+                    <strong>Join Live Classroom Session</strong>
                   </div>
-                  <p>Enter the 6-digit session PIN shown on the projector to race on the leaderboard.</p>
+                  <p>Enter the 6-digit session PIN shown on the classroom projector to race in real-time.</p>
                   <form onSubmit={handleFastJoin} className="lp-pin-row">
                     <input
                       type="text"
@@ -281,7 +336,9 @@ export default function LandingPage() {
                       aria-label="Enter 6-digit session pin"
                       id="welcome-code-input"
                     />
-                    <button type="submit" className="lp-btn" style={{ padding: '0 1.25rem' }}>Join →</button>
+                    <button type="submit" className="lp-btn" style={{ padding: '0 1.25rem' }}>
+                      Join →
+                    </button>
                   </form>
                 </div>
               </div>
@@ -296,9 +353,9 @@ export default function LandingPage() {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1.1rem', height: '1.1rem' }}>
                   <path d="M3 21h18M5 21V10M19 21V10M9 21V10M15 21V10M2.5 10L12 4l9.5 6z" />
                 </svg>
-                Teachers &amp; Administrators
+                Teachers &amp; Faculty
               </div>
-              <h1 id="lp-t1">Academic Faculty Portal</h1>
+              <h1 id="lp-t1">Academic Faculty Studio</h1>
               <p>Sign in with your official @polariscampus.com credentials to generate AI questions, host projector polls, and track student attendance analytics.</p>
               <ul className="lp-pts">
                 <li>
@@ -319,18 +376,42 @@ export default function LandingPage() {
                 </li>
               </ul>
               <div className="lp-go">
-                <button className="lp-btn lp-btn-lg" type="button" onClick={() => openSignIn('mentor')} id="portal-faculty-signin-btn">
+                <button className="lp-btn lp-btn-lg" type="button" onClick={() => openSignIn('mentor')} id="portal-faculty-signin-btn" style={{ width: '100%' }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1em', height: '1em' }}>
                     <rect x="5" y="11" width="14" height="10" rx="2" />
                     <path d="M8 11V8a4 4 0 018 0v3" />
                   </svg>
                   Sign In with Faculty SSO (@polariscampus.com) →
                 </button>
+
+                <div
+                  style={{
+                    marginTop: '1.25rem',
+                    padding: '0.85rem 1rem',
+                    background: 'rgba(59, 130, 246, 0.08)',
+                    border: '1px solid rgba(59, 130, 246, 0.25)',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '0.75rem',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ fontSize: '0.8rem', color: 'var(--mute)' }}>
+                    🏛️ University Administrator or Dean?
+                  </div>
+                  <button
+                    type="button"
+                    className="lp-lnk"
+                    style={{ fontSize: '0.78rem', color: '#60A5FA', padding: '0.2rem 0.6rem', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '6px' }}
+                    onClick={() => openSignIn('mentor')}
+                  >
+                    Admin Access →
+                  </button>
+                </div>
               </div>
             </section>
-
-            {/* Divider */}
-            <div className="lp-rule" aria-hidden="true"></div>
 
             {/* Student side */}
             <section className="lp-side lp-side-s" aria-labelledby="lp-t2">
@@ -339,10 +420,10 @@ export default function LandingPage() {
                   <rect x="6" y="2.5" width="12" height="19" rx="2.5" />
                   <path d="M11 18.5h2" />
                 </svg>
-                Students &amp; Audience
+                Students &amp; Participants
               </div>
-              <h1 id="lp-t2">Student Live Quiz Arena</h1>
-              <p>Enter the 6-digit session PIN displayed on your teacher&apos;s projector screen to join the live quiz. No app download needed.</p>
+              <h1 id="lp-t2">Student Live Arena &amp; Portal</h1>
+              <p>Enter the 6-digit session PIN displayed on your teacher&apos;s projector screen to join live, or open your personal student dashboard.</p>
               <ul className="lp-pts">
                 <li>
                   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.95rem', height: '0.95rem', color: 'var(--grn)', flexShrink: 0, transform: 'translateY(2px)' }}><path d="M4 10.5l4 4 8-9" /></svg>
@@ -350,84 +431,119 @@ export default function LandingPage() {
                 </li>
                 <li>
                   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.95rem', height: '0.95rem', color: 'var(--grn)', flexShrink: 0, transform: 'translateY(2px)' }}><path d="M4 10.5l4 4 8-9" /></svg>
-                  60FPS Racing Leaderboard &amp; Streak Bonuses
+                  60FPS Racing Leaderboard &amp; Speed Streak Bonuses
                 </li>
                 <li>
                   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.95rem', height: '0.95rem', color: 'var(--grn)', flexShrink: 0, transform: 'translateY(2px)' }}><path d="M4 10.5l4 4 8-9" /></svg>
-                  Zero app install · Works directly in your mobile browser
+                  Zero App Install · Runs instantly in mobile browser
                 </li>
                 <li>
                   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.95rem', height: '0.95rem', color: 'var(--grn)', flexShrink: 0, transform: 'translateY(2px)' }}><path d="M4 10.5l4 4 8-9" /></svg>
                   Medhavi Google SSO (@medhaviskillsuniversity.edu.in)
                 </li>
               </ul>
-              <form className="lp-pin lp-go" onSubmit={handlePinSubmit}>
-                <div className="lp-digits" role="group" aria-label="6-digit session PIN">
-                  {digits.map((d, i) => (
-                    <input
-                      key={i}
-                      ref={(el) => { digitRefs.current[i] = el; }}
-                      inputMode="numeric"
-                      maxLength={1}
-                      placeholder={String(i + 1)}
-                      aria-label={`Digit ${i + 1}`}
-                      value={d}
-                      onChange={(e) => handleDigitInput(i, e.target.value)}
-                      onKeyDown={(e) => handleDigitKey(i, e)}
-                      onPaste={handleDigitPaste}
-                      id={`portal-pin-digit-${i}`}
-                      className="lp-digit-input"
-                    />
-                  ))}
-                </div>
-                <button className="lp-btn lp-btn-lg" type="submit" id="portal-student-join-btn">
-                  Enter Quiz →
-                </button>
-              </form>
-              <div style={{ textAlign: 'center', marginTop: '0.85rem' }}>
-                <button
-                  type="button"
-                  className="lp-lnk"
-                  style={{ fontSize: '0.8rem', color: 'var(--mute)', background: 'none', border: 'none', cursor: 'pointer' }}
-                  onClick={() => openSignIn('student')}
+
+              <div className="lp-go">
+                {/* PIN digits entry */}
+                <form className="lp-pin" onSubmit={handlePinSubmit} style={{ width: '100%' }}>
+                  <div style={{ width: '100%', marginBottom: '0.5rem' }}>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#F59E0B' }}>
+                      Enter 6-Digit Session PIN
+                    </label>
+                  </div>
+                  <div className="lp-digits" role="group" aria-label="6-digit session PIN" style={{ width: '100%', justifyContent: 'space-between' }}>
+                    {digits.map((d, i) => (
+                      <input
+                        key={i}
+                        ref={(el) => { digitRefs.current[i] = el; }}
+                        inputMode="numeric"
+                        maxLength={1}
+                        placeholder={String(i + 1)}
+                        aria-label={`Digit ${i + 1}`}
+                        value={d}
+                        onChange={(e) => handleDigitInput(i, e.target.value)}
+                        onKeyDown={(e) => handleDigitKey(i, e)}
+                        onPaste={handleDigitPaste}
+                        id={`portal-pin-digit-${i}`}
+                        className="lp-digit-input"
+                        style={{ flex: 1, maxWidth: '52px' }}
+                      />
+                    ))}
+                  </div>
+                  <button className="lp-btn lp-btn-lg" type="submit" id="portal-student-join-btn" style={{ width: '100%', marginTop: '0.85rem' }}>
+                    <span>Enter Live Arena</span>
+                    <span style={{ fontSize: '1.2rem' }}>⚡</span>
+                  </button>
+                </form>
+
+                {/* Student Dashboard Portal Access */}
+                <div
+                  style={{
+                    marginTop: '1.25rem',
+                    padding: '0.85rem 1rem',
+                    background: 'rgba(245, 158, 11, 0.08)',
+                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '0.75rem',
+                    flexWrap: 'wrap',
+                  }}
                 >
-                  Or sign in with @medhaviskillsuniversity.edu.in student account →
-                </button>
+                  <div>
+                    <strong style={{ fontSize: '0.82rem', color: 'var(--fg)', display: 'block' }}>Student Academic Dashboard</strong>
+                    <small style={{ fontSize: '0.72rem', color: 'var(--mute)' }}>View past scores, attendance, and rank records</small>
+                  </div>
+                  <button
+                    type="button"
+                    className="lp-lnk"
+                    style={{ fontSize: '0.78rem', color: '#F59E0B', padding: '0.2rem 0.6rem', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: '6px' }}
+                    onClick={() => openSignIn('student')}
+                  >
+                    Student Portal →
+                  </button>
+                </div>
               </div>
             </section>
           </div>
         )}
       </main>
 
-      {/* ─── Facts Bar ────────────────────────────────────────────── */}
+      {/* ─── Facts Telemetry Bar ──────────────────────────────────── */}
       <div className="lp-facts">
-        <div className="lp-wrap lp-facts-inner">
-          <span><i className="lp-live"></i>140+ Students Active</span>
-          <span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1em', height: '1em' }}>
+        <div className="lp-wrap lp-facts-inner" style={{ justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <div className="lp-facts-chip">
+            <i className="lp-live"></i>
+            <span>140+ Students Active Live</span>
+          </div>
+
+          <div className="lp-facts-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1em', height: '1em', color: '#3B82F6' }}>
               <path d="M3 21h18M5 21V10M19 21V10M9 21V10M15 21V10M2.5 10L12 4l9.5 6z" />
             </svg>
-            4 Academic Schools
-          </span>
-          <span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1em', height: '1em', color: 'var(--amb)' }}>
+            <span>4 Academic Schools &amp; Batches</span>
+          </div>
+
+          <div className="lp-facts-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1em', height: '1em', color: '#F59E0B' }}>
               <path d="M13 3L5 14h6l-1 7 8-11h-6z" />
             </svg>
-            60FPS Racing Engine
-          </span>
-          <span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1em', height: '1em' }}>
+            <span>60FPS Real-Time Racing Engine</span>
+          </div>
+
+          <div className="lp-facts-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1em', height: '1em', color: '#10B981' }}>
               <rect x="5" y="11" width="14" height="10" rx="2" />
               <path d="M8 11V8a4 4 0 018 0v3" />
             </svg>
-            Medhavi EduCloud Security Verified
-          </span>
+            <span>Medhavi University Identity Verified</span>
+          </div>
         </div>
       </div>
 
       {/* ─── Below-the-fold ───────────────────────────────────────── */}
       <div className="lp-below">
-
         {/* Scroll cue */}
         <div className="lp-cue">
           <a href="#how">
@@ -448,35 +564,45 @@ export default function LandingPage() {
               </div>
               <p className="lp-lede">A live quiz needs no app and no setup for students. Faculty prepare and host; students just enter a PIN.</p>
             </div>
-            <ol className="lp-steps">
+
+            <ol className="lp-steps" style={{ gap: '1.25rem' }}>
               <li>
-                <div className="lp-step-n lp-step-n--first">1</div>
-                <h3>Faculty sign in</h3>
-                <p>Use your official @polariscampus.com account with Google SSO or an Email OTP Code.</p>
+                <div className="lp-step-card">
+                  <div className="lp-step-n lp-step-n--first">1</div>
+                  <h3>Faculty Sign In</h3>
+                  <p>Use your verified @polariscampus.com institutional account with Google SSO or Email OTP.</p>
+                </div>
               </li>
               <li>
-                <div className="lp-step-n">2</div>
-                <h3>Build the quiz</h3>
-                <p>Generate AI questions from syllabus topics, then host the poll on the classroom projector.</p>
+                <div className="lp-step-card">
+                  <div className="lp-step-n">2</div>
+                  <h3>Build with AI</h3>
+                  <p>Generate syllabus MCQs with AI, organize question banks, and launch the 16:9 big-screen projector.</p>
+                </div>
               </li>
               <li>
-                <div className="lp-step-n">3</div>
-                <h3>Students join</h3>
-                <p>Students enter the 6-digit PIN from the projector screen in their mobile browser. No install needed.</p>
+                <div className="lp-step-card">
+                  <div className="lp-step-n">3</div>
+                  <h3>Students Join</h3>
+                  <p>Students enter the 6-digit PIN on their phones. Real-time WebSockets connect them instantly without install.</p>
+                </div>
               </li>
               <li>
-                <div className="lp-step-n">4</div>
-                <h3>Track the results</h3>
-                <p>Watch the racing leaderboard live, then review attendance analytics and the gradebook.</p>
+                <div className="lp-step-card">
+                  <div className="lp-step-n">4</div>
+                  <h3>Track Analytics</h3>
+                  <p>Watch the 60FPS racing leaderboard live, and export attendance records and gradebooks in one click.</p>
+                </div>
               </li>
             </ol>
+
             <div className="lp-phases" aria-label="Live session phases">
-              <b>Every live session</b>
-              <span>lobby</span><i>→</i>
-              <span>question</span><i>→</i>
-              <span>results</span><i>→</i>
-              <span>leaderboard</span><i>→</i>
-              <span>ended</span>
+              <b>Classroom Session Lifecycle</b>
+              <span>Lobby</span><i>→</i>
+              <span>Question Answering</span><i>→</i>
+              <span>Live Results</span><i>→</i>
+              <span>Leaderboard</span><i>→</i>
+              <span>Final Podium</span>
             </div>
           </div>
         </section>
@@ -485,28 +611,55 @@ export default function LandingPage() {
         <section className="lp-sec" id="scoring">
           <div className="lp-wrap lp-score">
             <div>
-              <div className="lp-eyebrow" style={{ color: 'var(--grn)' }}>For students</div>
+              <div className="lp-eyebrow" style={{ color: '#10B981' }}>Scoring &amp; Rules</div>
               <h2 className="lp-h2">Fast and correct wins the race</h2>
-              <p className="lp-lede">Answers lock the moment you tap, so there is no submit button to hunt for. A correct answer earns base points, and answering quickly adds a bonus.</p>
+              <p className="lp-lede">Answers lock the moment you tap, so there is no submit button to hunt for. A correct answer earns base points, and answering quickly adds an exponential speed bonus.</p>
               <div className="lp-race" aria-hidden="true">
                 <div>
-                  <p>quick answer</p>
-                  <div className="lp-track"><i style={{ '--w': '92%', '--c': 'var(--grn)' } as React.CSSProperties}></i></div>
+                  <p>Quick Answer (under 3s)</p>
+                  <div className="lp-track"><i style={{ '--w': '92%', '--c': '#10B981' } as React.CSSProperties}></i></div>
                 </div>
                 <div>
-                  <p>slower answer</p>
-                  <div className="lp-track"><i style={{ '--w': '58%', '--c': 'var(--blue)' } as React.CSSProperties}></i></div>
+                  <p>Moderate Speed (5s–10s)</p>
+                  <div className="lp-track"><i style={{ '--w': '58%', '--c': '#F59E0B' } as React.CSSProperties}></i></div>
                 </div>
                 <div>
-                  <p>incorrect</p>
-                  <div className="lp-track"><i style={{ '--w': '8%', '--c': 'var(--dim)' } as React.CSSProperties}></i></div>
+                  <p>Incorrect Answer</p>
+                  <div className="lp-track"><i style={{ '--w': '8%', '--c': '#EF4444' } as React.CSSProperties}></i></div>
                 </div>
               </div>
             </div>
-            <div className="lp-nums">
-              <div><b style={{ color: 'var(--blue)' }}>1,000</b><span>Base points for a correct answer</span></div>
-              <div><b style={{ color: 'var(--grn)' }}>+500</b><span>Maximum bonus for response speed</span></div>
-              <div><b style={{ color: 'var(--dim)' }}>0</b><span>Points for an incorrect choice</span></div>
+
+            <div className="lp-nums" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div className="lp-score-card">
+                <div>
+                  <b style={{ color: '#F59E0B', fontSize: '2.5rem', display: 'block' }}>1,000</b>
+                  <span style={{ color: 'var(--fg)', fontWeight: 700 }}>Base Points</span>
+                </div>
+                <span style={{ color: 'var(--mute)', fontSize: '0.85rem', textAlign: 'right' }}>
+                  Awarded for any correct option
+                </span>
+              </div>
+
+              <div className="lp-score-card">
+                <div>
+                  <b style={{ color: '#10B981', fontSize: '2.5rem', display: 'block' }}>+500</b>
+                  <span style={{ color: 'var(--fg)', fontWeight: 700 }}>Speed Bonus</span>
+                </div>
+                <span style={{ color: 'var(--mute)', fontSize: '0.85rem', textAlign: 'right' }}>
+                  Decays smoothly with response timer
+                </span>
+              </div>
+
+              <div className="lp-score-card">
+                <div>
+                  <b style={{ color: 'var(--dim)', fontSize: '2.5rem', display: 'block' }}>0</b>
+                  <span style={{ color: 'var(--fg)', fontWeight: 700 }}>Incorrect Choice</span>
+                </div>
+                <span style={{ color: 'var(--mute)', fontSize: '0.85rem', textAlign: 'right' }}>
+                  Zero points, no negative penalty
+                </span>
+              </div>
             </div>
           </div>
         </section>
@@ -515,18 +668,18 @@ export default function LandingPage() {
         <section className="lp-sec" id="faq">
           <div className="lp-wrap lp-faq">
             <div>
-              <div className="lp-eyebrow">FAQ</div>
-              <h2 className="lp-h2">Quick answers</h2>
-              <p className="lp-lede">Can&apos;t find what you need? Ask your faculty mentor or contact support below.</p>
+              <div className="lp-eyebrow">Frequently Asked Questions</div>
+              <h2 className="lp-h2">Quick answers to common questions</h2>
+              <p className="lp-lede">Have a question about classroom sessions, security, or identity verification? Find answers here.</p>
             </div>
             <div>
               {[
-                { q: 'Do I need to install an app to join?', a: 'No. The quiz runs directly in your mobile browser. Open the page, enter the PIN and you are in.' },
-                { q: 'Where do I find the 6-digit PIN?', a: 'Your teacher displays it on the classroom projector screen when the session is open.' },
-                { q: 'Who can sign in to the Faculty Portal?', a: 'Faculty and administrators with an official @polariscampus.com account, using Google SSO or an Email OTP Code.' },
-                { q: 'What is the difference between Google SSO and Email OTP?', a: 'Google SSO signs you in with one click using your institutional Google account. Email OTP sends a one-time code to your institutional email instead.' },
-                { q: 'Can other faculty see my quizzes and gradebooks?', a: 'Mentors can only access their own quizzes, assigned batches and gradebooks. Cross-mentor access is blocked on the server.' },
-                { q: 'Are results kept after the session ends?', a: 'Yes. Results are permanently stored in the cloud database so faculty can review analytics and export the gradebook, and students can follow their score history.' },
+                { q: 'Do students need to install an app to participate?', a: 'No. The entire quiz engine runs directly in any modern mobile browser. Students just open the URL, type the 6-digit PIN, and enter the live race instantly.' },
+                { q: 'Where do students find the 6-digit session PIN?', a: 'The faculty mentor displays the unique session PIN on the classroom projector screen when the session lobby opens.' },
+                { q: 'How does the Student Dashboard work?', a: 'When students sign in with their @medhaviskillsuniversity.edu.in Google SSO, their past quiz scores, accuracy percentage, top ranks, and attendance records are permanently recorded on their dashboard.' },
+                { q: 'Who has access to the Faculty Studio & Admin Console?', a: 'Access is strictly limited to verified faculty members with official @polariscampus.com accounts. University Deans and Super-Administrators have elevated access to the Central Admin Console.' },
+                { q: 'Are student results and grades permanently saved?', a: 'Yes. All scores, answer breakdowns, and attendance timestamps are recorded in the cloud database so faculty can export CSV gradebooks anytime.' },
+                { q: 'Can other teachers view or modify my quizzes?', a: 'No. Mentors only have access to their own quizzes, question banks, and assigned batches. Cross-mentor modification is restricted at the database level.' },
               ].map(({ q, a }) => (
                 <details key={q} className="lp-detail">
                   <summary>{q}</summary>
@@ -541,8 +694,8 @@ export default function LandingPage() {
         <section className="lp-sec">
           <div className="lp-wrap lp-help">
             <div>
-              <h2 className="lp-h2">Ready to start?</h2>
-              <p className="lp-lede">Faculty sign in with Faculty SSO (@polariscampus.com). Students, keep the PIN ready.</p>
+              <h2 className="lp-h2">Ready to launch your classroom?</h2>
+              <p className="lp-lede">Faculty sign in with Faculty SSO (@polariscampus.com). Students, keep your PIN ready.</p>
             </div>
             <div className="lp-help-acts">
               <button className="lp-btn lp-btn-lg" type="button" onClick={() => openSignIn('mentor')}>
@@ -552,7 +705,16 @@ export default function LandingPage() {
                 </svg>
                 Sign In with Faculty SSO
               </button>
-              <a className="lp-ghost" href="#top" onClick={() => setTimeout(() => digitRefs.current[0]?.focus(), 300)}>Enter a PIN</a>
+              <button
+                className="lp-ghost"
+                type="button"
+                onClick={() => {
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  setTimeout(() => digitRefs.current[0]?.focus(), 400);
+                }}
+              >
+                Enter a PIN
+              </button>
             </div>
           </div>
         </section>
@@ -560,8 +722,14 @@ export default function LandingPage() {
         {/* Footer */}
         <footer className="lp-footer">
           <div className="lp-wrap lp-footer-inner">
-            <span>Medhavi Skills University · Polaris Campus Quizzing &amp; Live Analytics</span>
-            <button className="lp-top-btn" type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>Back to top ↑</button>
+            <span>Medhavi Skills University · Polaris Campus Live Quizzing &amp; Analytics Platform</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <a href="/privacy" style={{ color: 'var(--mute)', fontSize: '0.8rem', textDecoration: 'none' }}>Privacy Policy</a>
+              <span style={{ color: 'var(--dim)' }}>•</span>
+              <a href="/terms" style={{ color: 'var(--mute)', fontSize: '0.8rem', textDecoration: 'none' }}>Terms of Service</a>
+              <span style={{ color: 'var(--dim)' }}>•</span>
+              <button className="lp-top-btn" type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>Back to top ↑</button>
+            </div>
           </div>
         </footer>
       </div>
