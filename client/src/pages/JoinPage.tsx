@@ -64,8 +64,23 @@ const OPTION_COLORS = ['#3952D3', '#25B57F', '#FF7A45', '#7C3AED', '#F59E0B', '#
 
 export default function JoinPage() {
   // Join form
-  const [codeInput, setCodeInput] = useState('');
-  const [nameInput, setNameInput] = useState('');
+  const [codeInput, setCodeInput] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code');
+      if (code) return code.replace(/\D/g, '').slice(0, 6);
+    }
+    return '';
+  });
+  const [nameInput, setNameInput] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const name = params.get('name');
+      if (name) return name;
+    }
+    const u = getAuthUser();
+    return u ? u.realName.split(' ')[0] : '';
+  });
   const [joinError, setJoinError] = useState('');
   const [joining, setJoining] = useState(false);
   const [joined, setJoined] = useState(false);
@@ -787,6 +802,14 @@ export default function JoinPage() {
               <span className="pm-auth-profile-badge">
                 🎓 {authUser.realName}
               </span>
+              <a
+                href="/student"
+                className="btn btn-ghost btn--sm"
+                title="Open Student Academic Dashboard"
+                style={{ padding: '0.2rem 0.5rem', fontSize: '0.78rem', textDecoration: 'none' }}
+              >
+                📊 Dashboard
+              </a>
               <button
                 type="button"
                 className="btn btn-ghost btn--sm"
@@ -794,7 +817,7 @@ export default function JoinPage() {
                 title="View your past quiz scores"
                 style={{ padding: '0.2rem 0.5rem', fontSize: '0.78rem' }}
               >
-                📜 My Quizzes
+                📜 History
               </button>
               <button
                 type="button"

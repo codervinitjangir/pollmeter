@@ -100,6 +100,8 @@ export default function LandingPage() {
             navigate('/admin');
           } else if (authRoleHint === 'mentor' || u.role === 'mentor' || isFacultyEmail(u.email)) {
             navigate('/dashboard');
+          } else {
+            navigate('/student');
           }
         }}
         onClose={() => setShowAuthModal(false)}
@@ -161,6 +163,9 @@ export default function LandingPage() {
                 )}
                 {authUser.role === 'admin' && (
                   <button className="lp-lnk lp-hide-s" onClick={() => navigate('/admin')} type="button">Admin Console</button>
+                )}
+                {!isFacultyUser && authUser.role !== 'admin' && (
+                  <button className="lp-lnk lp-hide-s" onClick={() => navigate('/student')} type="button">Student Portal</button>
                 )}
                 <button
                   className="lp-btn"
@@ -224,6 +229,20 @@ export default function LandingPage() {
                   )}
                   {authUser.role === 'admin' && (
                     <button className="lp-btn lp-btn-ghost" onClick={() => navigate('/admin')} id="welcome-admin-btn" type="button">🏛️ Admin Console</button>
+                  )}
+                  {!isFacultyUser && authUser.role !== 'admin' && (
+                    <button
+                      className="lp-btn lp-btn-lg"
+                      onClick={() => navigate('/student')}
+                      id="welcome-student-btn"
+                      type="button"
+                      style={{ background: '#F59E0B', color: '#000000', fontWeight: 800 }}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1em', height: '1em' }}>
+                        <path d="M13 3L5 14h6l-1 7 8-11h-6z" />
+                      </svg>
+                      Open Student Dashboard →
+                    </button>
                   )}
                   <button className="lp-btn lp-btn-ghost" onClick={() => { clearStoredAuth(); setAuthUser(null); }} type="button" style={{ color: 'var(--err, #e5675a)' }}>Sign Out</button>
                 </div>

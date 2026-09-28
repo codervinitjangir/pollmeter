@@ -5,6 +5,8 @@ import JoinPage from './pages/JoinPage';
 import LegalPage from './pages/LegalPage';
 import AdminPage from './pages/AdminPage';
 
+import StudentDashboard from './pages/StudentDashboard';
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -18,15 +20,18 @@ export default function App() {
         {/* Teacher dashboard */}
         <Route path="/dashboard" element={<HostPage />} />
 
-        {/* Student join */}
+        {/* Student portal & analytics dashboard */}
+        <Route path="/student" element={<StudentDashboard />} />
+        <Route path="/student/dashboard" element={<StudentDashboard />} />
+
+        {/* Live quiz join arena */}
         <Route path="/join" element={<JoinPage />} />
 
         {/* Legal pages for Google OAuth compliance */}
         <Route path="/privacy" element={<LegalPage />} />
         <Route path="/terms" element={<LegalPage />} />
 
-        {/* Legacy & convenient redirects */}
-        <Route path="/student" element={<Navigate to="/join" replace />} />
+        {/* Fast join aliases */}
         <Route path="/play" element={<Navigate to="/join" replace />} />
         <Route path="/arena" element={<Navigate to="/join" replace />} />
         <Route path="/quiz" element={<Navigate to="/join" replace />} />
