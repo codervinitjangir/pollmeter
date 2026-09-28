@@ -50,10 +50,10 @@ export default function LandingPage() {
         onSuccess={(u) => {
           setAuthUser(u);
           setShowAuthModal(false);
-          if (authRoleHint === 'mentor' || u.role === 'mentor' || isFacultyEmail(u.email)) {
-            navigate('/dashboard');
-          } else if (u.role === 'admin') {
+          if (u.role === 'admin') {
             navigate('/admin');
+          } else if (authRoleHint === 'mentor' || u.role === 'mentor' || isFacultyEmail(u.email)) {
+            navigate('/dashboard');
           }
         }}
         onClose={() => setShowAuthModal(false)}
