@@ -27,6 +27,9 @@ export default function App() {
 
         {/* Legacy redirect: keep /host working so old links don't break */}
         <Route path="/host" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/polaris" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/faculty" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/mentor" element={<Navigate to="/dashboard" replace />} />
 
         {/* 404 → landing */}
         <Route path="*" element={<Navigate to="/" replace />} />

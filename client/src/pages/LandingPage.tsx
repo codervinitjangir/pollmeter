@@ -523,7 +523,7 @@ export default function LandingPage() {
                         padding: '0.25rem',
                       }}
                     >
-                      Or sign in with @polariscampus.com student account
+                      Or sign in with @medhaviskillsuniversity.edu.in student account
                     </button>
                   </div>
                 </div>
