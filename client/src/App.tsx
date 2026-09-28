@@ -25,11 +25,16 @@ export default function App() {
         <Route path="/privacy" element={<LegalPage />} />
         <Route path="/terms" element={<LegalPage />} />
 
-        {/* Legacy redirect: keep /host working so old links don't break */}
+        {/* Legacy & convenient redirects */}
+        <Route path="/student" element={<Navigate to="/join" replace />} />
+        <Route path="/play" element={<Navigate to="/join" replace />} />
+        <Route path="/arena" element={<Navigate to="/join" replace />} />
+        <Route path="/quiz" element={<Navigate to="/join" replace />} />
         <Route path="/host" element={<Navigate to="/dashboard" replace />} />
         <Route path="/polaris" element={<Navigate to="/dashboard" replace />} />
         <Route path="/faculty" element={<Navigate to="/dashboard" replace />} />
         <Route path="/mentor" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/teacher" element={<Navigate to="/dashboard" replace />} />
 
         {/* 404 → landing */}
         <Route path="*" element={<Navigate to="/" replace />} />
