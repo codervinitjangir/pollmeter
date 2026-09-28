@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medhavi Skills University — Polaris Campus Quizzing & Live Analytics</title>
+    <meta name="description"
+        content="PollMeter Campus — Multi-tenant university classroom quizzing, live polling, and deanonymized academic analytics.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;500;600;700&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #060607;
+            --fg: #f4f4f6;
+            --mute: #93939e;
+            --dim: #5a5a65;
+            --line: #1d1d22;
+            --line2: #2b2b32;
+            --blue: #7aa2ff;
+            --grn: #45d69a;
+            --amb: #f5a524;
+            --btn: #f4f4f6;
+            --btn-fg: #08080a;
+            --sheet: #0b0b0d
+        }
+
+        [data-theme=light] {
+            --bg: #f6f5f2;
+            --fg: #111319;
+            --mute: #575b68;
+            --dim: #8d909b;
+            --line: #e2e1dc;
+            --line2: #cfcec8;
+            --blue: #2350d6;
+            --grn: #0d8a5b;
+            --amb: #c77700;
+            --btn: #111319;
+            --btn-fg: #fff;
+            --sheet: #fbfaf8
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: Geist, system-ui, -apple-system, "Segoe UI", sans-serif;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+            transition: background .2s, color .2s
+        }
+
+        button,
+        input {
+            font: inherit;
+            color: inherit
+        }
+
+        :focus-visible {
+            outline: 2px solid var(--blue);
+            outline-offset: 3px;
+            border-radius: 4px
+        }
+
+        svg {
+            width: 1em;
+            height: 1em;
+            flex: none
+        }
+
+        .wrap {
+            width: 100%;
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 0 32px;
+            position: relative;
+            z-index: 1
+        }
+
+        /* racing lanes backdrop */
+        .lanes {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            padding: 110px 0 90px;
+            opacity: .9
+        }
+
+        .lane {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--line) 15%, var(--line) 85%, transparent);
+            position: relative
+        }
+
+        .lane i {
+            position: absolute;
+            top: -2px;
+            left: -80px;
+            width: 80px;
+            height: 5px;
+            border-radius: 5px;
+            background: linear-gradient(90deg, transparent, var(--c));
+            animation: run var(--t) linear infinite;
+            animation-delay: var(--d)
+        }
+
+        .lane i::after {
+            content: "";
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--c);
+            box-shadow: 0 0 10px var(--c)
+        }
+
+        @keyframes run {
+            to {
+                transform: translateX(calc(100vw + 160px))
+            }
+        }
+
+        /* header */
+        header {
+            position: relative;
+            z-index: 2
+        }
+
+        .bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            height: 84px
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px
+        }
+
+        .brand>svg {
+            font-size: 1.7rem
+        }
+
+        .brand b {
+            display: block;
+            font: 600 1.05rem "Bricolage Grotesque", Geist, sans-serif;
+            letter-spacing: -.01em;
+            line-height: 1.2
+        }
+
+        .brand small {
+            display: block;
+            color: var(--mute);
+            font-size: .8rem;
+            line-height: 1.3
+        }
+
+        .acts {
+            display: flex;
+            gap: 6px;
+            align-items: center
+        }
+
+        a.lnk {
+            text-decoration: none
+        }
+
+        .lnk {
+            background: none;
+            border: 0;
+            cursor: pointer;
+            color: var(--mute);
+            font-size: .9rem;
+            font-weight: 500;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 8px
+        }
+
+        .lnk:hover {
+            color: var(--fg)
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            height: 42px;
+            padding: 0 20px;
+            border-radius: 99px;
+            border: 0;
+            background: var(--btn);
+            color: var(--btn-fg);
+            font-size: .92rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform .15s, opacity .15s
+        }
+
+        .btn:hover {
+            opacity: .88
+        }
+
+        .btn-lg {
+            height: 54px;
+            padding: 0 30px;
+            font-size: 1rem
+        }
+
+        /* stage */
+        main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            padding: 24px 0 56px;
+            position: relative;
+            z-index: 1
+        }
+
+        .stage {
+            display: grid;
+            grid-template-columns: 1fr 1px 1fr;
+            gap: 0
+        }
+
+        .rule {
+            background: linear-gradient(transparent, var(--line2) 12%, var(--line2) 88%, transparent)
+        }
+
+        .side {
+            padding: 24px 56px;
+            display: flex;
+            flex-direction: column
+        }
+
+        .side:first-child {
+            padding-left: 0
+        }
+
+        .side:last-child {
+            padding-right: 0
+        }
+
+        .tag {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font: 500 .78rem "Geist Mono", monospace;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            margin-bottom: 26px
+        }
+
+        .tag svg {
+            font-size: 1.1rem
+        }
+
+        .f .tag {
+            color: var(--blue)
+        }
+
+        .s .tag {
+            color: var(--grn)
+        }
+
+        h1 {
+            font: 600 clamp(2.3rem, 4.2vw, 3.5rem)/1.02 "Bricolage Grotesque", Geist, sans-serif;
+            letter-spacing: -.035em;
+            margin-bottom: 20px
+        }
+
+        .side>p {
+            color: var(--mute);
+            font-size: 1.02rem;
+            max-width: 30em;
+            margin-bottom: 30px
+        }
+
+        .pts {
+            list-style: none;
+            display: grid;
+            gap: 12px;
+            margin-bottom: 38px
+        }
+
+        .pts li {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+            font-size: .95rem
+        }
+
+        .pts svg {
+            color: var(--grn);
+            font-size: .95rem;
+            transform: translateY(2px)
+        }
+
+        .go {
+            margin-top: auto
+        }
+
+        .f .btn {
+            width: max-content
+        }
+
+        /* pin as big open digits */
+        .pin {
+            display: flex;
+            align-items: flex-end;
+            gap: 22px;
+            flex-wrap: wrap
+        }
+
+        .digits {
+            display: flex;
+            gap: 10px
+        }
+
+        .digits input {
+            width: 44px;
+            height: 58px;
+            text-align: center;
+            background: none;
+            border: 0;
+            border-bottom: 2px solid var(--line2);
+            border-radius: 0;
+            font: 500 1.8rem "Geist Mono", monospace;
+            outline: none;
+            transition: border-color .15s;
+            caret-color: var(--grn)
+        }
+
+        .digits input:focus {
+            border-color: var(--grn)
+        }
+
+        .digits input::placeholder {
+            color: var(--dim)
+        }
+
+        .digits input:not(:placeholder-shown) {
+            border-color: var(--fg)
+        }
+
+        /* stats line */
+        .facts {
+            position: relative;
+            z-index: 1;
+            border-top: 1px solid var(--line);
+            padding: 22px 0
+        }
+
+        .facts .wrap {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px 32px;
+            flex-wrap: wrap;
+            font-size: .86rem;
+            color: var(--mute)
+        }
+
+        .facts span {
+            display: flex;
+            align-items: center;
+            gap: 10px
+        }
+
+        .facts svg {
+            color: var(--fg);
+            font-size: 1rem
+        }
+
+        .live {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--grn);
+            animation: pulse 2s ease-out infinite
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 color-mix(in srgb, var(--grn) 60%, transparent)
+            }
+
+            100% {
+                box-shadow: 0 0 0 10px transparent
+            }
+        }
+
+        /* sign-in drawer */
+        dialog {
+            position: fixed;
+            inset: 0 0 0 auto;
+            margin: 0;
+            height: 100vh;
+            max-height: none;
+            width: min(480px, 100vw);
+            max-width: none;
+            border: 0;
+            background: var(--sheet);
+            color: var(--fg);
+            border-left: 1px solid var(--line2);
+            padding: 0;
+            overflow-y: auto
+        }
+
+        dialog[open] {
+            animation: slide .28s cubic-bezier(.2, .8, .2, 1)
+        }
+
+        @keyframes slide {
+            from {
+                transform: translateX(40px);
+                opacity: 0
+            }
+        }
+
+        dialog::backdrop {
+            background: rgba(0, 0, 0, .6);
+            backdrop-filter: blur(3px)
+        }
+
+        .dr {
+            padding: 32px 44px 36px;
+            min-height: 100%;
+            display: flex;
+            flex-direction: column
+        }
+
+        .x {
+            align-self: flex-end;
+            background: none;
+            border: 0;
+            cursor: pointer;
+            color: var(--mute);
+            font-size: 1.3rem;
+            padding: 6px;
+            border-radius: 8px
+        }
+
+        .x:hover {
+            color: var(--fg)
+        }
+
+        .ver {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font: 500 .76rem "Geist Mono", monospace;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: var(--grn);
+            margin: 28px 0 18px
+        }
+
+        .ver::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--grn)
+        }
+
+        .dr h2 {
+            font: 600 2rem/1.08 "Bricolage Grotesque", Geist, sans-serif;
+            letter-spacing: -.03em;
+            margin-bottom: 12px
+        }
+
+        .dr .sub {
+            color: var(--mute);
+            font-size: .95rem;
+            margin-bottom: 34px
+        }
+
+        .tabs {
+            display: flex;
+            gap: 28px;
+            border-bottom: 1px solid var(--line2);
+            margin-bottom: 32px
+        }
+
+        .tab {
+            background: none;
+            border: 0;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            padding: 0 0 12px;
+            cursor: pointer;
+            color: var(--mute);
+            font-size: .92rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .tab[aria-selected=true] {
+            color: var(--fg);
+            border-color: var(--fg)
+        }
+
+        .badge {
+            font: 500 .68rem "Geist Mono", monospace;
+            color: var(--grn);
+            border: 1px solid color-mix(in srgb, var(--grn) 45%, transparent);
+            padding: 1px 8px;
+            border-radius: 99px
+        }
+
+        .panel[hidden] {
+            display: none
+        }
+
+        .panel h3 {
+            font: 600 1.25rem "Bricolage Grotesque", Geist, sans-serif;
+            letter-spacing: -.02em;
+            margin-bottom: 10px
+        }
+
+        .panel>p {
+            color: var(--mute);
+            font-size: .94rem;
+            margin-bottom: 26px
+        }
+
+        .gbtn {
+            width: 100%;
+            height: 54px;
+            border-radius: 99px;
+            background: #fff;
+            color: #1f1f1f;
+            border: 1px solid #dadce0;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            cursor: pointer
+        }
+
+        .gbtn:hover {
+            background: #f3f4f6
+        }
+
+        .gbtn svg {
+            font-size: 1.25rem
+        }
+
+        .field {
+            width: 100%;
+            height: 52px;
+            background: none;
+            border: 0;
+            border-bottom: 2px solid var(--line2);
+            outline: none;
+            margin-bottom: 22px;
+            font-size: 1rem
+        }
+
+        .field:focus {
+            border-color: var(--fg)
+        }
+
+        .panel .btn {
+            width: 100%
+        }
+
+        .mini {
+            list-style: none;
+            margin-top: 34px;
+            display: grid;
+            gap: 12px
+        }
+
+        .mini li {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+            font-size: .92rem
+        }
+
+        .mini svg {
+            color: var(--grn);
+            transform: translateY(2px)
+        }
+
+        .foot {
+            margin-top: auto;
+            padding-top: 40px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            font-size: .8rem;
+            color: var(--dim)
+        }
+
+        @media(max-width:900px) {
+            .stage {
+                grid-template-columns: 1fr
+            }
+
+            .rule {
+                height: 1px;
+                margin: 24px 0;
+                background: var(--line2)
+            }
+
+            .side,
+            .side:first-child,
+            .side:last-child {
+                padding: 24px 0
+            }
+
+            .lanes {
+                opacity: .5
+            }
+        }
+
+        @media(max-width:600px) {
+            .wrap {
+                padding: 0 20px
+            }
+
+            .bar {
+                height: auto;
+                padding: 16px 0;
+                flex-wrap: wrap
+            }
+
+            .brand small {
+                display: none
+            }
+
+            .lnk.hide-s {
+                display: none
+            }
+
+            .digits input {
+                width: 38px
+            }
+
+            .pin {
+                gap: 18px
+            }
+
+            .pin .btn {
+                width: 100%
+            }
+
+            .facts .wrap {
+                flex-direction: column
+            }
+
+            .dr {
+                padding: 24px 24px 30px
+            }
+        }
+
+        @media(prefers-reduced-motion:reduce) {
+
+            .lane i,
+            .live {
+                animation: none
+            }
+
+            dialog[open] {
+                animation: none
+            }
+        }
+
+        /* below-the-fold */
+        html {
+            scroll-behavior: smooth
+        }
+
+        main {
+            min-height: calc(100vh - 84px - 66px)
+        }
+
+        .below {
+            position: relative;
+            z-index: 2;
+            background: var(--bg)
+        }
+
+        .sec {
+            padding: 110px 0;
+            border-top: 1px solid var(--line)
+        }
+
+        .sec:first-child {
+            border-top: 0
+        }
+
+        .eyebrow {
+            font: 500 .78rem "Geist Mono", monospace;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: var(--blue);
+            margin-bottom: 18px
+        }
+
+        .h2 {
+            font: 600 clamp(2rem, 3.6vw, 3rem)/1.05 "Bricolage Grotesque", Geist, sans-serif;
+            letter-spacing: -.035em;
+            max-width: 14em;
+            margin-bottom: 18px
+        }
+
+        .lede {
+            color: var(--mute);
+            font-size: 1.05rem;
+            max-width: 34em
+        }
+
+        .head {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 48px;
+            align-items: end;
+            margin-bottom: 64px
+        }
+
+        .head .h2 {
+            margin: 0
+        }
+
+        /* steps */
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            position: relative;
+            list-style: none
+        }
+
+        .steps::before {
+            content: "";
+            position: absolute;
+            top: 22px;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: var(--line2)
+        }
+
+        .steps li {
+            padding-right: 32px;
+            position: relative
+        }
+
+        .steps .n {
+            display: grid;
+            place-items: center;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: var(--bg);
+            border: 1px solid var(--line2);
+            font: 500 .95rem "Geist Mono", monospace;
+            margin-bottom: 26px;
+            position: relative
+        }
+
+        .steps li:first-child .n {
+            border-color: var(--blue);
+            color: var(--blue)
+        }
+
+        .steps h3 {
+            font: 600 1.2rem "Bricolage Grotesque", Geist, sans-serif;
+            letter-spacing: -.02em;
+            margin-bottom: 8px
+        }
+
+        .steps p {
+            color: var(--mute);
+            font-size: .94rem
+        }
+
+        /* phases */
+        .phases {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px 14px;
+            margin-top: 56px;
+            padding-top: 28px;
+            border-top: 1px dashed var(--line2);
+            font: 500 .85rem "Geist Mono", monospace;
+            color: var(--mute)
+        }
+
+        .phases b {
+            color: var(--fg);
+            font-weight: 500
+        }
+
+        .phases i {
+            font-style: normal;
+            color: var(--dim)
+        }
+
+        /* scoring */
+        .score {
+            display: grid;
+            grid-template-columns: 1fr 1.1fr;
+            gap: 80px;
+            align-items: center
+        }
+
+        .nums {
+            display: grid;
+            gap: 0
+        }
+
+        .nums div {
+            display: grid;
+            grid-template-columns: 190px 1fr;
+            gap: 24px;
+            align-items: baseline;
+            padding: 22px 0;
+            border-bottom: 1px solid var(--line)
+        }
+
+        .nums div:first-child {
+            border-top: 1px solid var(--line)
+        }
+
+        .nums b {
+            font: 600 3rem/1 "Bricolage Grotesque", Geist, sans-serif;
+            letter-spacing: -.04em
+        }
+
+        .nums div:nth-child(1) b {
+            color: var(--blue)
+        }
+
+        .nums div:nth-child(2) b {
+            color: var(--grn)
+        }
+
+        .nums div:nth-child(3) b {
+            color: var(--dim)
+        }
+
+        .nums span {
+            color: var(--mute);
+            font-size: .95rem
+        }
+
+        .race {
+            margin-top: 34px;
+            display: grid;
+            gap: 12px
+        }
+
+        .race p {
+            font-size: .8rem;
+            color: var(--dim);
+            font-family: "Geist Mono", monospace;
+            margin-bottom: 2px
+        }
+
+        .track {
+            height: 2px;
+            background: var(--line2);
+            position: relative;
+            border-radius: 2px
+        }
+
+        .track i {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 2px;
+            width: var(--w);
+            background: var(--c);
+            border-radius: 2px
+        }
+
+        .track i::after {
+            content: "";
+            position: absolute;
+            right: -4px;
+            top: -3px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--c);
+            box-shadow: 0 0 10px var(--c)
+        }
+
+        /* faq */
+        .faq {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 80px
+        }
+
+        .faq details {
+            border-bottom: 1px solid var(--line)
+        }
+
+        .faq details:first-child {
+            border-top: 1px solid var(--line)
+        }
+
+        .faq summary {
+            list-style: none;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            padding: 24px 0;
+            font-size: 1.05rem;
+            font-weight: 500
+        }
+
+        .faq summary::-webkit-details-marker {
+            display: none
+        }
+
+        .faq summary::after {
+            content: "+";
+            font: 400 1.5rem/1 Geist, sans-serif;
+            color: var(--mute);
+            transition: transform .2s
+        }
+
+        .faq details[open] summary::after {
+            transform: rotate(45deg);
+            color: var(--fg)
+        }
+
+        .faq details p {
+            color: var(--mute);
+            padding: 0 40px 26px 0;
+            font-size: .96rem;
+            max-width: 40em
+        }
+
+        /* help + footer */
+        .help {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 32px;
+            flex-wrap: wrap
+        }
+
+        .help .h2 {
+            margin-bottom: 10px
+        }
+
+        .help .acts2 {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap
+        }
+
+        .ghost {
+            display: inline-flex;
+            align-items: center;
+            height: 54px;
+            padding: 0 28px;
+            border-radius: 99px;
+            border: 1px solid var(--line2);
+            font-weight: 600;
+            font-size: 1rem;
+            background: none;
+            cursor: pointer
+        }
+
+        .ghost:hover {
+            border-color: var(--fg)
+        }
+
+        .foot2 {
+            border-top: 1px solid var(--line);
+            padding: 28px 0;
+            color: var(--dim);
+            font-size: .85rem
+        }
+
+        .foot2 .wrap {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap
+        }
+
+        .top {
+            color: var(--mute);
+            background: none;
+            border: 0;
+            cursor: pointer;
+            font-size: .85rem
+        }
+
+        .top:hover {
+            color: var(--fg)
+        }
+
+        .cue {
+            display: flex;
+            justify-content: center;
+            padding: 0 0 26px;
+            position: relative;
+            z-index: 1
+        }
+
+        .cue a {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--dim);
+            font-size: .82rem
+        }
+
+        .cue a:hover {
+            color: var(--fg)
+        }
+
+        .cue svg {
+            animation: bob 2s ease-in-out infinite
+        }
+
+        @keyframes bob {
+            50% {
+                transform: translateY(4px)
+            }
+        }
+
+        @media(max-width:900px) {
+            .sec {
+                padding: 72px 0
+            }
+
+            .head,
+            .score,
+            .faq {
+                grid-template-columns: 1fr;
+                gap: 32px
+            }
+
+            .head {
+                margin-bottom: 44px
+            }
+
+            .steps {
+                grid-template-columns: 1fr 1fr;
+                row-gap: 44px
+            }
+
+            .steps::before {
+                display: none
+            }
+        }
+
+        @media(max-width:600px) {
+            .steps {
+                grid-template-columns: 1fr
+            }
+
+            .nums div {
+                grid-template-columns: 1fr;
+                gap: 6px
+            }
+
+            .help .acts2,
+            .help .ghost,
+            .help .btn {
+                width: 100%
+            }
+
+            .help .ghost {
+                justify-content: center
+            }
+        }
+
+        @media(prefers-reduced-motion:reduce) {
+            .cue svg {
+                animation: none
+            }
+
+            html {
+                scroll-behavior: auto
+            }
+        }
+    </style>
+</head>
+
+<body id="top">
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+        <symbol id="i-uni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 21h18M5 21V10M19 21V10M9 21V10M15 21V10M2.5 10L12 4l9.5 6z" />
+        </symbol>
+        <symbol id="i-chk" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 10.5l4 4 8-9" />
+        </symbol>
+        <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="11" width="14" height="10" rx="2" />
+            <path d="M8 11V8a4 4 0 018 0v3" />
+        </symbol>
+        <symbol id="i-bolt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13 3L5 14h6l-1 7 8-11h-6z" />
+        </symbol>
+        <symbol id="i-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="5" width="18" height="14" rx="2" />
+            <path d="M3 7l9 6 9-6" />
+        </symbol>
+        <symbol id="i-dev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="6" y="2.5" width="12" height="19" rx="2.5" />
+            <path d="M11 18.5h2" />
+        </symbol>
+        <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+            stroke-linecap="round">
+            <circle cx="12" cy="12" r="4" />
+            <path
+                d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+        </symbol>
+        <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M6 6l12 12M18 6L6 18" />
+        </symbol>
+        <symbol id="i-g" viewBox="0 0 24 24">
+            <path fill="#4285F4"
+                d="M22 12.2c0-.7-.1-1.4-.2-2H12v3.9h5.6a4.8 4.8 0 01-2.1 3.1v2.6h3.4c2-1.8 3.1-4.5 3.1-7.6z" />
+            <path fill="#34A853"
+                d="M12 22.5c2.8 0 5.2-.9 6.9-2.5l-3.4-2.6c-.9.6-2.1 1-3.5 1-2.7 0-5-1.8-5.8-4.3H2.7v2.7A10.5 10.5 0 0012 22.5z" />
+            <path fill="#FBBC05" d="M6.2 14.1a6.300 6.300 0 010-4.100V7.300H2.700a10.500 10.500 0 000 9.500z" />
+            <path fill="#EA4335"
+                d="M12 5.8c1.5 0 2.9.5 4 1.6l3-3A10.500 10.500 0 002.700 7.300l3.500 2.700C7 7.600 9.300 5.800 12 5.800z" />
+        </symbol>
+    </svg>
+
+    <div class="lanes" aria-hidden="true">
+        <div class="lane"><i style="--c:var(--blue);--t:9s;--d:-2s"></i></div>
+        <div class="lane"><i style="--c:var(--grn);--t:6.5s;--d:-5s"></i></div>
+        <div class="lane"><i style="--c:var(--amb);--t:11s;--d:-8s"></i></div>
+        <div class="lane"><i style="--c:var(--blue);--t:7.5s;--d:-1s"></i></div>
+        <div class="lane"><i style="--c:var(--grn);--t:10s;--d:-6s"></i></div>
+    </div>
+
+    <header>
+        <div class="wrap bar">
+            <div class="brand"><svg>
+                    <use href="#i-uni" />
+                </svg>
+                <div><b>Medhavi Skills University</b><small>Polaris Campus Quizzing &amp; Live Analytics</small></div>
+            </div>
+            <div class="acts">
+                <button class="lnk" id="theme" type="button"><svg>
+                        <use href="#i-sun" />
+                    </svg><span id="tl">Light</span></button>
+                <a class="lnk hide-s" href="#how">How it works</a>
+                <a class="lnk hide-s" href="#faq">FAQ</a>
+                <button class="lnk hide-s" type="button" data-open>Faculty Sign In</button>
+                <button class="btn" type="button" data-open><svg>
+                        <use href="#i-lock" />
+                    </svg>University SSO</button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="wrap stage">
+            <section class="side f" aria-labelledby="t1">
+                <div class="tag"><svg>
+                        <use href="#i-uni" />
+                    </svg>Teachers &amp; Administrators</div>
+                <h1 id="t1">Academic Faculty Portal</h1>
+                <p>Sign in with your official university credentials to generate AI questions, host projector polls, and
+                    track student attendance analytics.</p>
+                <ul class="pts">
+                    <li><svg>
+                            <use href="#i-chk" />
+                        </svg>Official @medhaviskillsuniversity.edu.in SSO</li>
+                    <li><svg>
+                            <use href="#i-chk" />
+                        </svg>Deanonymized Student Quorum &amp; Gradebook</li>
+                    <li><svg>
+                            <use href="#i-chk" />
+                        </svg>AI Question Generator from Syllabus Topics</li>
+                </ul>
+                <div class="go"><button class="btn btn-lg" type="button" data-open><svg>
+                            <use href="#i-lock" />
+                        </svg>Sign In with University SSO</button></div>
+            </section>
+            <div class="rule" aria-hidden="true"></div>
+            <section class="side s" aria-labelledby="t2">
+                <div class="tag"><svg>
+                        <use href="#i-dev" />
+                    </svg>Students &amp; Audience</div>
+                <h1 id="t2">Student Live Quiz Arena</h1>
+                <p>Enter the 6-digit session PIN displayed on your teacher's projector screen to join the live quiz. No
+                    app download needed.</p>
+                <ul class="pts">
+                    <li><svg>
+                            <use href="#i-chk" />
+                        </svg>Instant Real-Time WebSocket Connection</li>
+                    <li><svg>
+                            <use href="#i-chk" />
+                        </svg>60FPS Racing Leaderboard &amp; Streak Bonuses</li>
+                    <li><svg>
+                            <use href="#i-chk" />
+                        </svg>Zero app install · Works directly in your mobile browser</li>
+                </ul>
+                <form class="pin go" onsubmit="return false">
+                    <div class="digits" role="group" aria-label="6-digit session PIN">
+                        <input inputmode="numeric" maxlength="1" placeholder="1" aria-label="Digit 1"><input
+                            inputmode="numeric" maxlength="1" placeholder="2" aria-label="Digit 2"><input
+                            inputmode="numeric" maxlength="1" placeholder="3" aria-label="Digit 3"><input
+                            inputmode="numeric" maxlength="1" placeholder="4" aria-label="Digit 4"><input
+                            inputmode="numeric" maxlength="1" placeholder="5" aria-label="Digit 5"><input
+                            inputmode="numeric" maxlength="1" placeholder="6" aria-label="Digit 6">
+                    </div>
+                    <button class="btn btn-lg" type="submit">Enter Quiz →</button>
+                </form>
+            </section>
+        </div>
+    </main>
+
+    <div class="facts">
+        <div class="wrap">
+            <span><i class="live"></i>140+ Students Active</span>
+            <span><svg>
+                    <use href="#i-uni" />
+                </svg>4 Academic Schools</span>
+            <span><svg style="color:var(--amb)">
+                    <use href="#i-bolt" />
+                </svg>60FPS Racing Engine</span>
+            <span><svg>
+                    <use href="#i-lock" />
+                </svg>Medhavi EduCloud Security Verified</span>
+        </div>
+    </div>
+
+
+    <div class="cue"><a href="#how">Scroll to learn how it works <svg viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 9l6 6 6-6" />
+            </svg></a></div>
+    <div class="below">
+        <section class="sec" id="how">
+            <div class="wrap">
+                <div class="head">
+                    <div>
+                        <div class="eyebrow">How it works</div>
+                        <h2 class="h2">From sign-in to leaderboard in four steps</h2>
+                    </div>
+                    <p class="lede">A live quiz needs no app and no setup for students. Faculty prepare and host;
+                        students just enter a PIN.</p>
+                </div>
+                <ol class="steps">
+                    <li>
+                        <div class="n">1</div>
+                        <h3>Faculty sign in</h3>
+                        <p>Use your official @medhaviskillsuniversity.edu.in account with Google SSO or an Email OTP
+                            Code.</p>
+                    </li>
+                    <li>
+                        <div class="n">2</div>
+                        <h3>Build the quiz</h3>
+                        <p>Generate AI questions from syllabus topics, then host the poll on the classroom projector.
+                        </p>
+                    </li>
+                    <li>
+                        <div class="n">3</div>
+                        <h3>Students join</h3>
+                        <p>Students enter the 6-digit PIN from the projector screen in their mobile browser. No install
+                            needed.</p>
+                    </li>
+                    <li>
+                        <div class="n">4</div>
+                        <h3>Track the results</h3>
+                        <p>Watch the racing leaderboard live, then review attendance analytics and the gradebook.</p>
+                    </li>
+                </ol>
+                <div class="phases" aria-label="Live session phases"><b>Every live
+                        session</b><span>lobby</span><i>→</i><span>question</span><i>→</i><span>results</span><i>→</i><span>leaderboard</span><i>→</i><span>ended</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="sec" id="scoring">
+            <div class="wrap score">
+                <div>
+                    <div class="eyebrow" style="color:var(--grn)">For students</div>
+                    <h2 class="h2">Fast and correct wins the race</h2>
+                    <p class="lede">Answers lock the moment you tap, so there is no submit button to hunt for. A correct
+                        answer earns base points, and answering quickly adds a bonus.</p>
+                    <div class="race" aria-hidden="true">
+                        <div>
+                            <p>quick answer</p>
+                            <div class="track"><i style="--w:92%;--c:var(--grn)"></i></div>
+                        </div>
+                        <div>
+                            <p>slower answer</p>
+                            <div class="track"><i style="--w:58%;--c:var(--blue)"></i></div>
+                        </div>
+                        <div>
+                            <p>incorrect</p>
+                            <div class="track"><i style="--w:8%;--c:var(--dim)"></i></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="nums">
+                    <div><b>1,000</b><span>Base points for a correct answer</span></div>
+                    <div><b>+500</b><span>Maximum bonus for response speed</span></div>
+                    <div><b>0</b><span>Points for an incorrect choice</span></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="sec" id="faq">
+            <div class="wrap faq">
+                <div>
+                    <div class="eyebrow">FAQ</div>
+                    <h2 class="h2">Quick answers</h2>
+                    <p class="lede">Can't find what you need? Ask your faculty mentor or contact support below.</p>
+                </div>
+                <div>
+                    <details>
+                        <summary>Do I need to install an app to join?</summary>
+                        <p>No. The quiz runs directly in your mobile browser. Open the page, enter the PIN and you are
+                            in.</p>
+                    </details>
+                    <details>
+                        <summary>Where do I find the 6-digit PIN?</summary>
+                        <p>Your teacher displays it on the classroom projector screen when the session is open.</p>
+                    </details>
+                    <details>
+                        <summary>Who can sign in to the Faculty Portal?</summary>
+                        <p>Faculty and administrators with an official @medhaviskillsuniversity.edu.in account, using
+                            Google SSO or an Email OTP Code.</p>
+                    </details>
+                    <details>
+                        <summary>What is the difference between Google SSO and Email OTP?</summary>
+                        <p>Google SSO signs you in with one click using your university Google account. Email OTP sends
+                            a one-time code to your university email instead.</p>
+                    </details>
+                    <details>
+                        <summary>Can other faculty see my quizzes and gradebooks?</summary>
+                        <p>Mentors can only access their own quizzes, assigned batches and gradebooks. Cross-mentor
+                            access is blocked on the server.</p>
+                    </details>
+                    <details>
+                        <summary>Are results kept after the session ends?</summary>
+                        <p>Yes. Results are stored so faculty can review analytics and export the gradebook, and
+                            students can follow their own score history.</p>
+                    </details>
+                </div>
+            </div>
+        </section>
+
+        <section class="sec">
+            <div class="wrap help">
+                <div>
+                    <h2 class="h2">Ready to start?</h2>
+                    <p class="lede">Faculty sign in with University SSO. Students, keep the PIN ready.</p>
+                </div>
+                <div class="acts2"><button class="btn btn-lg" type="button" data-open><svg>
+                            <use href="#i-lock" />
+                        </svg>Sign In with University SSO</button><a class="ghost" href="#top"
+                        onclick="setTimeout(()=>document.querySelector('.digits input').focus(),500)">Enter a PIN</a>
+                </div>
+            </div>
+        </section>
+
+        <footer class="foot2">
+            <div class="wrap"><span>Medhavi Skills University · Polaris Campus Quizzing &amp; Live
+                    Analytics</span><button class="top" type="button" onclick="scrollTo({top:0})">Back to top ↑</button>
+            </div>
+        </footer>
+    </div>
+
+    <dialog id="dlg" aria-labelledby="mt">
+        <div class="dr">
+            <button class="x" type="button" data-close aria-label="Close"><svg>
+                    <use href="#i-x" />
+                </svg></button>
+            <div class="ver">Medhavi Skills University Verified Portal</div>
+            <h2 id="mt">University Faculty &amp; Admin Access</h2>
+            <p class="sub">Sign in with your official university credentials (@medhaviskillsuniversity.edu.in)</p>
+            <div class="tabs" role="tablist">
+                <button class="tab" role="tab" aria-selected="true" data-tab="g"><svg>
+                        <use href="#i-bolt" />
+                    </svg>Google SSO <span class="badge">Instant</span></button>
+                <button class="tab" role="tab" aria-selected="false" data-tab="e"><svg>
+                        <use href="#i-mail" />
+                    </svg>Email OTP Code</button>
+            </div>
+            <div class="panel" id="p-g">
+                <h3>One-Click Institutional Login</h3>
+                <p>Sign in with your official university Google account. Your student/faculty identity will be
+                    automatically verified with zero password hassle.</p>
+                <button class="gbtn" type="button"><svg>
+                        <use href="#i-g" />
+                    </svg>Continue with Google</button>
+                <ul class="mini">
+                    <li><svg>
+                            <use href="#i-chk" />
+                        </svg>Instant domain cryptography check</li>
+                    <li><svg>
+                            <use href="#i-chk" />
+                        </svg>Official name &amp; email automatically synced</li>
+                    <li><svg>
+                            <use href="#i-chk" />
+                        </svg>Eliminates spoofing and proxy attendance</li>
+                </ul>
+            </div>
+            <div class="panel" id="p-e" hidden>
+                <h3>Email OTP Code</h3>
+                <p>Enter your official university email (@medhaviskillsuniversity.edu.in).</p>
+                <input class="field" type="email" placeholder="name@medhaviskillsuniversity.edu.in"
+                    aria-label="University email">
+                <button class="btn btn-lg" type="button">Email OTP Code</button>
+            </div>
+            <div class="foot"><svg>
+                    <use href="#i-lock" />
+                </svg>End-to-End Institutional Security • Medhavi EduCloud Verified</div>
+        </div>
+    </dialog>
+
+    <script>
+        const root = document.documentElement, tl = document.getElementById('tl');
+        document.getElementById('theme').onclick = () => { const l = root.dataset.theme === 'dark'; root.dataset.theme = l ? 'light' : 'dark'; tl.textContent = l ? 'Dark' : 'Light' };
+        const d = document.getElementById('dlg');
+        document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => d.showModal());
+        document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => d.close());
+        d.addEventListener('click', e => { if (e.target === d) d.close() });
+        document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+            document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', x === t));
+            document.getElementById('p-g').hidden = t.dataset.tab !== 'g';
+            document.getElementById('p-e').hidden = t.dataset.tab !== 'e';
+        });
+        const ins = [...document.querySelectorAll('.digits input')];
+        ins.forEach((el, i) => {
+            el.addEventListener('input', () => { el.value = el.value.replace(/\D/g, ''); if (el.value && ins[i + 1]) ins[i + 1].focus() });
+            el.addEventListener('keydown', e => { if (e.key === 'Backspace' && !el.value && ins[i - 1]) ins[i - 1].focus() });
+            el.addEventListener('paste', e => { const t = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6); if (!t) return; e.preventDefault();[...t].forEach((c, k) => ins[k].value = c); ins[Math.min(t.length, 5)].focus() });
+        });
+    </script>
+</body>
+
+</html>
