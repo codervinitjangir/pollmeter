@@ -350,61 +350,47 @@ export default function LandingPage() {
             {/* Faculty side */}
             <section className="lp-side lp-side-f" aria-labelledby="lp-t1">
               <div className="lp-tag lp-tag-blue">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1.1rem', height: '1.1rem' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1rem', height: '1rem' }}>
                   <path d="M3 21h18M5 21V10M19 21V10M9 21V10M15 21V10M2.5 10L12 4l9.5 6z" />
                 </svg>
                 Teachers &amp; Faculty
               </div>
               <h1 id="lp-t1">Academic Faculty Studio</h1>
-              <p>Sign in with your official @polariscampus.com credentials to generate AI questions, host projector polls, and track student attendance analytics.</p>
+              <p>Sign in with your official @polariscampus.com credentials to generate AI questions, host projector polls, and track student attendance.</p>
+              
               <ul className="lp-pts">
                 <li>
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.95rem', height: '0.95rem', color: 'var(--grn)', flexShrink: 0, transform: 'translateY(2px)' }}><path d="M4 10.5l4 4 8-9" /></svg>
-                  Official @polariscampus.com Faculty SSO
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.9rem', height: '0.9rem', color: '#10B981', flexShrink: 0 }}><path d="M4 10.5l4 4 8-9" /></svg>
+                  <span>Official Faculty SSO</span>
                 </li>
                 <li>
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.95rem', height: '0.95rem', color: 'var(--grn)', flexShrink: 0, transform: 'translateY(2px)' }}><path d="M4 10.5l4 4 8-9" /></svg>
-                  Deanonymized Student Quorum &amp; Gradebook
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.9rem', height: '0.9rem', color: '#10B981', flexShrink: 0 }}><path d="M4 10.5l4 4 8-9" /></svg>
+                  <span>Quorum &amp; Gradebook</span>
                 </li>
                 <li>
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.95rem', height: '0.95rem', color: 'var(--grn)', flexShrink: 0, transform: 'translateY(2px)' }}><path d="M4 10.5l4 4 8-9" /></svg>
-                  AI Question Generator from Syllabus Topics
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.9rem', height: '0.9rem', color: '#10B981', flexShrink: 0 }}><path d="M4 10.5l4 4 8-9" /></svg>
+                  <span>AI Question Generator</span>
                 </li>
                 <li>
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.95rem', height: '0.95rem', color: 'var(--grn)', flexShrink: 0, transform: 'translateY(2px)' }}><path d="M4 10.5l4 4 8-9" /></svg>
-                  Live 16:9 Big-Screen Projector Display Engine
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.9rem', height: '0.9rem', color: '#10B981', flexShrink: 0 }}><path d="M4 10.5l4 4 8-9" /></svg>
+                  <span>16:9 Projector Engine</span>
                 </li>
               </ul>
+
               <div className="lp-go">
                 <button className="lp-btn lp-btn-lg" type="button" onClick={() => openSignIn('mentor')} id="portal-faculty-signin-btn" style={{ width: '100%' }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1em', height: '1em' }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1.1em', height: '1.1em' }}>
                     <rect x="5" y="11" width="14" height="10" rx="2" />
                     <path d="M8 11V8a4 4 0 018 0v3" />
                   </svg>
-                  Sign In with Faculty SSO (@polariscampus.com) →
+                  <span>Sign In with Faculty SSO →</span>
                 </button>
 
-                <div
-                  style={{
-                    marginTop: '1.25rem',
-                    padding: '0.85rem 1rem',
-                    background: 'rgba(59, 130, 246, 0.08)',
-                    border: '1px solid rgba(59, 130, 246, 0.25)',
-                    borderRadius: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '0.75rem',
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <div style={{ fontSize: '0.8rem', color: 'var(--mute)' }}>
-                    🏛️ University Administrator or Dean?
-                  </div>
+                <div className="lp-sub-card lp-sub-card-blue">
+                  <span>🏛️ University Administrator or Dean?</span>
                   <button
                     type="button"
-                    className="lp-lnk"
-                    style={{ fontSize: '0.78rem', color: '#60A5FA', padding: '0.2rem 0.6rem', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '6px' }}
+                    className="lp-lnk lp-sub-lnk-blue"
                     onClick={() => openSignIn('mentor')}
                   >
                     Admin Access →
@@ -416,7 +402,7 @@ export default function LandingPage() {
             {/* Student side */}
             <section className="lp-side lp-side-s" aria-labelledby="lp-t2">
               <div className="lp-tag lp-tag-grn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1.1rem', height: '1.1rem' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1rem', height: '1rem' }}>
                   <rect x="6" y="2.5" width="12" height="19" rx="2.5" />
                   <path d="M11 18.5h2" />
                 </svg>
@@ -424,34 +410,35 @@ export default function LandingPage() {
               </div>
               <h1 id="lp-t2">Student Live Arena &amp; Portal</h1>
               <p>Enter the 6-digit session PIN displayed on your teacher&apos;s projector screen to join live, or open your personal student dashboard.</p>
+              
               <ul className="lp-pts">
                 <li>
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.95rem', height: '0.95rem', color: 'var(--grn)', flexShrink: 0, transform: 'translateY(2px)' }}><path d="M4 10.5l4 4 8-9" /></svg>
-                  Instant Real-Time WebSocket Connection
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.9rem', height: '0.9rem', color: '#10B981', flexShrink: 0 }}><path d="M4 10.5l4 4 8-9" /></svg>
+                  <span>Real-Time WebSocket</span>
                 </li>
                 <li>
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.95rem', height: '0.95rem', color: 'var(--grn)', flexShrink: 0, transform: 'translateY(2px)' }}><path d="M4 10.5l4 4 8-9" /></svg>
-                  60FPS Racing Leaderboard &amp; Speed Streak Bonuses
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.9rem', height: '0.9rem', color: '#10B981', flexShrink: 0 }}><path d="M4 10.5l4 4 8-9" /></svg>
+                  <span>60FPS Racing Podium</span>
                 </li>
                 <li>
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.95rem', height: '0.95rem', color: 'var(--grn)', flexShrink: 0, transform: 'translateY(2px)' }}><path d="M4 10.5l4 4 8-9" /></svg>
-                  Zero App Install · Runs instantly in mobile browser
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.9rem', height: '0.9rem', color: '#10B981', flexShrink: 0 }}><path d="M4 10.5l4 4 8-9" /></svg>
+                  <span>Zero App Install</span>
                 </li>
                 <li>
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.95rem', height: '0.95rem', color: 'var(--grn)', flexShrink: 0, transform: 'translateY(2px)' }}><path d="M4 10.5l4 4 8-9" /></svg>
-                  Medhavi Google SSO (@medhaviskillsuniversity.edu.in)
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.9rem', height: '0.9rem', color: '#10B981', flexShrink: 0 }}><path d="M4 10.5l4 4 8-9" /></svg>
+                  <span>Medhavi Google SSO</span>
                 </li>
               </ul>
 
               <div className="lp-go">
                 {/* PIN digits entry */}
-                <form className="lp-pin" onSubmit={handlePinSubmit} style={{ width: '100%' }}>
-                  <div style={{ width: '100%', marginBottom: '0.5rem' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#F59E0B' }}>
+                <form className="lp-pin" onSubmit={handlePinSubmit}>
+                  <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <label style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#F59E0B' }}>
                       Enter 6-Digit Session PIN
                     </label>
                   </div>
-                  <div className="lp-digits" role="group" aria-label="6-digit session PIN" style={{ width: '100%', justifyContent: 'space-between' }}>
+                  <div className="lp-digits" role="group" aria-label="6-digit session PIN">
                     {digits.map((d, i) => (
                       <input
                         key={i}
@@ -466,39 +453,24 @@ export default function LandingPage() {
                         onPaste={handleDigitPaste}
                         id={`portal-pin-digit-${i}`}
                         className="lp-digit-input"
-                        style={{ flex: 1, maxWidth: '52px' }}
                       />
                     ))}
                   </div>
-                  <button className="lp-btn lp-btn-lg" type="submit" id="portal-student-join-btn" style={{ width: '100%', marginTop: '0.85rem' }}>
+                  <button className="lp-btn lp-btn-lg" type="submit" id="portal-student-join-btn" style={{ width: '100%' }}>
                     <span>Enter Live Arena</span>
-                    <span style={{ fontSize: '1.2rem' }}>⚡</span>
+                    <span style={{ fontSize: '1.15rem' }}>⚡</span>
                   </button>
                 </form>
 
                 {/* Student Dashboard Portal Access */}
-                <div
-                  style={{
-                    marginTop: '1.25rem',
-                    padding: '0.85rem 1rem',
-                    background: 'rgba(245, 158, 11, 0.08)',
-                    border: '1px solid rgba(245, 158, 11, 0.25)',
-                    borderRadius: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '0.75rem',
-                    flexWrap: 'wrap',
-                  }}
-                >
+                <div className="lp-sub-card lp-sub-card-amber">
                   <div>
-                    <strong style={{ fontSize: '0.82rem', color: 'var(--fg)', display: 'block' }}>Student Academic Dashboard</strong>
-                    <small style={{ fontSize: '0.72rem', color: 'var(--mute)' }}>View past scores, attendance, and rank records</small>
+                    <strong>Student Academic Dashboard</strong>
+                    <small>View past scores, attendance, and rank records</small>
                   </div>
                   <button
                     type="button"
-                    className="lp-lnk"
-                    style={{ fontSize: '0.78rem', color: '#F59E0B', padding: '0.2rem 0.6rem', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: '6px' }}
+                    className="lp-lnk lp-sub-lnk-amber"
                     onClick={() => openSignIn('student')}
                   >
                     Student Portal →

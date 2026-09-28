@@ -9902,8 +9902,8 @@ html[data-theme="dark"] body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  height: 80px;
+  gap: 16px;
+  height: 62px;
 }
 
 .lp-brand {
@@ -10008,12 +10008,13 @@ html[data-theme="dark"] body {
 
 .lp-hide-s { /* hidden on mobile, see media query */ }
 
-/* ── Main Stage ── */
+/* ── Main Stage (Compact & Above-The-Fold Optimized) ── */
 .lp-main {
   flex: 1;
   display: flex;
   align-items: center;
-  padding: 70px 0 70px;
+  justify-content: center;
+  padding: 24px 0 20px;
   position: relative;
   z-index: 1;
 }
@@ -10021,9 +10022,11 @@ html[data-theme="dark"] body {
 .lp-stage {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 32px;
+  gap: 22px;
   align-items: stretch;
   width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
 }
 
 .lp-rule {
@@ -10031,50 +10034,50 @@ html[data-theme="dark"] body {
 }
 
 .lp-side {
-  padding: 44px 44px;
+  padding: 24px 26px 22px;
   display: flex;
   flex-direction: column;
-  border-radius: 20px;
+  border-radius: 18px;
   transition: border-color .2s ease, box-shadow .2s ease;
 }
 
 .lp-side-f {
-  background: linear-gradient(180deg, rgba(245, 158, 11, 0.05) 0%, rgba(18, 18, 23, 0.95) 100%);
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.05) 0%, rgba(18, 18, 23, 0.96) 100%);
   border: 1px solid #22222b;
   border-top: 3.5px solid #f59e0b;
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6), 0 0 24px rgba(245, 158, 11, 0.06);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 0 20px rgba(245, 158, 11, 0.05);
 }
 
 [data-theme="light"] .lp-side-f {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-top: 3.5px solid #f59e0b;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
 }
 
 .lp-side-s {
-  background: linear-gradient(180deg, rgba(16, 185, 129, 0.04) 0%, rgba(18, 18, 23, 0.95) 100%);
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.04) 0%, rgba(18, 18, 23, 0.96) 100%);
   border: 1px solid #22222b;
   border-top: 3.5px solid #10b981;
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6), 0 0 24px rgba(16, 185, 129, 0.06);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 0 20px rgba(16, 185, 129, 0.05);
 }
 
 [data-theme="light"] .lp-side-s {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-top: 3.5px solid #10b981;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
 }
 
 .lp-tag {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font: 700 .75rem var(--mono);
+  gap: 6px;
+  font: 700 .7rem var(--mono);
   letter-spacing: .08em;
   text-transform: uppercase;
-  margin-bottom: 24px;
-  padding: 5px 14px;
+  margin-bottom: 12px;
+  padding: 3.5px 11px;
   border-radius: 99px;
   width: fit-content;
 }
@@ -10092,58 +10095,127 @@ html[data-theme="dark"] body {
 }
 
 .lp-side h1 {
-  font: 700 clamp(2.1rem, 3.8vw, 3rem)/1.08 var(--font-heading);
-  letter-spacing: -.035em;
-  margin-bottom: 20px;
+  font: 800 clamp(1.4rem, 2.1vw, 1.85rem)/1.18 var(--font-heading);
+  letter-spacing: -.03em;
+  margin-bottom: 8px;
   color: var(--fg);
 }
 
 .lp-side > p {
   color: var(--mute);
-  font-size: 1rem;
-  line-height: 1.55;
-  margin-bottom: 30px;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  margin-bottom: 14px;
 }
 
 .lp-pts {
   list-style: none;
   display: grid;
-  gap: 14px;
-  margin-bottom: 40px;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  margin-bottom: 18px;
   padding: 0;
 }
 
 .lp-pts li {
   display: flex;
-  gap: 12px;
-  align-items: baseline;
-  font-size: .92rem;
+  gap: 8px;
+  align-items: center;
+  font-size: .8rem;
+  font-weight: 550;
   color: var(--fg);
+  line-height: 1.3;
 }
 
-.lp-go { margin-top: auto; }
+.lp-go {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Compact Sub-Link Cards ── */
+.lp-sub-card {
+  padding: 8px 12px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.lp-sub-card-blue {
+  background: rgba(59, 130, 246, 0.07);
+  border: 1px solid rgba(59, 130, 246, 0.22);
+}
+
+.lp-sub-card-amber {
+  background: rgba(245, 158, 11, 0.07);
+  border: 1px solid rgba(245, 158, 11, 0.22);
+}
+
+.lp-sub-card span,
+.lp-sub-card div {
+  font-size: 0.78rem;
+  color: var(--mute);
+}
+
+.lp-sub-card strong {
+  font-size: 0.8rem;
+  color: var(--fg);
+  display: block;
+}
+
+.lp-sub-card small {
+  font-size: 0.7rem;
+  color: var(--mute);
+  display: block;
+}
+
+.lp-sub-lnk-blue {
+  font-size: 0.78rem !important;
+  color: #60a5fa !important;
+  padding: 3px 10px !important;
+  border: 1px solid rgba(59, 130, 246, 0.35) !important;
+  border-radius: 6px !important;
+  font-weight: 700 !important;
+  white-space: nowrap;
+}
+
+.lp-sub-lnk-amber {
+  font-size: 0.78rem !important;
+  color: #f59e0b !important;
+  padding: 3px 10px !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+  border-radius: 6px !important;
+  font-weight: 700 !important;
+  white-space: nowrap;
+}
 
 /* ── PIN digits ── */
 .lp-pin {
   display: flex;
-  align-items: flex-end;
-  gap: 20px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
 }
 
 .lp-digits {
   display: flex;
-  gap: 10px;
+  gap: 8px;
+  justify-content: space-between;
 }
 
 .lp-digit-input {
-  width: 48px;
-  height: 60px;
+  flex: 1;
+  max-width: 48px;
+  height: 48px;
   text-align: center;
   background: #14141a;
   border: 1.5px solid #2a2a36;
   border-radius: 10px;
-  font: 700 1.8rem var(--mono);
+  font: 800 1.5rem var(--mono);
   outline: none;
   transition: all .15s ease;
   caret-color: #f59e0b;
@@ -10159,7 +10231,7 @@ html[data-theme="dark"] body {
 .lp-digit-input:focus {
   border-color: #f59e0b !important;
   background: #1b1b24;
-  box-shadow: 0 0 16px rgba(245, 158, 11, 0.35);
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.35);
   color: #f59e0b;
 }
 
@@ -10168,6 +10240,55 @@ html[data-theme="dark"] body {
 .lp-digit-input:not(:placeholder-shown) {
   border-color: rgba(245, 158, 11, 0.6);
   color: #f59e0b;
+}
+
+/* ── Responsive Viewport Height Rules (For 1366x768, laptops, and zoomed viewports) ── */
+@media (max-height: 820px) {
+  .lp-bar {
+    height: 54px;
+  }
+  .lp-main {
+    padding: 10px 0 14px;
+  }
+  .lp-side {
+    padding: 18px 22px 16px;
+  }
+  .lp-tag {
+    margin-bottom: 8px;
+    padding: 3px 9px;
+    font-size: 0.68rem;
+  }
+  .lp-side h1 {
+    font-size: 1.45rem;
+    margin-bottom: 6px;
+  }
+  .lp-side > p {
+    font-size: 0.82rem;
+    margin-bottom: 10px;
+    line-height: 1.35;
+  }
+  .lp-pts {
+    gap: 6px 10px;
+    margin-bottom: 12px;
+  }
+  .lp-pts li {
+    font-size: 0.76rem;
+  }
+  .lp-digit-input {
+    height: 42px;
+    max-width: 44px;
+    font-size: 1.35rem;
+  }
+  .lp-btn-lg {
+    height: 42px;
+    font-size: 0.88rem;
+  }
+  .lp-sub-card {
+    padding: 6px 10px;
+  }
+  .lp-facts {
+    padding: 10px 0;
+  }
 }
 
 /* ── Facts Bar ── */
@@ -12454,3 +12575,456 @@ html[data-theme="dark"] body {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
 }
 
+
+/* ═══ RESTORED after merge 190b67a ═══════════════════════════════════════
+   The feat/pollmeter-contribution merge resolved index.css in favour of the
+   incoming branch and dropped these two blocks, while TextResponseList.tsx
+   and Leaderboard.tsx kept emitting the class names. The markup was live
+   with no rules behind it. Re-appended at the end of the file so the Polaris
+   theme work above is untouched. */
+
+/* ─── Open-text Word Cloud ────────────────────────────────────────────────── */
+/* Cloud / List segmented switch. Sits above the answers, small enough that it
+   never competes with the responses themselves. */
+.wc-switch {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  margin: 0 0 0.75rem;
+  background: var(--surface-low);
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+}
+.wc-switch-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  border-radius: 9999px;
+  padding: 0.3rem 0.85rem;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary, #6B7280);
+  cursor: pointer;
+  transition: background var(--duration, 0.18s) var(--ease, ease),
+    color var(--duration, 0.18s) var(--ease, ease);
+}
+.wc-switch-btn:hover {
+  color: var(--text-primary);
+}
+.wc-switch-btn.is-active {
+  background: var(--surface);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.wc-switch-btn:focus-visible {
+  outline: 2px solid var(--border-focus, #1F69FF);
+  outline-offset: 1px;
+}
+
+/* Centre-weighted flow: the component orders terms so the most-said answer
+   lands mid-block, and `center` alignment keeps the mass balanced as words
+   wrap. Baseline alignment would leave big words sitting on a ragged line. */
+.wordcloud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem 0.85rem;
+  list-style: none;
+  padding: 0.75rem 0.25rem;
+  margin: 0;
+}
+.wc-term {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.22em;
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+  color: var(--wc-ink);
+  font-size: var(--wc-size, 1rem);
+  /* Long single-token answers must not push the cloud past the viewport. */
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  animation: wc-pop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+/* Frequency tiers. t4 is the most-said answer, t0 the long tail — the ramp
+   doubles as a colour cue so the ranking survives a photo of the projector.
+   The tier sets `--wc-ink` rather than `color` directly so the tally pill can
+   reuse it as a background; `currentColor` can't do that job, since it would
+   resolve against the pill's own overridden colour. */
+.wc-t4 { --wc-ink: #1F69FF; }
+.wc-t3 { --wc-ink: #6D28D9; }
+.wc-t2 { --wc-ink: #0F766E; }
+.wc-t1 { --wc-ink: #B45309; }
+.wc-t0 { --wc-ink: #6B7280; font-weight: 700; }
+
+/* Repeat tally. Rides at the top of the word as a superscript pill so it reads
+   as metadata, not as part of the answer. */
+.wc-count {
+  align-self: flex-start;
+  flex: none;
+  font-size: 0.34em;
+  font-weight: 800;
+  line-height: 1;
+  padding: 0.28em 0.5em;
+  border-radius: 9999px;
+  /* Knocked-out text: pill takes the tier colour, digits punch back to the
+     surface, so every tier stays legible without five more rules. */
+  background: var(--wc-ink);
+  color: var(--surface);
+  opacity: 0.92;
+  transform: translateY(0.15em);
+}
+
+.wordcloud--projector {
+  gap: 0.15rem 1.35rem;
+  padding: 1.25rem 0.5rem;
+}
+
+@keyframes wc-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+[data-theme='dark'] .wc-t4 { --wc-ink: #60A5FA; }
+[data-theme='dark'] .wc-t3 { --wc-ink: #C4B5FD; }
+[data-theme='dark'] .wc-t2 { --wc-ink: #5EEAD4; }
+[data-theme='dark'] .wc-t1 { --wc-ink: #FBBF24; }
+[data-theme='dark'] .wc-t0 { --wc-ink: #9CA3AF; }
+
+/* Phones and tablets: shrink the whole ramp, never flatten it. Scaling the
+   variable keeps every size ratio intact, so the most-said answer still reads
+   as the biggest — overriding font-size here would collapse all five tiers to
+   one size and throw away the frequency signal the cloud exists to show.
+   max() sets a legibility floor for the long tail. */
+@media (max-width: 900px) {
+  .wordcloud--projector .wc-term {
+    font-size: max(1rem, calc(var(--wc-size, 1rem) * 0.62));
+  }
+}
+@media (max-width: 640px) {
+  .wordcloud .wc-term {
+    font-size: max(0.9rem, calc(var(--wc-size, 1rem) * 0.72));
+  }
+  .wordcloud--projector .wc-term {
+    font-size: max(0.95rem, calc(var(--wc-size, 1rem) * 0.42));
+  }
+  .wordcloud {
+    gap: 0.05rem 0.6rem;
+    padding: 0.5rem 0;
+  }
+  .wordcloud--projector {
+    gap: 0.1rem 0.7rem;
+    padding: 0.6rem 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-term {
+    animation: none;
+  }
+}
+
+
+/* Lost ground this round. Deliberately sized and positioned identically to the
+   climb badge so ▲ and ▼ read as one pair from the back of the room. Rose on
+   blush: 5.9:1. */
+.menti-lb-drop-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #b91c1c;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: 9999px;
+  padding: 0.1rem 0.45rem;
+  animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  vertical-align: middle;
+}
+
+/* First appearance on the board — a late joiner has no previous rank, so it gets
+   this instead of a misleading ▲/▼. Violet on lilac: 6.5:1. */
+.menti-lb-new-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #6d28d9;
+  background: #ede9fe;
+  border: 1px solid #c4b5fd;
+  border-radius: 9999px;
+  padding: 0.1rem 0.45rem;
+  animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  vertical-align: middle;
+}
+
+/* ─── Faculty approval states (restored) ──────────────────────────────────────
+ * Merge 190b67a resolved this file in favour of the incoming branch and dropped
+ * the .pm-pending-banner rules entirely, while AdminPage.tsx kept emitting the
+ * class — so the banner rendered with no styling at all. Re-appended at EOF
+ * rather than in place: end-of-file survived that merge where the mid-file
+ * block did not.
+ *
+ * Deliberately NOT restored: the .pm-status-pending and .pm-action-approve base
+ * and :hover rules. The Polaris redesign reimplemented those, and putting the
+ * old ones back would overwrite the new design.
+ */
+.pm-pending-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  margin: 0 0 1.1rem;
+  padding: 0.9rem 1.1rem;
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  border-left: 4px solid #F59E0B;
+  border-radius: 10px;
+}
+
+.pm-pending-banner-icon {
+  font-size: 1.15rem;
+  line-height: 1.3;
+}
+
+.pm-pending-banner strong {
+  display: block;
+  font-size: 0.9rem;
+  color: #92400E;
+  margin-bottom: 0.15rem;
+}
+
+.pm-pending-banner span:not(.pm-pending-banner-icon) {
+  display: block;
+  font-size: 0.82rem;
+  color: #A16207;
+  line-height: 1.45;
+}
+
+/* The generic .pm-status-dot survived; only the pending-amber variant was lost. */
+.pm-status-pending .pm-status-dot {
+  background: #F59E0B;
+}
+
+/* No :disabled rule survives on .pm-btn-icon-action, so an in-flight approve
+ * button gave no feedback that it was already working. */
+.pm-action-approve:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+[data-theme="dark"] .pm-pending-banner {
+  background: #201907 !important;
+  border: 1px solid #78350f !important;
+  border-left: 4px solid #f59e0b !important;
+}
+
+[data-theme="dark"] .pm-pending-banner strong {
+  color: #fde68a !important;
+}
+
+[data-theme="dark"] .pm-pending-banner span:not(.pm-pending-banner-icon) {
+  color: #d6b45f !important;
+}
+
+[data-theme="dark"] .pm-status-pending .pm-status-dot {
+  background: #f59e0b !important;
+}
+
+/* ─── Merge 190b67a: second wave of restored rules ────────────────────────────
+ * Same cause as the block above — the merge resolved index.css as "theirs" and
+ * dropped rules whose class names are still emitted by components. Verified
+ * each of these is absent at HEAD *and* still rendered, so nothing here
+ * overrides live Polaris work.
+ *
+ * Two deliberate departures from the a09926d originals, both flagged in the
+ * handover: .pm-admin-crest and .pm-admin-avatar carried pre-redesign blue and
+ * green gradients that would fight the amber-gold admin console introduced in
+ * 931d914, so the geometry is restored verbatim and only the fill is swapped to
+ * the Polaris amber already used throughout this file. Change the two gradient
+ * lines if a different accent is wanted — nothing else depends on them.
+ */
+
+/* Faculty/student accent stripe on the auth modal. Border only: the dark card
+ * background from 84da702 is untouched. */
+.pm-auth-modal-card-faculty {
+  border-top: 4px solid #f59e0b !important;
+}
+
+.pm-auth-modal-card-student {
+  border-top: 4px solid #2563eb !important;
+}
+
+/* Sole class on the faculty sign-in button (CollegeAuthModal:411 and :487), so
+ * with no rule it rendered as a default browser button on the login screen.
+ * Mirrors .pm-auth-submit-btn — its student-side counterpart — in the faculty
+ * amber rather than the old navy, keeping the blue=student/amber=faculty
+ * convention the accent stripes above already use. */
+.pm-btn-faculty-primary {
+  height: 48px;
+  width: 100%;
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 14px;
+  font-size: 0.98rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.28);
+}
+
+.pm-btn-faculty-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(217, 119, 6, 0.36);
+}
+
+.pm-btn-faculty-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Base geometry for the shared buttons. Only the [data-theme="dark"] colour
+ * overrides survived the merge (index.css:9050-9086), which left these with
+ * colour but no padding, radius or weight. Those overrides have higher
+ * specificity and still win in dark theme regardless of source order. */
+.pm-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.88rem;
+  border-radius: 9999px;
+  padding: 0.6rem 1.25rem;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+  border: 1px solid transparent;
+  background: #0f172a;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.16);
+}
+
+.pm-btn-primary:hover {
+  background: #1e293b;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.22);
+}
+
+.pm-btn-primary:active {
+  transform: translateY(0);
+}
+
+.pm-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.85rem;
+  border-radius: 9999px;
+  padding: 0.55rem 1.15rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-decoration: none;
+  background: #ffffff;
+  color: #1e293b;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.pm-btn-secondary:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+}
+
+.pm-btn-secondary:active {
+  transform: translateY(0);
+}
+
+.pm-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.82rem;
+  border-radius: 9999px;
+  padding: 0.45rem 0.95rem;
+  cursor: pointer;
+  background: transparent;
+  color: #64748b;
+  border: 1px solid transparent;
+  transition: all 0.18s ease;
+}
+
+.pm-btn-ghost:hover {
+  background: rgba(100, 116, 139, 0.08);
+  color: #0f172a;
+}
+
+/* .pm-btn-ghost never had a dark override, and the light hover colour above is
+ * near-black — unreadable on the dark shell the history modal actually renders
+ * against. */
+[data-theme="dark"] .pm-btn-ghost {
+  color: #9aa3b2;
+}
+
+[data-theme="dark"] .pm-btn-ghost:hover {
+  background: rgba(154, 163, 178, 0.12);
+  color: #e6e8ee;
+}
+
+/* Admin console topbar. Geometry verbatim; fills swapped to Polaris amber. */
+.pm-admin-crest {
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.25);
+}
+
+.pm-admin-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.pm-admin-avatar {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+  color: #FFFFFF;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
