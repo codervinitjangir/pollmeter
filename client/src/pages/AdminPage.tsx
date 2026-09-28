@@ -66,9 +66,12 @@ export default function AdminPage() {
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
 
-  // Search queries
+  // Search and filter queries
   const [facultySearch, setFacultySearch] = useState('');
+  const [facultyDeptFilter, setFacultyDeptFilter] = useState('all');
+  const [facultyRoleFilter, setFacultyRoleFilter] = useState('all');
   const [studentSearch, setStudentSearch] = useState('');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   // Modal State for Add / Edit Mentor
   const [isFacultyModalOpen, setIsFacultyModalOpen] = useState(false);
@@ -187,18 +190,29 @@ export default function AdminPage() {
     return () => clearTimeout(timer);
   }, [studentSearch, authUser]);
 
-  // Filtered faculty list
+  // Filtered faculty list with department and role status filters
   const filteredFaculty = useMemo(() => {
+    let list = facultyList;
+    if (facultyDeptFilter !== 'all') {
+      list = list.filter((f) => f.department === facultyDeptFilter);
+    }
+    if (facultyRoleFilter === 'admin') {
+      list = list.filter((f) => f.role === 'admin');
+    } else if (facultyRoleFilter === 'mentor') {
+      list = list.filter((f) => f.role === 'mentor' && f.approved !== false);
+    } else if (facultyRoleFilter === 'pending') {
+      list = list.filter((f) => f.approved === false);
+    }
     const q = facultySearch.toLowerCase().trim();
-    if (!q) return facultyList;
-    return facultyList.filter(
+    if (!q) return list;
+    return list.filter(
       (f) =>
         f.realName.toLowerCase().includes(q) ||
         f.email.toLowerCase().includes(q) ||
         (f.department && f.department.toLowerCase().includes(q)) ||
         (f.subject && f.subject.toLowerCase().includes(q))
     );
-  }, [facultyList, facultySearch]);
+  }, [facultyList, facultySearch, facultyDeptFilter, facultyRoleFilter]);
 
   /**
    * Campus accounts that have signed in but hold no faculty rights yet. The
@@ -552,7 +566,7 @@ export default function AdminPage() {
 
   // ─── Main Admin Console ───────────────────────────────────────────────────
   return (
-    <div className="pm-admin-layout">
+    <div className={`menti-app-shell pm-admin-shell ${adminTheme === 'dark' ? 'dark' : ''}`}>
       {/* Toast Notification */}
       {toastMessage && (
         <div className="pm-admin-toast">
@@ -560,187 +574,85 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Top Navigation Bar */}
-      <header className="pm-admin-topbar">
-        <div className="pm-admin-brand">
-          <div className="pm-admin-crest">
-            <span style={{ fontSize: '1.4rem' }}>🏛️</span>
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="pm-admin-title">Polaris Campus</span>
-              <span className="pm-badge-admin-seal">SUPER-ADMIN</span>
+      {/* ─── LEFT SIDEBAR (Matching Mentor Host Studio) ─── */}
+      <aside className={`menti-sidebar pm-admin-sidebar ${mobileSidebarOpen ? 'open' : ''}`}>
+        <div>
+          <a href="/admin" className="menti-sidebar-brand" style={{ textDecoration: 'none' }}>
+            <div className="pm-admin-sidebar-crest">
+              <span>🏛️</span>
             </div>
-            <span className="pm-admin-sub">Central Faculty Management &amp; Academic Analytics</span>
-          </div>
-        </div>
-
-        <div className="pm-admin-topbar-actions">
-          <button
-            className="pm-theme-toggle-btn"
-            onClick={() => setAdminTheme(toggleTheme())}
-            title="Toggle Dark / Light Theme"
-            id="admin-theme-toggle-btn"
-          >
-            {adminTheme === 'dark' ? '☀️ Light' : '🌙 Dark'}
-          </button>
-          <button
-            className="pm-btn-mentor-switch"
-            onClick={() => navigate('/dashboard')}
-            title="Launch live classroom quiz workspace as mentor"
-          >
-            <span>⚡ Switch to Mentor Host</span>
-            <span style={{ fontSize: '1.1rem' }}>→</span>
-          </button>
-
-          <div className="pm-admin-profile">
-            <div className="pm-admin-avatar">
-              {authUser.realName.slice(0, 2).toUpperCase()}
-            </div>
-            <div className="pm-admin-profile-text">
-              <strong>{authUser.realName}</strong>
-              <small>{authUser.email}</small>
-            </div>
-            <button
-              className="pm-admin-signout-btn"
-              onClick={() => {
-                clearStoredAuth();
-                setAuthUser(null);
-                navigate('/');
-              }}
-              title="Sign out of Admin Console"
-            >
-              Sign Out
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="pm-admin-content">
-        {/* Error Banner if any */}
-        {error && (
-          <div className="alert alert-error" style={{ marginBottom: '1.5rem' }}>
-            <span>⚠️ {error}</span>
-            <button className="btn btn-sm btn-ghost" onClick={loadAllData}>
-              Retry
-            </button>
-          </div>
-        )}
-
-        {/* ─── Metric KPI Cards ──────────────────────────────────────────────── */}
-        <section className="pm-admin-kpi-grid">
-          <div className="pm-kpi-card pm-kpi-card-blue">
-            <div className="pm-kpi-icon-wrap">
-              <span>👨‍🏫</span>
-            </div>
-            <div className="pm-kpi-body">
-              <span className="pm-kpi-label">Faculty Mentors</span>
-              <div className="pm-kpi-val-row">
-                <span className="pm-kpi-number">{overview?.totalMentors ?? facultyList.length}</span>
-                <button className="pm-kpi-quick-action" onClick={handleOpenAdd}>
-                  + Add Mentor
-                </button>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontWeight: 800, fontSize: '1.2rem', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+                  Polaris
+                </span>
+                <span className="pm-badge-admin-seal">SUPER-ADMIN</span>
               </div>
-              <span className="pm-kpi-caption">Verified subject specialists</span>
+              <span style={{ fontSize: '0.72rem', color: '#9CA3AF', fontWeight: 500 }}>
+                Central Academic Governance
+              </span>
             </div>
-          </div>
+          </a>
 
-          <div className="pm-kpi-card pm-kpi-card-emerald">
-            <div className="pm-kpi-icon-wrap">
-              <span>🎓</span>
-            </div>
-            <div className="pm-kpi-body">
-              <span className="pm-kpi-label">Active Students</span>
-              <span className="pm-kpi-number">{overview?.totalStudents ?? studentAudit.length}</span>
-              <span className="pm-kpi-caption">Unified across all departments</span>
-            </div>
-          </div>
+          {/* Primary Action Button */}
+          <button
+            className="menti-btn-new pm-admin-sidebar-cta"
+            onClick={handleOpenAdd}
+            id="admin-sidebar-add-btn"
+          >
+            <span style={{ fontSize: '1.25rem', lineHeight: 1 }}>+</span>
+            <span>Add Faculty Mentor</span>
+          </button>
 
-          <div className="pm-kpi-card pm-kpi-card-purple">
-            <div className="pm-kpi-icon-wrap">
-              <span>📝</span>
-            </div>
-            <div className="pm-kpi-body">
-              <span className="pm-kpi-label">Quizzes Hosted</span>
-              <span className="pm-kpi-number">{overview?.totalQuizzes ?? 0}</span>
-              <span className="pm-kpi-caption">Classroom sessions conducted</span>
-            </div>
-          </div>
-
-          <div className="pm-kpi-card pm-kpi-card-amber">
-            <div className="pm-kpi-icon-wrap">
-              <span>⚡</span>
-            </div>
-            <div className="pm-kpi-body">
-              <span className="pm-kpi-label">Student Responses</span>
-              <span className="pm-kpi-number">{overview?.totalResponses ?? 0}</span>
-              <span className="pm-kpi-caption">Live interactions evaluated</span>
-            </div>
-          </div>
-        </section>
-
-        {/* ─── Subject Specialization Pills ──────────────────────────────────── */}
-        {overview?.subjects && overview.subjects.length > 0 && (
-          <section className="pm-admin-subjects-section">
-            <span className="pm-subjects-heading">Active Academic Subjects &amp; Courses:</span>
-            <div className="pm-subject-tags-list">
-              {overview.subjects.map((sub, i) => (
-                <div key={i} className="pm-subject-pill">
-                  <span className="pm-subject-dot" />
-                  <strong>{sub.subject}</strong>
-                  <span className="pm-subject-count">{sub.count} {sub.count === 1 ? 'quiz' : 'quizzes'}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* ─── Batch Distribution Cohort Pills ─────────────────────────────────── */}
-        {overview?.batches && overview.batches.length > 0 && (
-          <section className="pm-admin-subjects-section" style={{ marginTop: '0.65rem' }}>
-            <span className="pm-subjects-heading">Active Academic Cohorts &amp; Batches:</span>
-            <div className="pm-subject-tags-list">
-              {overview.batches.map((b, i) => (
-                <div key={i} className="pm-subject-pill" style={{ background: '#EEF2FF', borderColor: '#C7D2FE' }}>
-                  <span className="pm-subject-dot" style={{ background: '#4F46E5' }} />
-                  <strong>{b.batch}</strong>
-                  <span className="pm-subject-count" style={{ background: '#E0E7FF', color: '#3730A3' }}>
-                    {b.count} {b.count === 1 ? 'quiz' : 'quizzes'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* ─── Navigation Tabs ──────────────────────────────────────────────── */}
-        <div className="pm-admin-tabs-bar">
-          <div className="pm-admin-tabs">
+          {/* Navigation Links */}
+          <nav className="menti-nav-group">
+            <div className="menti-nav-title">ACADEMIC GOVERNANCE</div>
             <button
-              className={`pm-admin-tab-btn ${activeTab === 'faculty' ? 'active' : ''}`}
-              onClick={() => setActiveTab('faculty')}
+              className={`menti-nav-link ${activeTab === 'faculty' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('faculty');
+                setMobileSidebarOpen(false);
+              }}
             >
-              <span>👨‍🏫 Faculty &amp; Mentor Directory</span>
+              <span>👨‍🏫</span>
+              <span style={{ flex: 1 }}>Faculty &amp; Mentors</span>
               <span className="pm-tab-pill">{facultyList.length}</span>
+              {pendingCount > 0 && (
+                <span className="pm-sidebar-pending-dot" title={`${pendingCount} awaiting approval`}>
+                  {pendingCount}
+                </span>
+              )}
             </button>
+
             <button
-              className={`pm-admin-tab-btn ${activeTab === 'students' ? 'active' : ''}`}
-              onClick={() => setActiveTab('students')}
+              className={`menti-nav-link ${activeTab === 'students' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('students');
+                setMobileSidebarOpen(false);
+              }}
             >
-              <span>🎓 University Student Audit</span>
+              <span>🎓</span>
+              <span style={{ flex: 1 }}>Student Audit</span>
               <span className="pm-tab-pill">{studentAudit.length}</span>
             </button>
+
             <button
-              className={`pm-admin-tab-btn ${activeTab === 'quizzes' ? 'active' : ''}`}
-              onClick={() => setActiveTab('quizzes')}
+              className={`menti-nav-link ${activeTab === 'quizzes' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('quizzes');
+                setMobileSidebarOpen(false);
+              }}
             >
-              <span>📊 University Quiz Logs</span>
+              <span>📊</span>
+              <span style={{ flex: 1 }}>Quiz Logs &amp; Analytics</span>
               <span className="pm-tab-pill">{overview?.recentQuizzes?.length ?? 0}</span>
             </button>
+
             <button
-              className={`pm-admin-tab-btn ${activeTab === 'audit' ? 'active' : ''}`}
+              className={`menti-nav-link ${activeTab === 'audit' ? 'active' : ''}`}
               onClick={() => {
                 setActiveTab('audit');
+                setMobileSidebarOpen(false);
                 setLoadingAudit(true);
                 fetchAdminAuditLogs()
                   .then(setAuditLogs)
@@ -748,42 +660,320 @@ export default function AdminPage() {
                   .finally(() => setLoadingAudit(false));
               }}
             >
-              <span>🛡️ Security &amp; Audit Trail</span>
+              <span>🛡️</span>
+              <span style={{ flex: 1 }}>Security Audit Trail</span>
               <span className="pm-tab-pill">{auditLogs.length || 'Logs'}</span>
             </button>
-          </div>
+          </nav>
 
-          {activeTab === 'faculty' && (
-            <button className="btn btn-primary pm-admin-add-btn" onClick={handleOpenAdd}>
-              <span style={{ fontSize: '1.1rem' }}>+</span> Add Faculty Mentor
+          {/* Shortcuts */}
+          <div className="menti-nav-group">
+            <div className="menti-nav-title">CAMPUS SHORTCUTS</div>
+            <button
+              className="menti-nav-link"
+              onClick={() => navigate('/dashboard')}
+              title="Switch to Mentor Quiz Host"
+            >
+              <span>⚡</span>
+              <span>Mentor Studio</span>
+              <span style={{ marginLeft: 'auto', fontSize: '0.85rem', color: '#F59E0B' }}>→</span>
             </button>
-          )}
+
+            <button
+              className="menti-nav-link"
+              onClick={() => navigate('/')}
+              title="Go to University Landing Page"
+            >
+              <span>🏛️</span>
+              <span>Campus Home</span>
+            </button>
+          </div>
         </div>
 
-        {/* ─── TAB 1: Faculty Directory ─────────────────────────────────────── */}
-        {activeTab === 'faculty' && (
-          <section className="pm-admin-panel-card">
-            <div className="pm-panel-header-row">
-              <div className="pm-search-input-wrap">
-                <span>🔍</span>
-                <input
-                  type="text"
-                  placeholder="Search mentors by name, email, department, or subject..."
-                  value={facultySearch}
-                  onChange={(e) => setFacultySearch(e.target.value)}
-                />
-                {facultySearch && (
-                  <button className="pm-search-clear" onClick={() => setFacultySearch('')}>
-                    ✕
-                  </button>
-                )}
-              </div>
+        {/* Sidebar Footer */}
+        <div className="menti-sidebar-footer">
+          <button
+            className="menti-nav-link"
+            onClick={() => setAdminTheme(toggleTheme())}
+            title="Toggle Dark / Light Theme"
+            id="admin-sidebar-theme-toggle"
+          >
+            <span>{adminTheme === 'dark' ? '☀️' : '🌙'}</span>
+            <span>{adminTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+          </button>
 
-              <span className="pm-table-count">
-                Showing <strong>{filteredFaculty.length}</strong> faculty member
-                {filteredFaculty.length === 1 ? '' : 's'}
+          <div className="pm-admin-sidebar-user">
+            <div className="pm-admin-avatar">
+              {authUser.realName.slice(0, 2).toUpperCase()}
+            </div>
+            <div className="pm-admin-user-info">
+              <strong>{authUser.realName}</strong>
+              <small title={authUser.email}>{authUser.email}</small>
+            </div>
+            <button
+              className="pm-admin-signout-icon-btn"
+              onClick={() => {
+                clearStoredAuth();
+                setAuthUser(null);
+                navigate('/');
+              }}
+              title="Sign Out"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* ─── MAIN PANEL ─── */}
+      <div className="menti-main-panel pm-admin-main-panel">
+        {/* Sticky Topbar */}
+        <header className="menti-topbar pm-admin-topbar">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <button
+              className="pm-admin-mobile-toggle"
+              onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+              aria-label="Toggle Navigation"
+            >
+              ☰
+            </button>
+            <div className="pm-admin-topbar-breadcrumb">
+              <span className="pm-breadcrumb-root">Polaris Admin</span>
+              <span className="pm-breadcrumb-sep">/</span>
+              <span className="pm-breadcrumb-current">
+                {activeTab === 'faculty' && 'Faculty & Mentor Directory'}
+                {activeTab === 'students' && 'University Student Audit'}
+                {activeTab === 'quizzes' && 'Classroom Quiz Logs'}
+                {activeTab === 'audit' && 'Security & Compliance Trail'}
               </span>
             </div>
+          </div>
+
+          <div className="pm-admin-topbar-actions">
+            <div className="pm-clearance-pill">
+              <span className="pm-clearance-dot" />
+              <span>Tier-4 Clearance Active</span>
+            </div>
+
+            <button
+              className="pm-theme-toggle-btn"
+              onClick={() => setAdminTheme(toggleTheme())}
+              title="Toggle Dark / Light Theme"
+            >
+              {adminTheme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+            </button>
+
+            <button
+              className="pm-btn-mentor-switch"
+              onClick={() => navigate('/dashboard')}
+              title="Launch classroom host studio"
+            >
+              <span>⚡ Mentor Studio</span>
+              <span>→</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Scrollable Content Area */}
+        <main className="pm-admin-content">
+          {/* Error Banner if any */}
+          {error && (
+            <div className="alert alert-error" style={{ marginBottom: '1.5rem' }}>
+              <span>⚠️ {error}</span>
+              <button className="btn btn-sm btn-ghost" onClick={loadAllData}>
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* ─── Metric KPI Cards ──────────────────────────────────────────────── */}
+          <section className="pm-admin-kpi-grid">
+            <div className="pm-kpi-card pm-kpi-card-amber">
+              <div className="pm-kpi-icon-wrap">
+                <span>👨‍🏫</span>
+              </div>
+              <div className="pm-kpi-body">
+                <span className="pm-kpi-label">Faculty Mentors</span>
+                <div className="pm-kpi-val-row">
+                  <span className="pm-kpi-number">{overview?.totalMentors ?? facultyList.length}</span>
+                  <button className="pm-kpi-quick-action" onClick={handleOpenAdd}>
+                    + Add Mentor
+                  </button>
+                </div>
+                <span className="pm-kpi-caption">Verified subject specialists</span>
+              </div>
+            </div>
+
+            <div className="pm-kpi-card pm-kpi-card-emerald">
+              <div className="pm-kpi-icon-wrap">
+                <span>🎓</span>
+              </div>
+              <div className="pm-kpi-body">
+                <span className="pm-kpi-label">Active Students</span>
+                <span className="pm-kpi-number">{overview?.totalStudents ?? studentAudit.length}</span>
+                <span className="pm-kpi-caption">Unified across all departments</span>
+              </div>
+            </div>
+
+            <div className="pm-kpi-card pm-kpi-card-blue">
+              <div className="pm-kpi-icon-wrap">
+                <span>📝</span>
+              </div>
+              <div className="pm-kpi-body">
+                <span className="pm-kpi-label">Quizzes Hosted</span>
+                <span className="pm-kpi-number">{overview?.totalQuizzes ?? 0}</span>
+                <span className="pm-kpi-caption">Classroom sessions conducted</span>
+              </div>
+            </div>
+
+            <div className="pm-kpi-card pm-kpi-card-purple">
+              <div className="pm-kpi-icon-wrap">
+                <span>⚡</span>
+              </div>
+              <div className="pm-kpi-body">
+                <span className="pm-kpi-label">Student Responses</span>
+                <span className="pm-kpi-number">{overview?.totalResponses ?? 0}</span>
+                <span className="pm-kpi-caption">Live interactions evaluated</span>
+              </div>
+            </div>
+          </section>
+
+          {/* ─── Subject Specialization Pills ──────────────────────────────────── */}
+          {overview?.subjects && overview.subjects.length > 0 && (
+            <section className="pm-admin-subjects-section">
+              <span className="pm-subjects-heading">Active Academic Subjects &amp; Courses:</span>
+              <div className="pm-subject-tags-list">
+                {overview.subjects.map((sub, i) => (
+                  <div key={i} className="pm-subject-pill">
+                    <span className="pm-subject-dot" />
+                    <strong>{sub.subject}</strong>
+                    <span className="pm-subject-count">{sub.count} {sub.count === 1 ? 'quiz' : 'quizzes'}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* ─── Batch Distribution Cohort Pills ─────────────────────────────────── */}
+          {overview?.batches && overview.batches.length > 0 && (
+            <section className="pm-admin-subjects-section" style={{ marginTop: '0.65rem' }}>
+              <span className="pm-subjects-heading">Active Academic Cohorts &amp; Batches:</span>
+              <div className="pm-subject-tags-list">
+                {overview.batches.map((b, i) => (
+                  <div key={i} className="pm-subject-pill pm-batch-subject-pill">
+                    <span className="pm-subject-dot pm-batch-dot" />
+                    <strong>{b.batch}</strong>
+                    <span className="pm-subject-count pm-batch-count">
+                      {b.count} {b.count === 1 ? 'quiz' : 'quizzes'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* ─── Navigation Tabs Bar (Quick Switcher) ─── */}
+          <div className="pm-admin-tabs-bar">
+            <div className="pm-admin-tabs">
+              <button
+                className={`pm-admin-tab-btn ${activeTab === 'faculty' ? 'active' : ''}`}
+                onClick={() => setActiveTab('faculty')}
+              >
+                <span>👨‍🏫 Faculty &amp; Mentor Directory</span>
+                <span className="pm-tab-pill">{facultyList.length}</span>
+              </button>
+              <button
+                className={`pm-admin-tab-btn ${activeTab === 'students' ? 'active' : ''}`}
+                onClick={() => setActiveTab('students')}
+              >
+                <span>🎓 University Student Audit</span>
+                <span className="pm-tab-pill">{studentAudit.length}</span>
+              </button>
+              <button
+                className={`pm-admin-tab-btn ${activeTab === 'quizzes' ? 'active' : ''}`}
+                onClick={() => setActiveTab('quizzes')}
+              >
+                <span>📊 University Quiz Logs</span>
+                <span className="pm-tab-pill">{overview?.recentQuizzes?.length ?? 0}</span>
+              </button>
+              <button
+                className={`pm-admin-tab-btn ${activeTab === 'audit' ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveTab('audit');
+                  setLoadingAudit(true);
+                  fetchAdminAuditLogs()
+                    .then(setAuditLogs)
+                    .catch(() => {})
+                    .finally(() => setLoadingAudit(false));
+                }}
+              >
+                <span>🛡️ Security &amp; Audit Trail</span>
+                <span className="pm-tab-pill">{auditLogs.length || 'Logs'}</span>
+              </button>
+            </div>
+
+            {activeTab === 'faculty' && (
+              <button className="pm-admin-add-btn" onClick={handleOpenAdd}>
+                <span style={{ fontSize: '1.1rem' }}>+</span> Add Faculty Mentor
+              </button>
+            )}
+          </div>
+
+          {/* ─── TAB 1: Faculty Directory ─────────────────────────────────────── */}
+          {activeTab === 'faculty' && (
+            <section className="pm-admin-panel-card">
+              <div className="pm-panel-header-row">
+                <div className="pm-panel-toolbar-left">
+                  <div className="pm-search-input-wrap">
+                    <span>🔍</span>
+                    <input
+                      type="text"
+                      placeholder="Search mentors by name, email, department, or subject..."
+                      value={facultySearch}
+                      onChange={(e) => setFacultySearch(e.target.value)}
+                    />
+                    {facultySearch && (
+                      <button className="pm-search-clear" onClick={() => setFacultySearch('')}>
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  <select
+                    className="pm-filter-select"
+                    value={facultyDeptFilter}
+                    onChange={(e) => setFacultyDeptFilter(e.target.value)}
+                    title="Filter by department"
+                  >
+                    <option value="all">🏢 All Departments</option>
+                    {POPULAR_DEPARTMENTS.map((dept) => (
+                      <option key={dept} value={dept}>
+                        {dept}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    className="pm-filter-select"
+                    value={facultyRoleFilter}
+                    onChange={(e) => setFacultyRoleFilter(e.target.value)}
+                    title="Filter by role status"
+                  >
+                    <option value="all">👥 All Roles</option>
+                    <option value="mentor">🎓 Verified Mentors</option>
+                    <option value="admin">🏛️ Super-Admins</option>
+                    <option value="pending">⏳ Awaiting Approval ({pendingCount})</option>
+                  </select>
+                </div>
+
+                <div className="pm-panel-toolbar-right">
+                  <span className="pm-table-count">
+                    Showing <strong>{filteredFaculty.length}</strong> of <strong>{facultyList.length}</strong> faculty
+                  </span>
+                </div>
+              </div>
 
             {pendingCount > 0 && (
               <div className="pm-pending-banner">
@@ -1190,7 +1380,8 @@ export default function AdminPage() {
             )}
           </section>
         )}
-      </main>
+        </main>
+      </div>
 
       {/* ─── Add / Edit Faculty Modal ────────────────────────────────────────── */}
       {isFacultyModalOpen && (
