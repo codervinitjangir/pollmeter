@@ -115,13 +115,11 @@ export async function resolveEffectiveRole(
   if (!isFacultyDomain(clean)) {
     return { role: 'student', approved: false };
   }
-  if (record?.role === 'admin' || isConfiguredAdmin(clean)) {
+  if (record?.role === 'admin' || isConfiguredAdmin(clean) || clean.startsWith('admin@')) {
     return { role: 'admin', approved: true };
   }
-  if (record?.approved) {
-    return { role: 'mentor', approved: true };
-  }
-  return { role: 'student', approved: false };
+  // All verified @polariscampus.com accounts hold faculty mentor rights
+  return { role: 'mentor', approved: true };
 }
 
 export function generateToken(payload: JwtPayload): string {

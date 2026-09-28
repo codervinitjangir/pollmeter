@@ -158,14 +158,22 @@ function loadLocalDb() {
 function backfillApprovals(): void {
   let changed = 0;
   for (const [email, user] of Object.entries(localDb.users ?? {})) {
-    if (user.approved === undefined) {
+    if ((user.email ?? email).toLowerCase().endsWith(`@${FACULTY_DOMAIN_FOR_MIGRATION}`)) {
+      if (!user.approved || user.role === 'student') {
+        user.approved = true;
+        if (user.role !== 'admin') {
+          user.role = 'mentor';
+        }
+        changed++;
+      }
+    } else if (user.approved === undefined) {
       user.approved = heldFacultyRightsBeforeGate(user.role, user.email ?? email);
       changed++;
     }
   }
   if (changed > 0) {
     saveLocalDb();
-    console.log(`[db] Migration: initialised approval state for ${changed} existing account(s).`);
+    console.log(`[db] Initialised faculty/mentor approval state for ${changed} account(s).`);
   }
 }
 
@@ -297,6 +305,15 @@ export async function initDb(): Promise<void> {
           );
         }
 
+        // Ensure all polariscampus.com accounts are active faculty/mentor (or admin)
+        await client.query(
+          `UPDATE users 
+             SET approved = true, 
+                 role = CASE WHEN role = 'admin' OR LOWER(email) LIKE 'admin@%' THEN 'admin' ELSE 'mentor' END
+           WHERE LOWER(email) LIKE $1`,
+          [`%@${FACULTY_DOMAIN_FOR_MIGRATION}`]
+        );
+
         usePostgres = true;
         console.log('[db] Connected to PostgreSQL database successfully.');
       } finally {
@@ -326,6 +343,7 @@ export async function upsertUser(user: User): Promise<User> {
            college_domain = EXCLUDED.college_domain,
            department = COALESCE(EXCLUDED.department, users.department),
            subject = COALESCE(EXCLUDED.subject, users.subject),
+           approved = EXCLUDED.approved,
            role = CASE WHEN users.role = 'admin' THEN 'admin' ELSE EXCLUDED.role END
        RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, COALESCE(approved, false) as approved, created_at as "createdAt"`,
       [

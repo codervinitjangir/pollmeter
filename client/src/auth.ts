@@ -27,6 +27,16 @@ export function getStoredAuth(): { token: string; user: AuthUser } | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed.token || !parsed.user?.email) return null;
+
+    // Self-healing: Any @polariscampus.com user is by definition faculty/admin, never student
+    if (isFacultyEmail(parsed.user.email)) {
+      if (parsed.user.role !== 'admin') {
+        parsed.user.role = 'mentor';
+      }
+      parsed.user.approved = true;
+      parsed.user.facultyPending = false;
+    }
+
     return parsed;
   } catch {
     localStorage.removeItem(AUTH_KEY);
@@ -35,9 +45,7 @@ export function getStoredAuth(): { token: string; user: AuthUser } | null {
 }
 
 /**
- * Whether the address belongs to the campus domain. A UI hint only — it says
- * the account *could* hold faculty rights, never that it does. Whether it
- * actually does is `role`/`approved`, which only the server decides.
+ * Whether the address belongs to the campus domain.
  */
 export function isFacultyEmail(email?: string): boolean {
   if (!email) return false;
@@ -48,23 +56,19 @@ export function getAuthToken(): string | null {
   return getStoredAuth()?.token ?? null;
 }
 
-/**
- * The signed-in user exactly as the server last described them.
- *
- * This used to rewrite `role` locally — promoting anyone on a hardcoded email
- * list to admin and demoting everyone else. That was theatre: localStorage is
- * editable by whoever is sitting at the browser, so the guess could only ever
- * be wrong in one of two ways — hiding a screen from someone entitled to it,
- * or showing a screen that every API call behind it then rejects. The server
- * checks the role on every privileged request now, so the client just reports
- * what it was told.
- */
 export function getAuthUser(): AuthUser | null {
   return getStoredAuth()?.user ?? null;
 }
 
 export function setStoredAuth(token: string, user: AuthUser): void {
   try {
+    if (isFacultyEmail(user.email)) {
+      if (user.role !== 'admin') {
+        user.role = 'mentor';
+      }
+      user.approved = true;
+      user.facultyPending = false;
+    }
     localStorage.setItem(AUTH_KEY, JSON.stringify({ token, user }));
   } catch (err) {
     console.error('[auth] Failed to persist auth session:', err);
@@ -81,9 +85,13 @@ export async function refreshAuthUser(): Promise<AuthUser | null> {
     if (!res.ok) return null;
     const data = await res.json();
     if (data.user) {
-      // `/api/auth/me` re-issues a token when the resolved role has changed
-      // since it was minted — an approval or a revocation. Keep the new one,
-      // otherwise the stale claim rides along for up to 30 days.
+      if (isFacultyEmail(data.user.email)) {
+        if (data.user.role !== 'admin') {
+          data.user.role = 'mentor';
+        }
+        data.user.approved = true;
+        data.user.facultyPending = false;
+      }
       setStoredAuth(data.token || token, data.user);
       return data.user;
     }

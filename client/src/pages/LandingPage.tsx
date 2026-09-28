@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getActiveTheme, toggleTheme, Theme } from '../theme';
-import { getAuthUser, clearStoredAuth, AuthUser, refreshAuthUser } from '../auth';
+import { getAuthUser, clearStoredAuth, AuthUser, refreshAuthUser, isFacultyEmail } from '../auth';
 import CollegeAuthModal from '../components/CollegeAuthModal';
 
 export default function LandingPage() {
@@ -33,7 +33,9 @@ export default function LandingPage() {
     setShowAuthModal(true);
   }
 
-  const isFacultyUser = authUser && (authUser.role === 'mentor' || authUser.role === 'admin');
+  const isFacultyUser = Boolean(
+    authUser && (authUser.role === 'mentor' || authUser.role === 'admin' || isFacultyEmail(authUser.email))
+  );
 
   return (
     <div className="pm-portal-landing">
@@ -48,6 +50,11 @@ export default function LandingPage() {
         onSuccess={(u) => {
           setAuthUser(u);
           setShowAuthModal(false);
+          if (authRoleHint === 'mentor' || u.role === 'mentor' || isFacultyEmail(u.email)) {
+            navigate('/dashboard');
+          } else if (u.role === 'admin') {
+            navigate('/admin');
+          }
         }}
         onClose={() => setShowAuthModal(false)}
         roleHint={authRoleHint}
@@ -165,14 +172,14 @@ export default function LandingPage() {
                         className={`pm-portal-role-badge ${
                           authUser.role === 'admin'
                             ? 'pm-portal-role-badge-admin'
-                            : authUser.role === 'mentor'
+                            : isFacultyUser
                             ? 'pm-portal-role-badge-faculty'
                             : 'pm-portal-role-badge-student'
                         }`}
                       >
                         {authUser.role === 'admin'
                           ? '🏛️ SUPER-ADMINISTRATOR'
-                          : authUser.role === 'mentor'
+                          : isFacultyUser
                           ? '🎓 FACULTY MENTOR'
                           : '🎒 STUDENT PARTICIPANT'}
                       </span>
@@ -181,7 +188,7 @@ export default function LandingPage() {
                       <span>{authUser.email}</span>
                       <span>•</span>
                       <span>
-                        {authUser.role === 'student'
+                        {!isFacultyUser
                           ? 'Polaris Campus Verified Student Identity'
                           : 'Polaris Campus Verified Faculty & Admin Portal'}
                       </span>
@@ -222,7 +229,7 @@ export default function LandingPage() {
             </section>
 
             {/* ─── ROLE-SPECIFIC DASHBOARD SECTIONS ─── */}
-            {authUser.role === 'student' ? (
+            {!isFacultyUser ? (
               <>
                 {/* 1. HERO PARTICIPATION TERMINAL FOR STUDENTS */}
                 <section className="pm-portal-hero-terminal">

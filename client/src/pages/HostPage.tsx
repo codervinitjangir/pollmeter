@@ -30,7 +30,7 @@ import AIGenerateModal from '../components/AIGenerateModal';
 import { apiUrl } from '../api';
 import { cleanText } from '../cleanText';
 import { getAvatar } from '../utils/avatars';
-import { getAuthUser, getAuthToken, clearStoredAuth, AuthUser, fetchBatches, refreshAuthUser } from '../auth';
+import { getAuthUser, getAuthToken, clearStoredAuth, AuthUser, fetchBatches, refreshAuthUser, isFacultyEmail } from '../auth';
 import CollegeAuthModal from '../components/CollegeAuthModal';
 import MentorPinModal from '../components/MentorPinModal';
 import MentorQuizHistoryModal from '../components/MentorQuizHistoryModal';
@@ -84,7 +84,7 @@ export default function HostPage() {
   const [showAuthModal, setShowAuthModal] = useState(() => !getAuthUser());
   const [showPinModal, setShowPinModal] = useState(() => {
     const u = getAuthUser();
-    return Boolean(u && u.role !== 'mentor' && u.role !== 'admin');
+    return Boolean(u && !isFacultyEmail(u.email) && u.role !== 'mentor' && u.role !== 'admin');
   });
   const [showPastQuizzes, setShowPastQuizzes] = useState(false);
 
