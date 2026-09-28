@@ -108,23 +108,35 @@ export default function LandingPage() {
 
       {/* ─── Racing Lanes Backdrop ─────────────────────────────────── */}
       <div className="lp-lanes" aria-hidden="true">
-        <div className="lp-lane"><i style={{ '--c': 'var(--blue)', '--t': '9s', '--d': '-2s' } as React.CSSProperties}></i></div>
-        <div className="lp-lane"><i style={{ '--c': 'var(--grn)', '--t': '6.5s', '--d': '-5s' } as React.CSSProperties}></i></div>
-        <div className="lp-lane"><i style={{ '--c': 'var(--amb)', '--t': '11s', '--d': '-8s' } as React.CSSProperties}></i></div>
-        <div className="lp-lane"><i style={{ '--c': 'var(--blue)', '--t': '7.5s', '--d': '-1s' } as React.CSSProperties}></i></div>
-        <div className="lp-lane"><i style={{ '--c': 'var(--grn)', '--t': '10s', '--d': '-6s' } as React.CSSProperties}></i></div>
+        <div className="lp-lane"><i style={{ '--c': '#F59E0B', '--t': '9s', '--d': '-2s' } as React.CSSProperties}></i></div>
+        <div className="lp-lane"><i style={{ '--c': '#10B981', '--t': '6.5s', '--d': '-5s' } as React.CSSProperties}></i></div>
+        <div className="lp-lane"><i style={{ '--c': '#FBBF24', '--t': '11s', '--d': '-8s' } as React.CSSProperties}></i></div>
+        <div className="lp-lane"><i style={{ '--c': '#F59E0B', '--t': '7.5s', '--d': '-1s' } as React.CSSProperties}></i></div>
+        <div className="lp-lane"><i style={{ '--c': '#10B981', '--t': '10s', '--d': '-6s' } as React.CSSProperties}></i></div>
       </div>
 
       {/* ─── Header ───────────────────────────────────────────────── */}
       <header className="lp-header">
         <div className="lp-wrap lp-bar">
           <div className="lp-brand" onClick={() => navigate('/')} role="button" tabIndex={0}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1.7rem', height: '1.7rem' }}>
-              <path d="M3 21h18M5 21V10M19 21V10M9 21V10M15 21V10M2.5 10L12 4l9.5 6z" />
-            </svg>
+            <div style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '10px',
+              background: '#16161D',
+              border: '1.5px solid #F59E0B',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 0 14px rgba(245, 158, 11, 0.35)',
+              color: '#F59E0B',
+              fontSize: '1.25rem'
+            }}>
+              ⚡
+            </div>
             <div>
-              <b>Medhavi Skills University</b>
-              <small>Polaris Campus Quizzing &amp; Live Analytics</small>
+              <b>Polaris Campus</b>
+              <small>Live Classroom Quizzing &amp; Analytics</small>
             </div>
           </div>
 
