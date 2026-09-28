@@ -14,11 +14,11 @@ export function getApiBaseUrl(): string {
   }
   if (typeof window !== 'undefined') {
     const host = window.location.hostname;
+    // Any deployed frontend (pollmeter.pages.dev, quiz.visionexam.xyz, etc.) communicates with Render
     if (
-      host.includes('pages.dev') ||
-      host.includes('vercel.app') ||
-      host.includes('netlify.app') ||
-      host.includes('github.io')
+      host !== 'localhost' &&
+      host !== '127.0.0.1' &&
+      !host.endsWith('.local')
     ) {
       return 'https://pollmeter.onrender.com';
     }

@@ -63,7 +63,7 @@ const PORT = parseInt(process.env.PORT ?? '3001', 10);
  * and known deployment domains (Cloudflare Pages, Vercel, Netlify).
  */
 const PRIVATE_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|10\.[\d.]+|192\.168\.[\d.]+|172\.(1[6-9]|2\d|3[01])\.[\d.]+|[\w-]+\.local)(:\d+)?$/i;
-const DEPLOY_ORIGIN  = /^https:\/\/([\w-]+\.pages\.dev|[\w-]+\.vercel\.app|[\w-]+\.netlify\.app|[\w-]+\.onrender\.com)(:\d+)?$/i;
+const DEPLOY_ORIGIN  = /^https:\/\/([\w.-]+\.pages\.dev|[\w.-]+\.vercel\.app|[\w.-]+\.netlify\.app|[\w.-]+\.onrender\.com|([\w.-]+\.)?visionexam\.xyz)(:\d+)?$/i;
 
 const extraOrigins = (process.env.CLIENT_ORIGIN ?? '')
   .split(',')
@@ -73,6 +73,8 @@ const extraOrigins = (process.env.CLIENT_ORIGIN ?? '')
 function isAllowedOrigin(origin: string | undefined): boolean {
   if (!origin) return true;                        // curl, same-origin, QR scanners
   if (extraOrigins.includes(origin)) return true;
+  if (origin === 'https://quiz.visionexam.xyz' || origin === 'https://visionexam.xyz') return true;
+  if (origin === 'https://pollmeter.pages.dev') return true;
   if (PRIVATE_ORIGIN.test(origin)) return true;
   if (DEPLOY_ORIGIN.test(origin)) return true;
   return false;
