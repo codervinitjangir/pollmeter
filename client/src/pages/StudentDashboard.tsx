@@ -9,6 +9,8 @@ export default function StudentDashboard() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(() => getAuthUser());
   const [showAuthModal, setShowAuthModal] = useState(() => !getAuthUser());
   const [theme, setTheme] = useState<'dark' | 'light'>(() => getActiveTheme());
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const terminalRef = useRef<HTMLDivElement | null>(null);
 
   // Quiz history & analytics
   const [history, setHistory] = useState<any[]>([]);
@@ -151,7 +153,7 @@ export default function StudentDashboard() {
   );
 
   return (
-    <div className="pm-admin-layout">
+    <div className="menti-app-shell pm-admin-shell pm-student-shell">
       {/* College Auth Modal if student is not logged in */}
       <CollegeAuthModal
         isOpen={showAuthModal || !authUser}
@@ -168,136 +170,286 @@ export default function StudentDashboard() {
         roleHint="student"
       />
 
-      {/* Top Navigation Bar - Exact Polaris Admin/Host Design */}
-      <header className="pm-admin-topbar">
-        <div className="pm-admin-brand" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-          <div
-            className="pm-admin-crest"
-            style={{
-              background: '#16161D',
-              border: '1.5px solid #F59E0B',
-              color: '#F59E0B',
-              boxShadow: '0 0 16px rgba(245, 158, 11, 0.35)',
+      {/* ─── LEFT SIDEBAR (Matching Mentor Host Studio & Admin Console) ─── */}
+      <aside className={`menti-sidebar pm-admin-sidebar ${mobileSidebarOpen ? 'open' : ''}`}>
+        <div>
+          {/* Brand Crest */}
+          <a href="/student" className="menti-sidebar-brand" style={{ textDecoration: 'none' }}>
+            <div className="pm-admin-sidebar-crest">
+              <span style={{ fontSize: '1.15rem' }}>⚡</span>
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontWeight: 800, fontSize: '1.05rem', letterSpacing: '-0.02em', color: 'inherit' }}>
+                  Polaris
+                </span>
+                <span className="pm-badge-admin-seal" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10B981', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
+                  STUDENT PORTAL
+                </span>
+              </div>
+              <small style={{ fontSize: '0.68rem', color: '#64748B', display: 'block', fontWeight: 600 }}>
+                MEDHAVI CAMPUS
+              </small>
+            </div>
+          </a>
+
+          {/* Primary Action Button (Enter Quiz PIN) */}
+          <button
+            className="menti-btn-new pm-admin-sidebar-cta"
+            onClick={() => {
+              terminalRef.current?.scrollIntoView({ behavior: 'smooth' });
+              digitRefs.current[0]?.focus();
+              setMobileSidebarOpen(false);
             }}
+            id="student-sidebar-join-btn"
           >
             <span>⚡</span>
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="pm-admin-title">Polaris Campus</span>
-              <span className="pm-portal-role-badge">STUDENT PORTAL</span>
-            </div>
-            <span className="pm-admin-sub">
-              Medhavi Skills University · Live Classroom Arena &amp; Academic Analytics
-            </span>
+            <span>Enter Quiz PIN</span>
+          </button>
+
+          {/* Navigation Links */}
+          <nav className="menti-nav-group">
+            <div className="menti-nav-title">ACADEMIC ARENA</div>
+            <button
+              className={`menti-nav-link ${filterType === 'all' ? 'active' : ''}`}
+              onClick={() => {
+                setFilterType('all');
+                setMobileSidebarOpen(false);
+              }}
+            >
+              <span>📜</span>
+              <span>All Quiz Records</span>
+              <span className="pm-tab-pill">{history.length}</span>
+            </button>
+
+            <button
+              className={`menti-nav-link ${filterType === 'podium' ? 'active' : ''}`}
+              onClick={() => {
+                setFilterType('podium');
+                setMobileSidebarOpen(false);
+              }}
+            >
+              <span>🏆</span>
+              <span>Podium Finishes</span>
+              <span className="pm-tab-pill" style={{ color: '#F59E0B' }}>
+                {stats.podiumFinishes}
+              </span>
+            </button>
+
+            <button
+              className="menti-nav-link"
+              onClick={() => {
+                terminalRef.current?.scrollIntoView({ behavior: 'smooth' });
+                digitRefs.current[0]?.focus();
+                setMobileSidebarOpen(false);
+              }}
+            >
+              <span>🎮</span>
+              <span>Live Classroom PIN</span>
+              <span className="pm-sidebar-pending-dot" title="Live Terminal Ready" />
+            </button>
+          </nav>
+
+          {/* Cross-portal Shortcuts */}
+          <div className="menti-nav-group">
+            <div className="menti-nav-title">CAMPUS SHORTCUTS</div>
+            {isFaculty && (
+              <button
+                className="menti-nav-link"
+                onClick={() => {
+                  navigate('/dashboard');
+                  setMobileSidebarOpen(false);
+                }}
+                title="Switch to Mentor Host Studio"
+              >
+                <span>👨‍🏫</span>
+                <span>Mentor Studio</span>
+                <span style={{ marginLeft: 'auto', fontSize: '0.85rem', color: '#60A5FA' }}>→</span>
+              </button>
+            )}
+
+            {authUser?.role === 'admin' && (
+              <button
+                className="menti-nav-link"
+                onClick={() => {
+                  navigate('/admin');
+                  setMobileSidebarOpen(false);
+                }}
+                title="Open University Admin Console"
+              >
+                <span>🛡️</span>
+                <span>Admin Console</span>
+                <span style={{ marginLeft: 'auto', fontSize: '0.85rem', color: '#F59E0B' }}>→</span>
+              </button>
+            )}
+
+            <button
+              className="menti-nav-link"
+              onClick={() => {
+                navigate('/');
+                setMobileSidebarOpen(false);
+              }}
+              title="Go to University Landing Page"
+            >
+              <span>🏛️</span>
+              <span>Campus Home</span>
+            </button>
           </div>
         </div>
 
-        <div className="pm-admin-topbar-actions">
-          {/* Theme Toggle */}
+        {/* Sidebar Footer */}
+        <div className="menti-sidebar-footer">
           <button
-            className="pm-theme-toggle-btn"
+            className="menti-nav-link"
             onClick={() => setTheme(toggleTheme())}
-            type="button"
-            title="Toggle Light / Dark mode"
-            id="student-theme-toggle-btn"
+            title="Toggle Dark / Light Theme"
+            id="student-sidebar-theme-toggle"
           >
-            {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+            <span>{theme === 'dark' ? '☀️' : '🌙'}</span>
+            <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
           </button>
 
-          {/* Student Profile Info */}
-          {authUser ? (
-            <div className="pm-admin-profile">
+          {authUser && (
+            <div className="pm-admin-sidebar-user">
               <div
-                className="pm-admin-avatar"
+                className="pm-admin-sidebar-user-avatar"
                 style={{
-                  background: 'linear-gradient(135deg, #F59E0B, #D97706)',
-                  color: '#000000',
-                  border: '1px solid rgba(245, 158, 11, 0.5)',
+                  background: 'linear-gradient(135deg, #10B981, #059669)',
+                  color: '#FFFFFF',
                 }}
               >
                 {authUser.realName.slice(0, 2).toUpperCase()}
               </div>
-              <div className="pm-admin-profile-text">
-                <strong>{authUser.realName}</strong>
-                <small style={{ color: '#F59E0B' }}>
-                  🎓 MSU Verified ({authUser.email.split('@')[0]})
-                </small>
+              <div className="pm-admin-sidebar-user-info">
+                <span className="pm-admin-sidebar-user-name" title={authUser.realName}>
+                  {authUser.realName}
+                </span>
+                <span className="pm-admin-sidebar-user-email" title={authUser.email}>
+                  🎓 {authUser.email.split('@')[0]}
+                </span>
               </div>
               <button
-                className="pm-admin-signout-btn"
+                className="pm-admin-sidebar-signout"
                 onClick={() => {
                   clearStoredAuth();
                   setAuthUser(null);
                   navigate('/');
                 }}
-                type="button"
-                title="Sign out of Student Portal"
+                title="Sign Out"
               >
-                Sign Out
+                🚪
               </button>
             </div>
-          ) : (
-            <button
-              className="btn btn-primary"
-              onClick={() => setShowAuthModal(true)}
-              type="button"
-              style={{ background: '#F59E0B', color: '#000000', fontWeight: 800 }}
-            >
-              Sign In with College ID
-            </button>
           )}
         </div>
-      </header>
+      </aside>
 
-      {/* Main Content Area */}
-      <main className="pm-admin-content">
-        {/* Mentor Switch Notice if Faculty logs in */}
-        {isFaculty && (
-          <div
-            style={{
-              background: 'rgba(59, 130, 246, 0.1)',
-              border: '1px solid rgba(59, 130, 246, 0.3)',
-              borderRadius: '14px',
-              padding: '1rem 1.25rem',
-              marginBottom: '1.75rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '1rem',
-              flexWrap: 'wrap',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ fontSize: '1.4rem' }}>👨‍🏫</span>
-              <div>
-                <strong style={{ color: '#60A5FA' }}>Faculty / Mentor Clearance Detected</strong>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--mute, #94A3B8)' }}>
-                  You are signed in with a Polaris Faculty account. You can create questions, launch live quizzes, and export gradebooks.
-                </p>
-              </div>
-            </div>
+      {/* ─── MAIN PANEL ─── */}
+      <div className="menti-main-panel pm-admin-main-panel">
+        {/* Top Navigation Bar */}
+        <header className="menti-topbar pm-admin-topbar">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
             <button
-              className="btn btn-primary"
-              onClick={() => navigate('/dashboard')}
+              className="pm-admin-mobile-toggle"
+              onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+              title="Toggle Sidebar Navigation"
               type="button"
-              style={{ padding: '0.45rem 1rem', fontSize: '0.85rem' }}
             >
-              Open Host Studio →
+              ☰
+            </button>
+            <div className="pm-admin-topbar-breadcrumb">
+              <span className="pm-admin-topbar-title">Student Academic Arena</span>
+              <small style={{ fontSize: '0.75rem', color: '#64748B' }}>
+                Medhavi Skills University · Live Classroom Arena &amp; Analytics
+              </small>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            <span
+              className="pm-clearance-pill"
+              style={{
+                background: 'rgba(16, 185, 129, 0.1)',
+                color: '#10B981',
+                borderColor: 'rgba(16, 185, 129, 0.3)',
+              }}
+            >
+              🎓 MSU Student Clearance
+            </span>
+
+            {isFaculty && (
+              <button
+                className="pm-btn-mentor-switch"
+                onClick={() => navigate('/dashboard')}
+                title="Open Mentor Host Studio"
+                type="button"
+              >
+                <span>👨‍🏫</span>
+                <span>Host Studio</span>
+              </button>
+            )}
+
+            <button
+              className="pm-theme-toggle-btn"
+              onClick={() => setTheme(toggleTheme())}
+              type="button"
+              title="Toggle Light / Dark mode"
+              id="student-theme-toggle-btn"
+            >
+              {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
             </button>
           </div>
-        )}
+        </header>
 
-        {/* ─── Hero: Live Classroom PIN Join Terminal Card ────────────────── */}
-        <section
-          className="pm-admin-panel-card"
-          style={{
-            borderTop: '3.5px solid #F59E0B',
-            marginBottom: '2rem',
-            boxShadow: '0 8px 30px -4px rgba(0, 0, 0, 0.4), 0 0 20px rgba(245, 158, 11, 0.08)',
-          }}
-        >
-          <div className="pm-panel-header-row">
+        {/* Main Content Area */}
+        <main className="pm-admin-content">
+          {/* Mentor Switch Notice if Faculty logs in */}
+          {isFaculty && (
+            <div
+              style={{
+                background: 'rgba(59, 130, 246, 0.1)',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
+                borderRadius: '14px',
+                padding: '1rem 1.25rem',
+                marginBottom: '1.75rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '1rem',
+                flexWrap: 'wrap',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span style={{ fontSize: '1.4rem' }}>👨‍🏫</span>
+                <div>
+                  <strong style={{ color: '#60A5FA' }}>Faculty / Mentor Clearance Detected</strong>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--mute, #94A3B8)' }}>
+                    You are signed in with a Polaris Faculty account. You can create questions, launch live quizzes, and export gradebooks.
+                  </p>
+                </div>
+              </div>
+              <button
+                className="btn btn-primary"
+                onClick={() => navigate('/dashboard')}
+                type="button"
+                style={{ padding: '0.45rem 1rem', fontSize: '0.85rem' }}
+              >
+                Open Host Studio →
+              </button>
+            </div>
+          )}
+
+          {/* ─── Hero: Live Classroom PIN Join Terminal Card ────────────────── */}
+          <section
+            ref={terminalRef}
+            className="pm-admin-panel-card"
+            style={{
+              borderTop: '3.5px solid #F59E0B',
+              marginBottom: '2rem',
+              boxShadow: '0 8px 30px -4px rgba(0, 0, 0, 0.4), 0 0 20px rgba(245, 158, 11, 0.08)',
+            }}
+          >
+            <div className="pm-panel-header-row">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
               <div
                 className="pm-kpi-icon-wrap"
@@ -698,6 +850,7 @@ export default function StudentDashboard() {
           </div>
         </section>
       </main>
+      </div>
     </div>
   );
 }

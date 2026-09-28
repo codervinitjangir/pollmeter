@@ -70,6 +70,7 @@ export default function HostPage() {
   ]);
   const [activeNav, setActiveNav] = useState('home');
   const [searchQuery, setSearchQuery] = useState('');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [editing, setEditing] = useState<Question | null>(null);
   const builderRef = useRef<HTMLDivElement>(null);
   const mainPanelRef = useRef<HTMLDivElement>(null);
@@ -931,71 +932,94 @@ export default function HostPage() {
         onClose={() => setShowPastQuizzes(false)}
       />
 
-      <aside className="menti-sidebar">
+      <aside className={`menti-sidebar pm-admin-sidebar ${mobileSidebarOpen ? 'open' : ''}`}>
         <div>
-          <a href="/dashboard" className="menti-sidebar-brand">
-            <svg width="28" height="28" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M6 9H11V27H6V9Z" fill="currentColor" />
-              <rect x="14" y="14" width="5" height="13" rx="1" fill="#F43F5E" />
-              <rect x="22" y="7" width="5" height="20" rx="1" fill="#3B82F6" />
-            </svg>
-            <span style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
-              PollMeter
-            </span>
+          {/* Brand Crest */}
+          <a href="/dashboard" className="menti-sidebar-brand" style={{ textDecoration: 'none' }}>
+            <div className="pm-admin-sidebar-crest">
+              <span style={{ fontSize: '1.15rem' }}>⚡</span>
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontWeight: 800, fontSize: '1.05rem', letterSpacing: '-0.02em', color: 'inherit' }}>
+                  Polaris
+                </span>
+                <span className="pm-badge-admin-seal" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', borderColor: 'rgba(59, 130, 246, 0.3)' }}>
+                  HOST STUDIO
+                </span>
+              </div>
+              <small style={{ fontSize: '0.68rem', color: '#64748B', display: 'block', fontWeight: 600 }}>
+                FACULTY MENTOR
+              </small>
+            </div>
           </a>
 
-          <button className="menti-btn-new" onClick={scrollToBuilder} id="new-menti-btn">
-            <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>+</span> New quiz
+          {/* Primary CTA: + New Quiz */}
+          <button
+            className="menti-btn-new pm-admin-sidebar-cta"
+            onClick={() => {
+              scrollToBuilder();
+              setMobileSidebarOpen(false);
+            }}
+            id="new-menti-btn"
+          >
+            <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>+</span>
+            <span>New quiz</span>
           </button>
 
+          {/* Workspace Nav */}
           <nav className="menti-nav-group">
+            <div className="menti-nav-title">WORKSPACE</div>
             <button
               className={`menti-nav-link ${activeNav === 'home' ? 'active' : ''}`}
               onClick={() => {
                 setActiveNav('home');
                 mainPanelRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                setMobileSidebarOpen(false);
               }}
             >
               <span>🏠</span> Home
             </button>
             <button
               className={`menti-nav-link ${activeNav === 'build' ? 'active' : ''}`}
-              onClick={() => { setActiveNav('build'); scrollToBuilder(); }}
+              onClick={() => {
+                setActiveNav('build');
+                scrollToBuilder();
+                setMobileSidebarOpen(false);
+              }}
             >
               <span>📝</span> Question builder
             </button>
-            <button className="menti-nav-link" onClick={() => openWithTopic('')}>
+            <button
+              className="menti-nav-link"
+              onClick={() => {
+                openWithTopic('');
+                setMobileSidebarOpen(false);
+              }}
+            >
               <span>✨</span> Generate with AI
             </button>
             <button
               className="menti-nav-link"
-              onClick={() => setShowPastQuizzes(true)}
+              onClick={() => {
+                setShowPastQuizzes(true);
+                setMobileSidebarOpen(false);
+              }}
               id="past-quizzes-sidebar-btn"
             >
               <span>📊</span> Past Quizzes &amp; Reports
             </button>
-            {authUser?.role === 'admin' && (
-              <a
-                href="/admin"
-                className="menti-nav-link"
-                style={{
-                  background: '#EFF6FF',
-                  color: '#1D4ED8',
-                  fontWeight: 700,
-                  border: '1px solid #BFDBFE',
-                  borderRadius: '10px',
-                  marginTop: '0.4rem',
-                  textDecoration: 'none',
-                }}
-              >
-                <span>🏛️</span> University Admin
-              </a>
-            )}
           </nav>
 
           <div className="menti-nav-group">
             <div className="menti-nav-title">THIS QUIZ</div>
-            <button className="menti-nav-link" onClick={scrollToBuilder}>
+            <button
+              className="menti-nav-link"
+              onClick={() => {
+                scrollToBuilder();
+                setMobileSidebarOpen(false);
+              }}
+            >
               <span>📋</span> {questions.length} question{questions.length === 1 ? '' : 's'}
             </button>
             {questions.length > 0 && (
@@ -1003,6 +1027,39 @@ export default function HostPage() {
                 <span>🗑️</span> Clear all
               </button>
             )}
+          </div>
+
+          <div className="menti-nav-group">
+            <div className="menti-nav-title">CAMPUS SHORTCUTS</div>
+            <a
+              href="/student"
+              className="menti-nav-link"
+              style={{ textDecoration: 'none' }}
+              title="Student Portal & Live Arena"
+            >
+              <span>🎓</span>
+              <span>Student Portal</span>
+            </a>
+            {authUser?.role === 'admin' && (
+              <a
+                href="/admin"
+                className="menti-nav-link"
+                style={{ textDecoration: 'none' }}
+                title="University Admin Console"
+              >
+                <span>🏛️</span>
+                <span>Admin Console</span>
+              </a>
+            )}
+            <a
+              href="/"
+              className="menti-nav-link"
+              style={{ textDecoration: 'none' }}
+              title="University Landing Page"
+            >
+              <span>🏠</span>
+              <span>Campus Home</span>
+            </a>
           </div>
         </div>
 
@@ -1016,22 +1073,92 @@ export default function HostPage() {
             <span>{hostTheme === 'dark' ? '☀️' : '🌙'}</span>
             <span>{hostTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
           </button>
-          <button className="menti-nav-link" onClick={() => setShowHowItWorks(true)}><span>📖</span> How it works</button>
+          <button
+            className="menti-nav-link"
+            onClick={() => {
+              setShowHowItWorks(true);
+              setMobileSidebarOpen(false);
+            }}
+          >
+            <span>📖</span> How it works
+          </button>
+
+          {authUser && (
+            <div className="pm-admin-sidebar-user">
+              <div
+                className="pm-admin-sidebar-user-avatar"
+                style={{
+                  background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)',
+                  color: '#FFFFFF',
+                }}
+              >
+                {authUser.realName.slice(0, 2).toUpperCase()}
+              </div>
+              <div className="pm-admin-sidebar-user-info">
+                <span className="pm-admin-sidebar-user-name" title={authUser.realName}>
+                  {authUser.realName}
+                </span>
+                <span className="pm-admin-sidebar-user-email" title={authUser.email}>
+                  👨‍🏫 {authUser.role === 'admin' ? 'Super Admin' : 'MSU Faculty'}
+                </span>
+              </div>
+              <button
+                className="pm-admin-sidebar-signout"
+                onClick={() => {
+                  clearStoredAuth();
+                  setAuthUser(null);
+                  setShowAuthModal(true);
+                }}
+                title="Sign Out"
+              >
+                🚪
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
-      <div ref={mainPanelRef} className="menti-main-panel">
-        <header className="menti-topbar">
-          <div className="menti-search">
-            <span>🔍</span>
-            <input
-              type="text"
-              placeholder="Search your questions"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+      <div ref={mainPanelRef} className="menti-main-panel pm-admin-main-panel">
+        <header className="menti-topbar pm-admin-topbar">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flex: 1, maxWidth: '440px' }}>
+            <button
+              className="pm-admin-mobile-toggle"
+              onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+              title="Toggle Sidebar Navigation"
+              type="button"
+            >
+              ☰
+            </button>
+            <div className="menti-search" style={{ flex: 1 }}>
+              <span>🔍</span>
+              <input
+                type="text"
+                placeholder="Search your questions"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
           </div>
           <div className="menti-topbar-actions">
+            <span
+              className="pm-clearance-pill"
+              style={{
+                background: 'rgba(59, 130, 246, 0.1)',
+                color: '#3B82F6',
+                borderColor: 'rgba(59, 130, 246, 0.3)',
+              }}
+            >
+              👨‍🏫 Faculty Mentor Clearance
+            </span>
+            <a
+              href="/student"
+              className="pm-btn-mentor-switch"
+              style={{ textDecoration: 'none' }}
+              title="Student Portal & Live Arena"
+            >
+              <span>🎓</span>
+              <span>Student Portal</span>
+            </a>
             <button
               className="pm-theme-toggle-btn"
               onClick={() => setHostTheme(toggleTheme())}
@@ -1047,15 +1174,14 @@ export default function HostPage() {
                     href="/admin"
                     className="btn btn--sm"
                     style={{
-                      background: 'linear-gradient(135deg, #1E40AF, #3B82F6)',
-                      color: '#FFFFFF',
+                      background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+                      color: '#09090B',
                       fontWeight: 700,
                       textDecoration: 'none',
                       borderRadius: '8px',
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '5px',
-                      boxShadow: '0 2px 8px rgba(30, 64, 175, 0.25)',
                     }}
                   >
                     🏛️ Admin Console

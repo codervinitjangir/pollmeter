@@ -674,9 +674,19 @@ export default function AdminPage() {
               onClick={() => navigate('/dashboard')}
               title="Switch to Mentor Quiz Host"
             >
-              <span>⚡</span>
+              <span>👨‍🏫</span>
               <span>Mentor Studio</span>
               <span style={{ marginLeft: 'auto', fontSize: '0.85rem', color: '#F59E0B' }}>→</span>
+            </button>
+
+            <button
+              className="menti-nav-link"
+              onClick={() => navigate('/student')}
+              title="View Medhavi Student Portal"
+            >
+              <span>🎓</span>
+              <span>Student Portal</span>
+              <span style={{ marginLeft: 'auto', fontSize: '0.85rem', color: '#10B981' }}>→</span>
             </button>
 
             <button
