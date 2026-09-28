@@ -76,12 +76,13 @@ export function PolarisUserChip({ name, role, onSignOut }: PolarisUserChipProps)
         style={{
           width: '32px',
           height: '32px',
-          borderRadius: '10px',
-          background: 'var(--surface-mid, #202024)',
-          border: '1px solid var(--accent, #F59E0B)',
-          color: 'var(--accent, #F59E0B)',
-          fontWeight: 800,
+          borderRadius: '8px',
+          background: 'var(--panel, #0a0a0b)',
+          border: '1px solid var(--acc, #4f8cff)',
+          color: 'var(--acc, #4f8cff)',
+          fontWeight: 600,
           fontSize: '0.8rem',
+          fontFamily: 'var(--mono)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -90,11 +91,11 @@ export function PolarisUserChip({ name, role, onSignOut }: PolarisUserChipProps)
         {initials}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column' }}>
-        <strong style={{ fontSize: '0.82rem', color: 'var(--text-primary, #F2F2F2)' }}>
+        <strong style={{ fontSize: '0.82rem', color: 'var(--fg, #f4f4f5)' }}>
           {name}
         </strong>
         {role && (
-          <small style={{ fontSize: '0.68rem', color: 'var(--text-muted, #9CA3AF)', textTransform: 'capitalize' }}>
+          <small style={{ fontSize: '0.68rem', color: 'var(--mute, #8b8b94)', textTransform: 'capitalize' }}>
             {role}
           </small>
         )}
@@ -106,9 +107,9 @@ export function PolarisUserChip({ name, role, onSignOut }: PolarisUserChipProps)
           style={{
             background: 'none',
             border: 'none',
-            color: '#EF4444',
+            color: 'var(--err, #e5675a)',
             fontSize: '0.75rem',
-            fontWeight: 700,
+            fontWeight: 500,
             cursor: 'pointer',
             padding: '0.2rem 0.4rem',
             borderRadius: '6px',
