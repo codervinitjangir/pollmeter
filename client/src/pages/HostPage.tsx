@@ -31,7 +31,7 @@ import AIGenerateModal from '../components/AIGenerateModal';
 import { apiUrl } from '../api';
 import { cleanText } from '../cleanText';
 import { getAvatar } from '../utils/avatars';
-import { getAuthUser, getAuthToken, clearStoredAuth, AuthUser, fetchBatches, refreshAuthUser, isFacultyEmail } from '../auth';
+import { getAuthUser, getAuthToken, clearStoredAuth, AuthUser, fetchBatches, createMentorBatch, refreshAuthUser, isFacultyEmail } from '../auth';
 import CollegeAuthModal from '../components/CollegeAuthModal';
 import MentorPinModal from '../components/MentorPinModal';
 import MentorQuizHistoryModal from '../components/MentorQuizHistoryModal';
@@ -62,14 +62,14 @@ export default function HostPage() {
   const [quizSubject, setQuizSubject] = useState('Full Stack Web Development');
   const [quizBatch, setQuizBatch] = useState('2nd Year - Batch A');
   const [availableBatches, setAvailableBatches] = useState<string[]>([
-    '1st Year - Batch A',
-    '1st Year - Batch B',
-    '1st Year - Batch C',
-    '2nd Year - Batch A',
-    '2nd Year - Batch B',
-    '2nd Year - Batch C',
+    '1st Year - Batch A', '1st Year - Batch B', '1st Year - Batch C',
+    '2nd Year - Batch A', '2nd Year - Batch B', '2nd Year - Batch C',
     '3rd Year - Batch A',
   ]);
+  const [showNewBatchInput, setShowNewBatchInput] = useState(false);
+  const [newBatchName, setNewBatchName] = useState('');
+  const [creatingBatch, setCreatingBatch] = useState(false);
+  const [batchError, setBatchError] = useState('');
   const [activeNav, setActiveNav] = useState('home');
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -103,6 +103,28 @@ export default function HostPage() {
       })
       .catch(() => {});
   }, []);
+
+  // Handler: create a new batch inline
+  const handleCreateBatch = async () => {
+    const name = newBatchName.trim();
+    if (!name) { setBatchError('Please enter a batch name.'); return; }
+    if (name.length > 100) { setBatchError('Name must be 100 characters or fewer.'); return; }
+    setCreatingBatch(true);
+    setBatchError('');
+    try {
+      const created = await createMentorBatch(name);
+      const updated = [...availableBatches.filter((b) => b !== created.displayName), created.displayName];
+      updated.sort();
+      setAvailableBatches(updated);
+      setQuizBatch(created.displayName);
+      setNewBatchName('');
+      setShowNewBatchInput(false);
+    } catch (err: any) {
+      setBatchError(err.message || 'Failed to create batch.');
+    } finally {
+      setCreatingBatch(false);
+    }
+  };
 
   // Ask the server what this account may actually do. Goes through
   // `refreshAuthUser` so a re-issued token (an approval or a revocation since
@@ -1576,6 +1598,92 @@ export default function HostPage() {
                             </option>
                           ))}
                         </select>
+
+                        {/* ── Inline "Create new batch" ────────────────── */}
+                        {!showNewBatchInput ? (
+                          <button
+                            type="button"
+                            onClick={() => { setShowNewBatchInput(true); setBatchError(''); }}
+                            style={{
+                              marginTop: '0.4rem',
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--accent, #818CF8)',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              padding: '0',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                            }}
+                          >
+                            <span style={{ fontSize: '1rem', lineHeight: 1 }}>＋</span> Create new batch
+                          </button>
+                        ) : (
+                          <div style={{ marginTop: '0.5rem' }}>
+                            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                              <input
+                                type="text"
+                                className="input"
+                                placeholder="e.g. 3rd Year – Batch B"
+                                value={newBatchName}
+                                onChange={(e) => { setNewBatchName(e.target.value); setBatchError(''); }}
+                                onKeyDown={(e) => { if (e.key === 'Enter') handleCreateBatch(); if (e.key === 'Escape') { setShowNewBatchInput(false); setNewBatchName(''); } }}
+                                disabled={creatingBatch}
+                                style={{
+                                  flex: 1,
+                                  fontSize: '0.82rem',
+                                  padding: '0.4rem 0.6rem',
+                                  borderRadius: '8px',
+                                  background: 'var(--surface, #1B1B1F)',
+                                  border: '1px solid var(--border, #2A2A2F)',
+                                  color: 'var(--text-primary, #F2F2F2)',
+                                }}
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={handleCreateBatch}
+                                disabled={creatingBatch || !newBatchName.trim()}
+                                style={{
+                                  padding: '0.4rem 0.75rem',
+                                  borderRadius: '8px',
+                                  background: 'var(--accent, #818CF8)',
+                                  color: '#fff',
+                                  border: 'none',
+                                  fontWeight: 700,
+                                  fontSize: '0.78rem',
+                                  cursor: creatingBatch ? 'wait' : 'pointer',
+                                  opacity: creatingBatch ? 0.6 : 1,
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {creatingBatch ? '…' : 'Add'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setShowNewBatchInput(false); setNewBatchName(''); setBatchError(''); }}
+                                style={{
+                                  padding: '0.4rem 0.5rem',
+                                  borderRadius: '8px',
+                                  background: 'var(--surface-2, #27272A)',
+                                  color: 'var(--text-secondary, #9CA3AF)',
+                                  border: '1px solid var(--border, #2A2A2F)',
+                                  fontSize: '0.78rem',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                            {batchError && (
+                              <p style={{ color: '#F87171', fontSize: '0.72rem', marginTop: '0.3rem', margin: '0.3rem 0 0' }}>
+                                {batchError}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       <div>

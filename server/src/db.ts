@@ -22,7 +22,8 @@ export interface User {
   createdAt: string;
 }
 
-export const STANDARD_BATCHES = [
+/** Internal seed list — no longer exported; use getAllBatches() instead. */
+const STANDARD_BATCHES = [
   '1st Year - Batch A',
   '1st Year - Batch B',
   '1st Year - Batch C',
@@ -31,6 +32,17 @@ export const STANDARD_BATCHES = [
   '2nd Year - Batch C',
   '3rd Year - Batch A',
 ];
+
+export interface Batch {
+  id: string;
+  year?: string;
+  label: string;
+  displayName: string;
+  status: 'active' | 'inactive';
+  createdBy?: string;
+  createdByRole?: string;
+  createdAt: string;
+}
 
 export interface QuizSessionRecord {
   id: string;
@@ -92,6 +104,7 @@ interface LocalSchema {
   participants: SessionParticipantRecord[];
   responses: StudentResponseRecord[];
   auditLogs?: AuditLogRecord[];
+  batches?: Record<string, Batch>;
 }
 
 let pool: Pool | null = null;
@@ -288,6 +301,18 @@ export async function initDb(): Promise<void> {
             key VARCHAR(80) PRIMARY KEY,
             applied_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           );
+
+          CREATE TABLE IF NOT EXISTS batches (
+            id VARCHAR(64) PRIMARY KEY,
+            year VARCHAR(20),
+            label VARCHAR(100) NOT NULL,
+            display_name VARCHAR(160) NOT NULL,
+            status VARCHAR(20) DEFAULT 'active',
+            created_by VARCHAR(160),
+            created_by_role VARCHAR(20),
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT uq_batch_display_name UNIQUE (display_name)
+          );
         `);
 
         // One-time data migration, recorded in schema_meta so a later
@@ -308,6 +333,28 @@ export async function initDb(): Promise<void> {
           console.log(
             `[db] Migration '${MIGRATION_APPROVE_EXISTING}': approved ${backfilled.rowCount ?? 0} existing faculty account(s).`
           );
+        }
+
+        // One-time seed: populate the batches table from STANDARD_BATCHES
+        const batchSeed = await client.query(
+          `SELECT 1 FROM schema_meta WHERE key = 'batches_seed_v1'`
+        );
+        if (batchSeed.rowCount === 0) {
+          for (const name of STANDARD_BATCHES) {
+            const parts = name.split(' - ');
+            const year = parts[0]?.trim() || '';
+            const label = parts[1]?.trim() || name;
+            try {
+              await client.query(
+                `INSERT INTO batches (id, year, label, display_name, status, created_by, created_by_role)
+                 VALUES ($1, $2, $3, $4, 'active', 'system', 'admin')
+                 ON CONFLICT (display_name) DO NOTHING`,
+                [uuidv4(), year, label, name]
+              );
+            } catch {}
+          }
+          await client.query(`INSERT INTO schema_meta (key) VALUES ('batches_seed_v1')`);
+          console.log('[db] Seeded standard batches into batches table.');
         }
 
         // Ensure all polariscampus.com accounts are active faculty/mentor (or admin)
@@ -1132,3 +1179,120 @@ export async function closePool(): Promise<void> {
   }
 }
 
+// ─── Batch Management ────────────────────────────────────────────────────────
+
+/**
+ * Returns all batches from the database. Falls back to a virtual list derived
+ * from STANDARD_BATCHES when the local JSON store has no batch records yet.
+ */
+export async function getAllBatches(includeInactive = false): Promise<Batch[]> {
+  if (usePostgres && pool) {
+    const res = await pool.query(
+      `SELECT id, year, label, display_name as "displayName", status,
+              created_by as "createdBy", created_by_role as "createdByRole",
+              created_at as "createdAt"
+       FROM batches
+       WHERE $1 OR status = 'active'
+       ORDER BY year ASC NULLS LAST, label ASC`,
+      [includeInactive]
+    );
+    return res.rows;
+  }
+
+  // Local JSON fallback
+  const local = Object.values(localDb.batches ?? {});
+  if (local.length === 0) {
+    // First time: synthesise from seed list
+    return STANDARD_BATCHES.map((name, i) => ({
+      id: `local-${i}`,
+      year: name.split(' - ')[0]?.trim() || '',
+      label: name.split(' - ')[1]?.trim() || name,
+      displayName: name,
+      status: 'active' as const,
+      createdAt: new Date().toISOString(),
+    }));
+  }
+  return local
+    .filter((b) => includeInactive || b.status === 'active')
+    .sort(
+      (a, b) => (a.year || '').localeCompare(b.year || '') || a.label.localeCompare(b.label)
+    );
+}
+
+/**
+ * Inserts a new batch, or re-activates it if a matching display_name already
+ * exists. The UNIQUE constraint is case-sensitive in Postgres; normalise the
+ * display_name to the canonical casing before calling.
+ */
+export async function createBatch(data: {
+  year?: string;
+  label: string;
+  displayName: string;
+  createdBy?: string;
+  createdByRole?: string;
+}): Promise<Batch> {
+  const id = uuidv4();
+  const now = new Date().toISOString();
+
+  if (usePostgres && pool) {
+    const res = await pool.query(
+      `INSERT INTO batches (id, year, label, display_name, status, created_by, created_by_role)
+       VALUES ($1, $2, $3, $4, 'active', $5, $6)
+       ON CONFLICT (display_name) DO UPDATE
+         SET status = 'active'
+       RETURNING id, year, label, display_name as "displayName", status,
+                 created_by as "createdBy", created_by_role as "createdByRole",
+                 created_at as "createdAt"`,
+      [
+        id,
+        data.year ?? '',
+        data.label,
+        data.displayName,
+        data.createdBy ?? 'system',
+        data.createdByRole ?? 'mentor',
+      ]
+    );
+    return res.rows[0];
+  }
+
+  // Local JSON fallback
+  if (!localDb.batches) localDb.batches = {};
+  const existing = Object.values(localDb.batches).find(
+    (b) => b.displayName.toLowerCase() === data.displayName.toLowerCase()
+  );
+  if (existing) {
+    existing.status = 'active';
+    saveLocalDb();
+    return existing;
+  }
+  const batch: Batch = {
+    id,
+    year: data.year,
+    label: data.label,
+    displayName: data.displayName,
+    status: 'active',
+    createdBy: data.createdBy,
+    createdByRole: data.createdByRole,
+    createdAt: now,
+  };
+  localDb.batches[id] = batch;
+  saveLocalDb();
+  return batch;
+}
+
+/** Soft-deletes a batch by marking it inactive (historical sessions keep the name). */
+export async function deactivateBatch(id: string): Promise<boolean> {
+  if (usePostgres && pool) {
+    const res = await pool.query(
+      `UPDATE batches SET status = 'inactive' WHERE id = $1 RETURNING id`,
+      [id]
+    );
+    return (res.rowCount ?? 0) > 0;
+  }
+  if (localDb.batches && localDb.batches[id]) {
+    localDb.batches[id].status = 'inactive';
+    saveLocalDb();
+    return true;
+  }
+  return false;
+}

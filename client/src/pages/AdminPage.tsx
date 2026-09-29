@@ -19,6 +19,10 @@ import {
   isFacultyEmail,
   refreshAuthUser,
   FACULTY_DOMAIN,
+  adminCreateBatch,
+  adminFetchBatches,
+  adminDeactivateBatch,
+  BatchObject,
 } from '../auth';
 import CollegeAuthModal from '../components/CollegeAuthModal';
 import { getActiveTheme, toggleTheme, Theme } from '../theme';
@@ -62,7 +66,7 @@ export default function AdminPage() {
   const [studentAudit, setStudentAudit] = useState<StudentAuditItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'faculty' | 'students' | 'quizzes' | 'audit'>('faculty');
+  const [activeTab, setActiveTab] = useState<'faculty' | 'students' | 'quizzes' | 'audit' | 'batches'>('faculty');
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
 
@@ -83,14 +87,15 @@ export default function AdminPage() {
   const [formRole, setFormRole] = useState<'mentor' | 'admin'>('mentor');
   const [formBatches, setFormBatches] = useState<string[]>([]);
   const [standardBatches, setStandardBatches] = useState<string[]>([
-    '1st Year - Batch A',
-    '1st Year - Batch B',
-    '1st Year - Batch C',
-    '2nd Year - Batch A',
-    '2nd Year - Batch B',
-    '2nd Year - Batch C',
+    '1st Year - Batch A', '1st Year - Batch B', '1st Year - Batch C',
+    '2nd Year - Batch A', '2nd Year - Batch B', '2nd Year - Batch C',
     '3rd Year - Batch A',
   ]);
+  // Batch management (admin panel)
+  const [allBatchObjects, setAllBatchObjects] = useState<BatchObject[]>([]);
+  const [newBatchName, setNewBatchName] = useState('');
+  const [addingBatch, setAddingBatch] = useState(false);
+  const [batchMgmtError, setBatchMgmtError] = useState('');
   const [modalSaving, setModalSaving] = useState(false);
   const [modalError, setModalError] = useState('');
   const [rechecking, setRechecking] = useState(false);
@@ -132,6 +137,11 @@ export default function AdminPage() {
         if (b && b.length > 0) setStandardBatches(b);
       })
       .catch(() => {});
+
+    // Also fetch full batch objects for admin management
+    adminFetchBatches()
+      .then((objs) => { if (objs.length > 0) setAllBatchObjects(objs); })
+      .catch(() => {});
   }, []);
 
   const toggleFormBatch = (b: string) => {
@@ -139,6 +149,46 @@ export default function AdminPage() {
       prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b]
     );
   };
+
+  const handleAdminCreateBatch = async () => {
+    const name = newBatchName.trim();
+    if (!name) { setBatchMgmtError('Please enter a batch name.'); return; }
+    if (name.length > 100) { setBatchMgmtError('Name must be 100 characters or fewer.'); return; }
+    setAddingBatch(true);
+    setBatchMgmtError('');
+    try {
+      const created = await adminCreateBatch(name);
+      setAllBatchObjects((prev) => {
+        const filtered = prev.filter((b) => b.id !== created.id);
+        return [...filtered, created].sort((a, b) => (a.year || '').localeCompare(b.year || '') || a.label.localeCompare(b.label));
+      });
+      setStandardBatches((prev) => {
+        const updated = [...prev.filter((b) => b !== created.displayName), created.displayName];
+        return updated.sort();
+      });
+      setNewBatchName('');
+      showToast(`Batch '${created.displayName}' created successfully.`);
+    } catch (err: any) {
+      setBatchMgmtError(err.message || 'Failed to create batch.');
+    } finally {
+      setAddingBatch(false);
+    }
+  };
+
+  const handleDeactivateBatch = async (id: string, displayName: string) => {
+    if (!window.confirm(`Deactivate batch '${displayName}'? Historical sessions will keep the name, but it won't appear in new quiz dropdowns.`)) return;
+    try {
+      await adminDeactivateBatch(id);
+      setAllBatchObjects((prev) =>
+        prev.map((b) => b.id === id ? { ...b, status: 'inactive' as const } : b)
+      );
+      setStandardBatches((prev) => prev.filter((b) => b !== displayName));
+      showToast(`Batch '${displayName}' deactivated.`);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to deactivate batch.', 'error');
+    }
+  };
+
 
   // Action status message & In-UI Confirmations
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -752,6 +802,22 @@ export default function AdminPage() {
               <span style={{ flex: 1 }}>Security Audit Trail</span>
               <span className="pm-tab-pill">{auditLogs.length || 'Logs'}</span>
             </button>
+
+            <button
+              className={`menti-nav-link ${activeTab === 'batches' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('batches');
+                setMobileSidebarOpen(false);
+                // Refresh batch objects
+                adminFetchBatches()
+                  .then((objs) => setAllBatchObjects(objs))
+                  .catch(() => {});
+              }}
+            >
+              <span>🗂️</span>
+              <span style={{ flex: 1 }}>Batch Management</span>
+              <span className="pm-tab-pill">{allBatchObjects.filter(b => b.status === 'active').length || standardBatches.length}</span>
+            </button>
           </nav>
 
           {/* Shortcuts */}
@@ -980,6 +1046,16 @@ export default function AdminPage() {
               >
                 <span>🛡️ Security &amp; Audit Trail</span>
                 <span className="pm-tab-pill">{auditLogs.length || 'Logs'}</span>
+              </button>
+              <button
+                className={`pm-admin-tab-btn ${activeTab === 'batches' ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveTab('batches');
+                  adminFetchBatches().then((objs) => setAllBatchObjects(objs)).catch(() => {});
+                }}
+              >
+                <span>🗂️ Batch Management</span>
+                <span className="pm-tab-pill">{allBatchObjects.filter(b => b.status === 'active').length || standardBatches.length}</span>
               </button>
             </div>
 
@@ -1440,6 +1516,104 @@ export default function AdminPage() {
                           <span className="pm-date-text">
                             {new Date(log.createdAt).toLocaleString()}
                           </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ─── Batch Management Panel ──────────────────────────────────────── */}
+        {activeTab === 'batches' && (
+          <section className="pm-admin-panel-card">
+            <div className="pm-panel-header-row">
+              <div>
+                <h3>🗂️ Batch Management</h3>
+                <p style={{ fontSize: '0.82rem', color: '#64748B', marginTop: '0.2rem' }}>
+                  Create, review and deactivate academic batches. Mentors can also create batches inline from the quiz builder.
+                </p>
+              </div>
+            </div>
+
+            {/* Add new batch */}
+            <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '0.6rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                className="input"
+                placeholder="New batch name, e.g. 4th Year – Batch A"
+                value={newBatchName}
+                onChange={(e) => { setNewBatchName(e.target.value); setBatchMgmtError(''); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleAdminCreateBatch(); }}
+                disabled={addingBatch}
+                style={{ flex: '1 1 280px', minWidth: '200px', fontSize: '0.9rem', padding: '0.55rem 0.8rem', borderRadius: '10px' }}
+              />
+              <button
+                className="btn btn-primary"
+                onClick={handleAdminCreateBatch}
+                disabled={addingBatch || !newBatchName.trim()}
+                style={{ padding: '0.55rem 1.2rem', fontSize: '0.9rem', whiteSpace: 'nowrap' }}
+              >
+                {addingBatch ? 'Adding…' : '＋ Add Batch'}
+              </button>
+            </div>
+            {batchMgmtError && (
+              <div className="pm-auth-error-alert" style={{ marginBottom: '1rem' }}>
+                <span>⚠️ {batchMgmtError}</span>
+              </div>
+            )}
+
+            {/* Batch list */}
+            {allBatchObjects.length === 0 ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem' }}>
+                {standardBatches.map((name) => (
+                  <span key={name} className="pm-subject-pill pm-batch-subject-pill" style={{ opacity: 0.7 }}>
+                    <span className="pm-subject-dot pm-batch-dot" />
+                    {name}
+                    <span className="pm-subject-count pm-batch-count" style={{ marginLeft: '0.4rem', color: '#94A3B8' }}>DB pending</span>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div className="pm-table-responsive">
+                <table className="pm-admin-table">
+                  <thead>
+                    <tr>
+                      <th>Batch Name</th>
+                      <th>Year</th>
+                      <th>Label</th>
+                      <th>Created By</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allBatchObjects.map((b) => (
+                      <tr key={b.id} style={{ opacity: b.status === 'inactive' ? 0.5 : 1 }}>
+                        <td><strong>{b.displayName}</strong></td>
+                        <td>{b.year || '—'}</td>
+                        <td>{b.label}</td>
+                        <td style={{ fontSize: '0.8rem', color: '#64748B' }}>{b.createdBy || 'system'} <em>({b.createdByRole || 'admin'})</em></td>
+                        <td>
+                          <span className={`pm-role-pill ${b.status === 'active' ? 'pm-badge-role' : 'pm-role-admin'}`}>
+                            {b.status}
+                          </span>
+                        </td>
+                        <td>
+                          {b.status === 'active' && (
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              style={{ fontSize: '0.76rem', padding: '0.25rem 0.6rem' }}
+                              onClick={() => handleDeactivateBatch(b.id, b.displayName)}
+                            >
+                              Deactivate
+                            </button>
+                          )}
+                          {b.status === 'inactive' && (
+                            <span style={{ fontSize: '0.78rem', color: '#64748B' }}>Archived</span>
+                          )}
                         </td>
                       </tr>
                     ))}

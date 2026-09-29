@@ -436,12 +436,26 @@ export interface StudentAuditItem {
   lastQuizDate?: string;
 }
 
+export interface BatchObject {
+  id: string;
+  year?: string;
+  label: string;
+  displayName: string;
+  status: 'active' | 'inactive';
+  createdBy?: string;
+  createdByRole?: string;
+  createdAt: string;
+}
+
+/** Returns display-name strings for backward-compat dropdowns. */
 export async function fetchBatches(): Promise<string[]> {
   try {
     const res = await fetch(apiUrl('/api/batches'));
     if (!res.ok) throw new Error();
     const data = await res.json();
-    return data.batches || [];
+    // API now returns { batches: string[], batchObjects: BatchObject[] }
+    if (Array.isArray(data.batches) && data.batches.length > 0) return data.batches;
+    throw new Error('empty');
   } catch {
     return [
       '1st Year - Batch A',
@@ -453,6 +467,101 @@ export async function fetchBatches(): Promise<string[]> {
       '3rd Year - Batch A',
     ];
   }
+}
+
+/** Returns the full Batch objects from the database (includes id, status, etc.). */
+export async function fetchBatchObjects(): Promise<BatchObject[]> {
+  try {
+    const res = await fetch(apiUrl('/api/batches'));
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    if (Array.isArray(data.batchObjects) && data.batchObjects.length > 0) return data.batchObjects;
+    // Fallback: wrap string list into minimal objects
+    return (data.batches || []).map((name: string, i: number) => ({
+      id: `local-${i}`,
+      displayName: name,
+      label: name,
+      status: 'active' as const,
+      createdAt: '',
+    }));
+  } catch {
+    const fallback = [
+      '1st Year - Batch A', '1st Year - Batch B', '1st Year - Batch C',
+      '2nd Year - Batch A', '2nd Year - Batch B', '2nd Year - Batch C',
+      '3rd Year - Batch A',
+    ];
+    return fallback.map((name, i) => ({
+      id: `local-${i}`, displayName: name, label: name, status: 'active' as const, createdAt: '',
+    }));
+  }
+}
+
+/**
+ * Mentor self-service: create a new batch inline from the quiz creation screen.
+ * Returns the created BatchObject, or throws on failure.
+ */
+export async function createMentorBatch(displayName: string): Promise<BatchObject> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Authentication required');
+
+  const res = await fetch(apiUrl('/api/mentor/batches'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ displayName }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to create batch');
+  }
+  return data.batch;
+}
+
+/** Admin: create a batch from the admin panel. */
+export async function adminCreateBatch(displayName: string): Promise<BatchObject> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Administrator authentication required');
+
+  const res = await fetch(apiUrl('/api/admin/batches'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ displayName }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to create batch');
+  return data.batch;
+}
+
+/** Admin: fetch all batches including inactive. */
+export async function adminFetchBatches(): Promise<BatchObject[]> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Administrator authentication required');
+  const res = await fetch(apiUrl('/api/admin/batches'), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch batches');
+  return data.batches || [];
+}
+
+/** Admin: deactivate (soft-delete) a batch by id. */
+export async function adminDeactivateBatch(id: string): Promise<boolean> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Administrator authentication required');
+  const res = await fetch(apiUrl(`/api/admin/batches/${encodeURIComponent(id)}`), {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to deactivate batch');
+  return data.success;
 }
 
 export async function fetchAdminOverview(): Promise<UniversityOverview> {

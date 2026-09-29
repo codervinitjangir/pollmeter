@@ -30,7 +30,9 @@ import {
   getUserByEmail,
   getUniversityOverview,
   searchStudents,
-  STANDARD_BATCHES,
+  getAllBatches,
+  createBatch,
+  deactivateBatch,
   recordAuditLog,
   getRecentAuditLogs,
   closePool,
@@ -859,8 +861,117 @@ app.post('/api/admin/faculty', requireAdmin, async (req: AuthenticatedRequest, r
   }
 });
 
-app.get('/api/batches', (_req: Request, res: Response) => {
-  res.json({ batches: STANDARD_BATCHES });
+/** Public: list all active batches. Used by mentor quiz creation and admin faculty form. */
+app.get('/api/batches', async (_req: Request, res: Response) => {
+  try {
+    const batches = await getAllBatches();
+    res.json({
+      batches: batches.map((b) => b.displayName),
+      batchObjects: batches,
+    });
+  } catch {
+    res.status(500).json({ error: 'Failed to fetch batches.' });
+  }
+});
+
+/**
+ * Mentor self-service: create a new batch inline from the quiz creation screen.
+ * Requires mentor (or admin) auth. Creates the batch globally so other mentors
+ * can reuse it; admins can deactivate it later.
+ */
+app.post('/api/mentor/batches', requireMentor, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { displayName } = req.body as { displayName?: string };
+    if (!displayName || !displayName.trim()) {
+      res.status(400).json({ error: 'Batch name is required.' });
+      return;
+    }
+    const name = displayName.trim();
+    if (name.length > 100) {
+      res.status(400).json({ error: 'Batch name must be 100 characters or fewer.' });
+      return;
+    }
+    const parts = name.split(' - ');
+    const batch = await createBatch({
+      year: parts[0]?.trim() || '',
+      label: parts[1]?.trim() || name,
+      displayName: name,
+      createdBy: req.user?.email || 'unknown',
+      createdByRole: req.user?.role || 'mentor',
+    });
+    await recordAuditLog(
+      req.user?.email || 'unknown',
+      'BATCH_CREATED',
+      batch.id,
+      { displayName: name, role: req.user?.role }
+    );
+    console.log(`[batch] Created batch '${name}' by ${req.user?.email}`);
+    res.status(201).json({ success: true, batch });
+  } catch (err) {
+    console.error('[batch] Failed to create batch:', err);
+    res.status(500).json({ error: 'Failed to create batch.' });
+  }
+});
+
+/** Admin: create a batch (alias, for admin-panel batch management UI). */
+app.post('/api/admin/batches', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { displayName } = req.body as { displayName?: string };
+    if (!displayName || !displayName.trim()) {
+      res.status(400).json({ error: 'Batch name is required.' });
+      return;
+    }
+    const name = displayName.trim();
+    const parts = name.split(' - ');
+    const batch = await createBatch({
+      year: parts[0]?.trim() || '',
+      label: parts[1]?.trim() || name,
+      displayName: name,
+      createdBy: req.user?.email || 'admin',
+      createdByRole: 'admin',
+    });
+    await recordAuditLog(
+      req.user?.email || 'admin',
+      'BATCH_CREATED',
+      batch.id,
+      { displayName: name }
+    );
+    res.status(201).json({ success: true, batch });
+  } catch (err) {
+    console.error('[admin] Failed to create batch:', err);
+    res.status(500).json({ error: 'Failed to create batch.' });
+  }
+});
+
+/** Admin: list all batches including inactive ones. */
+app.get('/api/admin/batches', requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const batches = await getAllBatches(true);
+    res.json({ batches });
+  } catch {
+    res.status(500).json({ error: 'Failed to fetch batches.' });
+  }
+});
+
+/** Admin: soft-delete (deactivate) a batch. Historical sessions keep the batch name. */
+app.delete('/api/admin/batches/:id', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const ok = await deactivateBatch(id);
+    if (!ok) {
+      res.status(404).json({ error: 'Batch not found.' });
+      return;
+    }
+    await recordAuditLog(
+      req.user?.email || 'admin',
+      'BATCH_DEACTIVATED',
+      id
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[admin] Failed to deactivate batch:', err);
+    res.status(500).json({ error: 'Failed to deactivate batch.' });
+  }
 });
 
 app.delete('/api/admin/faculty/:email', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
