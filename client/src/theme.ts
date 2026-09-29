@@ -4,14 +4,14 @@ export type Theme = ThemeMode;
 export { POLARIS_PALETTE, POLARIS_TYPOGRAPHY, POLARIS_RADIUS, POLARIS_SHADOWS };
 
 export function getActiveTheme(): Theme {
-  if (typeof document === 'undefined') return 'dark';
+  if (typeof document === 'undefined') return 'light';
   const attr = document.documentElement.getAttribute('data-theme');
   if (attr === 'light' || attr === 'dark') return attr;
   try {
     const saved = localStorage.getItem('pm_theme');
     if (saved === 'light' || saved === 'dark') return saved;
   } catch {}
-  return 'dark';
+  return 'light';
 }
 
 export function setTheme(theme: Theme): void {
