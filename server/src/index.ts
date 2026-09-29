@@ -1002,25 +1002,33 @@ app.get('/api/batches', requireAuth, async (req: AuthenticatedRequest, res: Resp
     }
 
     if (req.user?.role === 'mentor') {
-      const liveUser = await getUserByEmail(req.user.email);
+      const liveUser = req.user.email ? await getUserByEmail(req.user.email) : null;
       const assigned = liveUser?.batches ?? [];
-      const mentorBatches = allBatches.filter(
-        (b) =>
-          assigned.includes(b.id) ||
-          assigned.includes(b.displayName) ||
-          assigned.some(
-            (a) => a.toLowerCase() === b.displayName.toLowerCase() || a.toLowerCase() === b.id.toLowerCase()
-          )
-      );
+
+      // Sort batches with mentor's assigned batches first (if any), then alphabetically
+      const sortedBatches = assigned.length > 0
+        ? [...allBatches].sort((a, b) => {
+            const aAssigned = assigned.includes(a.id) || assigned.includes(a.displayName);
+            const bAssigned = assigned.includes(b.id) || assigned.includes(b.displayName);
+            if (aAssigned && !bAssigned) return -1;
+            if (!aAssigned && bAssigned) return 1;
+            return a.displayName.localeCompare(b.displayName);
+          })
+        : allBatches;
+
       res.json({
-        batches: mentorBatches.map((b) => b.displayName),
-        batchObjects: mentorBatches,
+        batches: sortedBatches.map((b) => b.displayName),
+        batchObjects: sortedBatches,
+        assignedBatches: assigned,
       });
       return;
     }
 
-    // Default for students or other roles: empty
-    res.json({ batches: [], batchObjects: [] });
+    // Default for students or other roles: return all active batches
+    res.json({
+      batches: allBatches.map((b) => b.displayName),
+      batchObjects: allBatches,
+    });
   } catch {
     res.status(500).json({ error: 'Failed to fetch batches.' });
   }

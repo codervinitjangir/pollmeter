@@ -104,25 +104,20 @@ export default function HostPage() {
       .then((objs) => {
         setAvailableBatchObjects(objs || []);
         setAvailableBatches((objs || []).map((o) => o.displayName));
-        if (objs && objs.length === 1) {
-          // Exactly one batch assigned: pre-select it
-          setQuizBatchId(objs[0].id);
-          setQuizBatch(objs[0].displayName);
-        } else if (!objs || objs.length === 0) {
-          // Zero batches assigned: go straight to inline create form
-          setQuizBatchId('');
-          setQuizBatch('');
-          setShowNewBatchInput(true);
+        if (objs && objs.length > 0) {
+          setShowNewBatchInput(false);
+          setQuizBatchId((prev) => (prev && objs.some((b) => b.id === prev) ? prev : objs[0].id));
+          setQuizBatch((prev) => (prev && objs.some((b) => b.displayName === prev) ? prev : objs[0].displayName));
         } else {
-          // Multiple batches: leave unset so user must explicitly pick
           setQuizBatchId('');
           setQuizBatch('');
+          setShowNewBatchInput(false);
         }
       })
       .catch(() => {
         setAvailableBatchObjects([]);
         setAvailableBatches([]);
-        setShowNewBatchInput(true);
+        setShowNewBatchInput(false);
       });
   }, []);
 
@@ -1777,47 +1772,29 @@ export default function HostPage() {
                     ))}
                   </div>
 
-                  <div
-                    style={{
-                      background: 'var(--surface-mid, #202024)',
-                      border: '1px solid var(--border, #2A2A2F)',
-                      borderRadius: '16px',
-                      padding: '1.1rem 1.25rem',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.85rem',
-                      marginTop: '1.25rem',
-                      marginBottom: '1rem',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary, #F2F2F2)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span>📚</span> Subject &amp; Academic Course Tag
-                      </span>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted, #9CA3AF)', fontWeight: 600 }}>
-                        Auto-grouped in student transcripts
-                      </span>
+                  <div className="pm-host-course-card">
+                    <div className="pm-host-course-header">
+                      <div className="pm-host-course-title">
+                        <span className="pm-host-course-icon">📚</span>
+                        <div>
+                          <strong>Subject &amp; Academic Cohort Tagging</strong>
+                          <span className="pm-host-course-sub">
+                            Auto-grouped in student transcripts and university gradebooks
+                          </span>
+                        </div>
+                      </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.85rem' }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary, #9CA3AF)', marginBottom: '0.3rem' }}>
+                    <div className="pm-host-course-grid">
+                      {/* Academic Subject */}
+                      <div className="pm-host-field-group">
+                        <label className="pm-host-field-label">
                           Academic Subject
                         </label>
                         {!showBuilderNewSubject ? (
                           <>
                             <select
-                              className="input"
-                              style={{
-                                width: '100%',
-                                fontSize: '0.85rem',
-                                padding: '0.5rem 0.75rem',
-                                borderRadius: '10px',
-                                background: 'var(--surface, #1B1B1F)',
-                                border: '1px solid var(--border, #2A2A2F)',
-                                fontWeight: 600,
-                                color: 'var(--text-primary, #F2F2F2)',
-                              }}
+                              className="input pm-host-select"
                               value={quizSubject}
                               onChange={(e) => {
                                 if (e.target.value === '__NEW__') {
@@ -1840,22 +1817,10 @@ export default function HostPage() {
                             </select>
                             <button
                               type="button"
+                              className="pm-host-action-link"
                               onClick={() => { setShowBuilderNewSubject(true); setBuilderNewSubjectName(''); }}
-                              style={{
-                                marginTop: '0.4rem',
-                                background: 'none',
-                                border: 'none',
-                                color: 'var(--accent, #818CF8)',
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                padding: '0',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.25rem',
-                              }}
                             >
-                              <span style={{ fontSize: '1rem', lineHeight: 1 }}>＋</span> Add custom subject
+                              <span>＋</span> Add custom subject
                             </button>
                           </>
                         ) : (
@@ -1863,7 +1828,7 @@ export default function HostPage() {
                             <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                               <input
                                 type="text"
-                                className="input"
+                                className="input pm-host-input"
                                 placeholder="e.g. Distributed Systems"
                                 value={builderNewSubjectName}
                                 onChange={(e) => setBuilderNewSubjectName(e.target.value)}
@@ -1871,47 +1836,22 @@ export default function HostPage() {
                                   if (e.key === 'Enter') handleAddBuilderSubject();
                                   if (e.key === 'Escape') { setShowBuilderNewSubject(false); setBuilderNewSubjectName(''); }
                                 }}
-                                style={{
-                                  flex: 1,
-                                  fontSize: '0.82rem',
-                                  padding: '0.4rem 0.6rem',
-                                  borderRadius: '8px',
-                                  background: 'var(--surface, #1B1B1F)',
-                                  border: '1px solid var(--border, #2A2A2F)',
-                                  color: 'var(--text-primary, #F2F2F2)',
-                                }}
+                                style={{ flex: 1 }}
                                 autoFocus
                               />
                               <button
                                 type="button"
+                                className="btn btn-primary btn-sm"
                                 onClick={handleAddBuilderSubject}
                                 disabled={!builderNewSubjectName.trim()}
-                                style={{
-                                  padding: '0.4rem 0.75rem',
-                                  borderRadius: '8px',
-                                  background: 'var(--accent, #818CF8)',
-                                  color: '#fff',
-                                  border: 'none',
-                                  fontWeight: 700,
-                                  fontSize: '0.78rem',
-                                  cursor: 'pointer',
-                                  whiteSpace: 'nowrap',
-                                }}
+                                style={{ whiteSpace: 'nowrap' }}
                               >
                                 Use
                               </button>
                               <button
                                 type="button"
+                                className="btn btn-secondary btn-sm"
                                 onClick={() => { setShowBuilderNewSubject(false); setBuilderNewSubjectName(''); }}
-                                style={{
-                                  padding: '0.4rem 0.5rem',
-                                  borderRadius: '8px',
-                                  background: 'transparent',
-                                  color: 'var(--text-muted, #9CA3AF)',
-                                  border: 'none',
-                                  fontSize: '0.78rem',
-                                  cursor: 'pointer',
-                                }}
                               >
                                 Cancel
                               </button>
@@ -1920,27 +1860,18 @@ export default function HostPage() {
                         )}
                       </div>
 
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary, #9CA3AF)', marginBottom: '0.3rem' }}>
+                      {/* Target Batch / Class */}
+                      <div className="pm-host-field-group">
+                        <label className="pm-host-field-label">
                           Target Batch / Class
                         </label>
                         {availableBatchObjects.length === 0 ? (
-                          <div style={{ padding: '0.4rem 0', color: 'var(--text-secondary, #9CA3AF)', fontSize: '0.82rem' }}>
-                            No batches assigned. Please create a batch below to continue.
+                          <div style={{ padding: '0.5rem 0', color: 'var(--text-secondary, #9CA3AF)', fontSize: '0.85rem' }}>
+                            No active batches found in database.
                           </div>
                         ) : (
                           <select
-                            className="input"
-                            style={{
-                              width: '100%',
-                              fontSize: '0.85rem',
-                              padding: '0.5rem 0.75rem',
-                              borderRadius: '10px',
-                              background: 'var(--surface, #1B1B1F)',
-                              border: '1px solid var(--border, #2A2A2F)',
-                              fontWeight: 600,
-                              color: 'var(--text-primary, #F2F2F2)',
-                            }}
+                            className="input pm-host-select"
                             value={quizBatchId}
                             onChange={(e) => {
                               const selectedId = e.target.value;
@@ -1949,9 +1880,7 @@ export default function HostPage() {
                               setQuizBatch(b ? b.displayName : '');
                             }}
                           >
-                            {availableBatchObjects.length > 1 && (
-                              <option value="">Select a batch…</option>
-                            )}
+                            {!quizBatchId && <option value="">Select a batch…</option>}
                             {availableBatchObjects.map((b) => (
                               <option key={b.id} value={b.id}>
                                 {b.displayName}
@@ -1960,80 +1889,42 @@ export default function HostPage() {
                           </select>
                         )}
 
-                        {/* ── Inline "Create new batch" ────────────────── */}
+                        {/* Inline Create New Batch Toggle */}
                         {!showNewBatchInput ? (
                           <button
                             type="button"
+                            className="pm-host-action-link"
                             onClick={() => { setShowNewBatchInput(true); setBatchError(''); }}
-                            style={{
-                              marginTop: '0.4rem',
-                              background: 'none',
-                              border: 'none',
-                              color: 'var(--accent, #818CF8)',
-                              fontSize: '0.75rem',
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                              padding: '0',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.25rem',
-                            }}
                           >
-                            <span style={{ fontSize: '1rem', lineHeight: 1 }}>＋</span> Create new batch
+                            <span>＋</span> Create new batch
                           </button>
                         ) : (
-                          <div style={{ marginTop: '0.5rem' }}>
+                          <div style={{ marginTop: '0.45rem' }}>
                             <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                               <input
                                 type="text"
-                                className="input"
+                                className="input pm-host-input"
                                 placeholder="e.g. 3rd Year – Batch B"
                                 value={newBatchName}
                                 onChange={(e) => { setNewBatchName(e.target.value); setBatchError(''); }}
                                 onKeyDown={(e) => { if (e.key === 'Enter') handleCreateBatch(); if (e.key === 'Escape') { setShowNewBatchInput(false); setNewBatchName(''); } }}
                                 disabled={creatingBatch}
-                                style={{
-                                  flex: 1,
-                                  fontSize: '0.82rem',
-                                  padding: '0.4rem 0.6rem',
-                                  borderRadius: '8px',
-                                  background: 'var(--surface, #1B1B1F)',
-                                  border: '1px solid var(--border, #2A2A2F)',
-                                  color: 'var(--text-primary, #F2F2F2)',
-                                }}
+                                style={{ flex: 1 }}
                                 autoFocus
                               />
                               <button
                                 type="button"
+                                className="btn btn-primary btn-sm"
                                 onClick={handleCreateBatch}
                                 disabled={creatingBatch || !newBatchName.trim()}
-                                style={{
-                                  padding: '0.4rem 0.75rem',
-                                  borderRadius: '8px',
-                                  background: 'var(--accent, #818CF8)',
-                                  color: '#fff',
-                                  border: 'none',
-                                  fontWeight: 700,
-                                  fontSize: '0.78rem',
-                                  cursor: creatingBatch ? 'wait' : 'pointer',
-                                  opacity: creatingBatch ? 0.6 : 1,
-                                  whiteSpace: 'nowrap',
-                                }}
+                                style={{ whiteSpace: 'nowrap' }}
                               >
                                 {creatingBatch ? '…' : 'Add'}
                               </button>
                               <button
                                 type="button"
+                                className="btn btn-secondary btn-sm"
                                 onClick={() => { setShowNewBatchInput(false); setNewBatchName(''); setBatchError(''); }}
-                                style={{
-                                  padding: '0.4rem 0.5rem',
-                                  borderRadius: '8px',
-                                  background: 'var(--surface-2, #27272A)',
-                                  color: 'var(--text-secondary, #9CA3AF)',
-                                  border: '1px solid var(--border, #2A2A2F)',
-                                  fontSize: '0.78rem',
-                                  cursor: 'pointer',
-                                }}
                               >
                                 ✕
                               </button>
@@ -2046,28 +1937,20 @@ export default function HostPage() {
                           </div>
                         )}
                       </div>
+                    </div>
 
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: '0.3rem' }}>
-                          Quiz Topic / Unit Name
-                        </label>
-                        <input
-                          type="text"
-                          className="input"
-                          style={{
-                            width: '100%',
-                            fontSize: '0.85rem',
-                            padding: '0.5rem 0.75rem',
-                            borderRadius: '10px',
-                            background: '#FFFFFF',
-                            border: '1px solid #CBD5E1',
-                            color: '#0F172A',
-                          }}
-                          placeholder="e.g. Unit 3: React State Management"
-                          value={aiInitialTopic}
-                          onChange={(e) => setAiInitialTopic(e.target.value)}
-                        />
-                      </div>
+                    {/* Quiz Topic / Unit Row */}
+                    <div className="pm-host-topic-row">
+                      <label className="pm-host-field-label">
+                        Quiz Topic / Unit Name
+                      </label>
+                      <input
+                        type="text"
+                        className="input pm-host-input"
+                        placeholder="e.g. Unit 3: React State Management & Hooks"
+                        value={aiInitialTopic}
+                        onChange={(e) => setAiInitialTopic(e.target.value)}
+                      />
                     </div>
                   </div>
 

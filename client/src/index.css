@@ -13708,3 +13708,158 @@ html[data-theme="dark"] body {
   color: #DC2626;
 }
 
+/* ─── Host Quiz Builder Course & Batch Card ───────────────────────────────── */
+.pm-host-course-card {
+  background: var(--surface-mid, #1E1E22);
+  border: 1px solid var(--border, #2E2E36);
+  border-radius: 16px;
+  padding: 1.25rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  margin-top: 1.25rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .pm-host-course-card {
+  background: #141417 !important;
+  border-color: #24242A !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35) !important;
+}
+
+.pm-host-course-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.07));
+}
+
+[data-theme="light"] .pm-host-course-header {
+  border-bottom-color: #E2E8F0;
+}
+
+.pm-host-course-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pm-host-course-icon {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.pm-host-course-title strong {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary, #0F172A);
+  letter-spacing: -0.01em;
+}
+
+[data-theme="dark"] .pm-host-course-title strong {
+  color: #F2F2F2 !important;
+}
+
+.pm-host-course-sub {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #64748B);
+  margin-top: 2px;
+}
+
+[data-theme="dark"] .pm-host-course-sub {
+  color: #9CA3AF !important;
+}
+
+.pm-host-course-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+@media (max-width: 680px) {
+  .pm-host-course-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+.pm-host-field-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.pm-host-field-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 0.45rem;
+  letter-spacing: 0.02em;
+}
+
+[data-theme="dark"] .pm-host-field-label {
+  color: #CBD5E1 !important;
+}
+
+.pm-host-select,
+.pm-host-input {
+  width: 100%;
+  font-size: 0.88rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: 10px;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  color: #0F172A;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+[data-theme="dark"] .pm-host-select,
+[data-theme="dark"] .pm-host-input {
+  background: #1B1B1F !important;
+  border-color: #2E2E36 !important;
+  color: #F2F2F2 !important;
+}
+
+.pm-host-select:focus,
+.pm-host-input:focus {
+  outline: none;
+  border-color: #6366F1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+}
+
+.pm-host-action-link {
+  margin-top: 0.45rem;
+  background: none;
+  border: none;
+  color: #4F46E5;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: color 0.15s ease;
+}
+
+[data-theme="dark"] .pm-host-action-link {
+  color: #818CF8 !important;
+}
+
+.pm-host-action-link:hover {
+  text-decoration: underline;
+}
+
+.pm-host-topic-row {
+  display: flex;
+  flex-direction: column;
+}
+
