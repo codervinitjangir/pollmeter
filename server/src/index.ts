@@ -742,7 +742,36 @@ app.get('/api/mentor/quizzes/:id/export.csv', requireMentor, async (req: Authent
 
     const { session, participants, responses } = details;
     const questions = (session.questions ?? []) as Array<{ text?: string; correctAnswer?: string }>;
-    const rankByEmail = new Map(participants.map((p) => [p.email.toLowerCase(), p.rank]));
+
+    // Every anonymous player shares one placeholder email, so keying rank on
+    // email alone collapsed them onto whichever rank was inserted last -- a
+    // whole class exported with a single identical rank. Resolve by account id
+    // first, then screen name, then email, and index a key only when it
+    // identifies exactly one participant: an ambiguous row then exports a blank
+    // rank instead of a confidently wrong one.
+    const norm = (s?: string | null) => (s ?? '').trim().toLowerCase();
+    const uniqueKeyed = (pick: (p: (typeof participants)[number]) => string) => {
+      const counts = new Map<string, number>();
+      for (const p of participants) {
+        const k = pick(p);
+        if (k) counts.set(k, (counts.get(k) ?? 0) + 1);
+      }
+      const map = new Map<string, number>();
+      for (const p of participants) {
+        const k = pick(p);
+        if (k && counts.get(k) === 1) map.set(k, p.rank);
+      }
+      return map;
+    };
+    const rankByUserId = uniqueKeyed((p) => (p.userId ? String(p.userId) : ''));
+    const rankByScreenName = uniqueKeyed((p) => norm(p.screenName));
+    const rankByEmail = uniqueKeyed((p) => norm(p.email));
+
+    const rankFor = (r: (typeof responses)[number]) =>
+      (r.userId ? rankByUserId.get(String(r.userId)) : undefined) ??
+      rankByScreenName.get(norm(r.screenName)) ??
+      rankByEmail.get(norm(r.email)) ??
+      '';
 
     const header = [
       'Session Code', 'Topic', 'Subject', 'Batch', 'Question #', 'Question',
@@ -760,7 +789,7 @@ app.get('/api/mentor/quizzes/:id/export.csv', requireMentor, async (req: Authent
       r.realName,
       r.email,
       r.screenName,
-      rankByEmail.get(r.email.toLowerCase()) ?? '',
+      rankFor(r),
       r.selectedOption,
       questions[r.questionIndex]?.correctAnswer ?? '',
       r.isCorrect ? 'Yes' : 'No',
