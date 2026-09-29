@@ -41,6 +41,8 @@ import {
   getRecentAuditLogs,
   closePool,
   isUsingPostgres,
+  getAllSubjects,
+  updateUserProfile,
 } from './db';
 import {
   getAllowedDomains,
@@ -296,8 +298,8 @@ app.post('/api/sessions', sessionCreationLimiter, requireMentor, async (req: Aut
   }
 
   // Mentor ownership check: live user record must have this batch assigned
+  const liveUser = await getUserByEmail(req.user!.email);
   if (req.user?.role !== 'admin') {
-    const liveUser = await getUserByEmail(req.user!.email);
     const assigned = liveUser?.batches ?? [];
     const isAssigned =
       assigned.includes(batchRecord.id) ||
@@ -318,7 +320,7 @@ app.post('/api/sessions', sessionCreationLimiter, requireMentor, async (req: Aut
   const hostName = req.user!.realName || 'Faculty Mentor';
 
   const topic = body?.topic?.trim() || (result.questions[0]?.text ? `Quiz: ${result.questions[0].text.slice(0, 40)}...` : 'Classroom Quiz');
-  const subject = body?.subject?.trim() || 'General';
+  const subject = body?.subject?.trim() || liveUser?.subject || 'General';
   const batch = batchRecord.displayName;
 
   const session = createSession(result.questions, {
@@ -641,6 +643,9 @@ app.get('/api/mentor/reports', requireMentor, async (req: AuthenticatedRequest, 
       timeRange: req.query.timeRange as string | undefined,
       startDate: req.query.startDate as string | undefined,
       endDate: req.query.endDate as string | undefined,
+      subject: req.user?.role === 'admin' ? (req.query.subject as string | undefined) : undefined,
+      year: req.user?.role === 'admin' ? (req.query.year as string | undefined) : undefined,
+      mentorQuery: req.user?.role === 'admin' ? (req.query.mentorQuery as string | undefined) : undefined,
     });
 
     const reports = [];
@@ -682,6 +687,7 @@ app.get('/api/mentor/reports', requireMentor, async (req: AuthenticatedRequest, 
       reports,
       totals: {
         sessions: reports.length,
+        quizzes: reports.length,
         participants: reports.reduce((sum, r) => sum + r.participantCount, 0),
         responses: reports.reduce((sum, r) => sum + r.responseCount, 0),
         accuracyPercent: reports.length
@@ -772,6 +778,90 @@ app.get('/api/mentor/quizzes/:id/export.csv', requireMentor, async (req: Authent
     res.status(500).json({ error: 'Failed to export the gradebook.' });
   }
 });
+
+/**
+ * Campus-wide report CSV export (admin-only).
+ * Exports all sessions matching the filters with their aggregate stats.
+ */
+app.get('/api/admin/reports/export.csv', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const quizzes = await getMentorQuizzes(undefined, {
+      batch: req.query.batch as string | undefined,
+      timeRange: req.query.timeRange as string | undefined,
+      startDate: req.query.startDate as string | undefined,
+      endDate: req.query.endDate as string | undefined,
+      subject: req.query.subject as string | undefined,
+      year: req.query.year as string | undefined,
+      mentorQuery: req.query.mentorQuery as string | undefined,
+    });
+
+    const header = [
+      'Session Code',
+      'Topic',
+      'Subject',
+      'Batch',
+      'Host Name',
+      'Host Email',
+      'Date',
+      'Question Count',
+      'Participants',
+      'Responses',
+      'Avg Score',
+      'Accuracy %',
+    ];
+
+    const rows = [];
+    for (const quiz of quizzes) {
+      const details = await getQuizDetails(quiz.id);
+      const participants = details?.participants ?? [];
+      const responses = details?.responses ?? [];
+      const graded = responses.filter((r) => r.selectedOption);
+
+      const avgScore = participants.length
+        ? Math.round(participants.reduce((sum, p) => sum + p.finalScore, 0) / participants.length)
+        : 0;
+      const accuracyPercent = graded.length
+        ? Math.round((graded.filter((r) => r.isCorrect).length / graded.length) * 100)
+        : 0;
+
+      rows.push([
+        quiz.code,
+        quiz.topic,
+        quiz.subject ?? 'General',
+        quiz.batch ?? 'General',
+        quiz.hostName,
+        quiz.hostEmail,
+        quiz.createdAt,
+        quiz.questionCount,
+        participants.length || quiz.participantCount,
+        responses.length,
+        avgScore,
+        accuracyPercent,
+      ]);
+    }
+
+    const csv = '﻿' + [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n') + '\r\n';
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const filename = `pollmeter-campus-reports-${timestamp}.csv`;
+
+    await recordAuditLog(req.user?.email || 'admin', 'REPORT_EXPORTED', 'CAMPUS_WIDE', {
+      totalSessions: rows.length,
+      batch: req.query.batch,
+      subject: req.query.subject,
+      year: req.query.year,
+      mentorQuery: req.query.mentorQuery,
+    });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(csv);
+  } catch (err) {
+    console.error('[admin] Failed to export campus reports CSV:', err);
+    res.status(500).json({ error: 'Failed to export reports CSV.' });
+  }
+});
+
 
 app.get('/api/student/quizzes', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -981,6 +1071,80 @@ app.post('/api/mentor/batches', requireMentor, async (req: AuthenticatedRequest,
     res.status(500).json({ error: 'Failed to create batch.' });
   }
 });
+
+/**
+ * Lists all distinct subjects in active use across the college (users + quiz sessions)
+ * merged with standard catalog subjects.
+ */
+app.get('/api/subjects', requireAuth, async (_req: AuthenticatedRequest, res: Response) => {
+  try {
+    const subjects = await getAllSubjects();
+    res.json({ subjects });
+  } catch (err) {
+    console.error('[subjects] Failed to list subjects:', err);
+    res.status(500).json({ error: 'Failed to list subjects.' });
+  }
+});
+
+/**
+ * Mentor self-service: update their own profile (subject, department, realName).
+ * Re-issues a fresh JWT token with their updated attributes.
+ */
+app.patch('/api/mentor/profile', requireMentor, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const email = req.user?.email;
+    if (!email) {
+      res.status(401).json({ error: 'Not authenticated.' });
+      return;
+    }
+    const { subject, department, realName } = req.body ?? {};
+
+    if (subject !== undefined && (typeof subject !== 'string' || subject.trim().length > 160)) {
+      res.status(400).json({ error: 'Subject must be a string of at most 160 characters.' });
+      return;
+    }
+    if (department !== undefined && (typeof department !== 'string' || department.trim().length > 120)) {
+      res.status(400).json({ error: 'Department must be a string of at most 120 characters.' });
+      return;
+    }
+    if (realName !== undefined && (typeof realName !== 'string' || realName.trim().length > 120)) {
+      res.status(400).json({ error: 'Name must be a string of at most 120 characters.' });
+      return;
+    }
+
+    const updated = await updateUserProfile(email, {
+      subject: subject !== undefined ? subject.trim() : undefined,
+      department: department !== undefined ? department.trim() : undefined,
+      realName: realName !== undefined ? realName.trim() : undefined,
+    });
+
+    if (!updated) {
+      res.status(404).json({ error: 'User record not found.' });
+      return;
+    }
+
+    const token = generateToken({
+      id: updated.id,
+      email: updated.email,
+      realName: updated.realName,
+      role: req.user!.role,
+      picture: updated.picture,
+    });
+
+    await recordAuditLog(
+      email,
+      'PROFILE_UPDATED',
+      updated.id,
+      { subject: updated.subject, department: updated.department }
+    );
+
+    res.json({ success: true, user: updated, token });
+  } catch (err) {
+    console.error('[mentor] Failed to update profile:', err);
+    res.status(500).json({ error: 'Failed to update profile.' });
+  }
+});
+
 
 /** Admin: create a batch (alias, for admin-panel batch management UI). */
 app.post('/api/admin/batches', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {

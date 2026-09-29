@@ -660,6 +660,9 @@ export interface QuizFilterOptions {
   timeRange?: 'all' | 'today' | 'yesterday' | '7d' | '30d' | 'custom' | string;
   startDate?: string;
   endDate?: string;
+  subject?: string;
+  year?: number | string;
+  mentorQuery?: string;
 }
 
 function matchesDateRange(createdAt: string, timeRange?: string, startDate?: string, endDate?: string): boolean {
@@ -697,40 +700,59 @@ export async function getMentorQuizzes(
 ): Promise<QuizSessionRecord[]> {
   if (usePostgres && pool) {
     let query = `
-      SELECT id, code, topic, COALESCE(subject, 'General') as subject, COALESCE(batch, 'General') as batch,
-             host_email as "hostEmail", host_name as "hostName", question_count as "questionCount",
-             participant_count as "participantCount", questions, created_at as "createdAt", ended_at as "endedAt"
-      FROM quiz_sessions
+      SELECT qs.id, qs.code, qs.topic, COALESCE(qs.subject, 'General') as subject, COALESCE(qs.batch, 'General') as batch,
+             qs.batch_id as "batchId",
+             qs.host_email as "hostEmail", qs.host_name as "hostName", qs.question_count as "questionCount",
+             qs.participant_count as "participantCount", qs.questions, qs.created_at as "createdAt", qs.ended_at as "endedAt"
+      FROM quiz_sessions qs
+      LEFT JOIN batches b ON qs.batch_id = b.id
       WHERE 1=1
     `;
     const params: unknown[] = [];
     if (hostEmail) {
       params.push(hostEmail.toLowerCase().trim());
-      query += ` AND LOWER(host_email) = $${params.length}`;
+      query += ` AND LOWER(qs.host_email) = $${params.length}`;
+    }
+    if (options?.mentorQuery && options.mentorQuery.trim()) {
+      const q = `%${options.mentorQuery.toLowerCase().trim()}%`;
+      params.push(q);
+      query += ` AND (LOWER(qs.host_email) LIKE $${params.length} OR LOWER(COALESCE(qs.host_name, '')) LIKE $${params.length})`;
     }
     if (options?.batch && options.batch !== 'all') {
       params.push(options.batch);
-      query += ` AND batch = $${params.length}`;
+      query += ` AND (qs.batch_id = $${params.length} OR qs.batch = $${params.length})`;
+    }
+    if (options?.subject && options.subject !== 'all') {
+      params.push(options.subject.toLowerCase().trim());
+      query += ` AND LOWER(COALESCE(qs.subject, 'General')) = $${params.length}`;
+    }
+    if (options?.year && options.year !== 'all') {
+      const yStr = String(options.year).trim();
+      const numMatch = yStr.match(/\d+/);
+      const digit = numMatch ? numMatch[0] : yStr;
+      params.push(`%${digit}%`);
+      const pIdx = params.length;
+      query += ` AND (b.year LIKE $${pIdx} OR qs.batch LIKE $${pIdx})`;
     }
     if (options?.timeRange === 'today') {
-      query += ` AND created_at >= CURRENT_DATE`;
+      query += ` AND qs.created_at >= CURRENT_DATE`;
     } else if (options?.timeRange === 'yesterday') {
-      query += ` AND created_at >= CURRENT_DATE - INTERVAL '1 day' AND created_at < CURRENT_DATE`;
+      query += ` AND qs.created_at >= CURRENT_DATE - INTERVAL '1 day' AND qs.created_at < CURRENT_DATE`;
     } else if (options?.timeRange === '7d') {
-      query += ` AND created_at >= CURRENT_TIMESTAMP - INTERVAL '7 days'`;
+      query += ` AND qs.created_at >= CURRENT_TIMESTAMP - INTERVAL '7 days'`;
     } else if (options?.timeRange === '30d') {
-      query += ` AND created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'`;
+      query += ` AND qs.created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'`;
     } else if (options?.timeRange === 'custom') {
       if (options.startDate) {
         params.push(options.startDate);
-        query += ` AND created_at >= $${params.length}`;
+        query += ` AND qs.created_at >= $${params.length}`;
       }
       if (options.endDate) {
         params.push(options.endDate + 'T23:59:59.999Z');
-        query += ` AND created_at <= $${params.length}`;
+        query += ` AND qs.created_at <= $${params.length}`;
       }
     }
-    query += ` ORDER BY created_at DESC LIMIT 200`;
+    query += ` ORDER BY qs.created_at DESC LIMIT 500`;
 
     const res = await pool.query(query, params);
     return res.rows;
@@ -741,8 +763,30 @@ export async function getMentorQuizzes(
   if (hostEmail) {
     filtered = filtered.filter((s) => s.hostEmail.toLowerCase() === hostEmail.toLowerCase().trim());
   }
+  if (options?.mentorQuery && options.mentorQuery.trim()) {
+    const q = options.mentorQuery.toLowerCase().trim();
+    filtered = filtered.filter(
+      (s) => s.hostEmail.toLowerCase().includes(q) || (s.hostName && s.hostName.toLowerCase().includes(q))
+    );
+  }
   if (options?.batch && options.batch !== 'all') {
-    filtered = filtered.filter((s) => (s.batch || 'General') === options.batch);
+    filtered = filtered.filter((s) => (s.batch || 'General') === options.batch || s.batchId === options.batch);
+  }
+  if (options?.subject && options.subject !== 'all') {
+    filtered = filtered.filter(
+      (s) => (s.subject || 'General').toLowerCase() === options.subject!.toLowerCase().trim()
+    );
+  }
+  if (options?.year && options.year !== 'all') {
+    const yStr = String(options.year).trim();
+    const numMatch = yStr.match(/\d+/);
+    const digit = numMatch ? numMatch[0] : yStr;
+    filtered = filtered.filter((s) => {
+      const bObj = s.batchId && localDb.batches ? localDb.batches[s.batchId] : null;
+      if (bObj?.year && bObj.year.includes(digit)) return true;
+      if (s.batch && s.batch.includes(digit)) return true;
+      return false;
+    });
   }
   if (options?.timeRange && options.timeRange !== 'all') {
     filtered = filtered.filter((s) => matchesDateRange(s.createdAt, options.timeRange, options.startDate, options.endDate));
@@ -1563,4 +1607,107 @@ export async function mergeBatches(
   source.status = 'inactive';
   saveLocalDb();
   return { success: true };
+}
+
+export const STANDARD_SUBJECTS = [
+  'Full Stack Web Development',
+  'Operating Systems',
+  'Data Structures & Algorithms',
+  'Database Management Systems',
+  'Computer Networks & Security',
+  'Artificial Intelligence & ML',
+  'Cloud Computing & DevOps',
+  'Software Engineering & Agile',
+  'Cyber Security & Digital Forensics',
+  'Data Science & Analytics',
+  'Mobile Application Development',
+  'General Technical Aptitude',
+];
+
+/**
+ * Returns distinct subjects in use across users and quiz sessions, merged with
+ * the standard college subjects, case-insensitively deduplicated and sorted.
+ */
+export async function getAllSubjects(): Promise<string[]> {
+  const subjectMap = new Map<string, string>(); // lower -> canonical display
+  for (const s of STANDARD_SUBJECTS) {
+    subjectMap.set(s.toLowerCase(), s);
+  }
+
+  if (usePostgres && pool) {
+    try {
+      const res = await pool.query(`
+        SELECT DISTINCT TRIM(subject) as subject FROM (
+          SELECT subject FROM users WHERE subject IS NOT NULL AND TRIM(subject) <> ''
+          UNION
+          SELECT subject FROM quiz_sessions WHERE subject IS NOT NULL AND TRIM(subject) <> '' AND subject <> 'General'
+        ) s
+      `);
+      for (const row of res.rows) {
+        if (row.subject) {
+          const trimmed = row.subject.trim();
+          if (!subjectMap.has(trimmed.toLowerCase())) {
+            subjectMap.set(trimmed.toLowerCase(), trimmed);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[db] Failed to fetch subjects from postgres:', err);
+    }
+  } else {
+    for (const u of Object.values(localDb.users)) {
+      if (u.subject?.trim()) {
+        const trimmed = u.subject.trim();
+        if (!subjectMap.has(trimmed.toLowerCase())) {
+          subjectMap.set(trimmed.toLowerCase(), trimmed);
+        }
+      }
+    }
+    for (const s of Object.values(localDb.sessions)) {
+      if (s.subject?.trim() && s.subject.trim() !== 'General') {
+        const trimmed = s.subject.trim();
+        if (!subjectMap.has(trimmed.toLowerCase())) {
+          subjectMap.set(trimmed.toLowerCase(), trimmed);
+        }
+      }
+    }
+  }
+
+  return Array.from(subjectMap.values()).sort((a, b) => a.localeCompare(b));
+}
+
+/**
+ * Updates a user's self-serve profile fields (subject, department, realName).
+ */
+export async function updateUserProfile(
+  email: string,
+  updates: { subject?: string; department?: string; realName?: string }
+): Promise<User | null> {
+  const cleanEmail = email.toLowerCase().trim();
+  const cleanSubject = updates.subject !== undefined ? updates.subject.trim() : undefined;
+  const cleanDept = updates.department !== undefined ? updates.department.trim() : undefined;
+  const cleanName = updates.realName !== undefined ? updates.realName.trim() : undefined;
+
+  if (usePostgres && pool) {
+    const res = await pool.query(
+      `UPDATE users
+       SET subject = COALESCE($1, subject),
+           department = COALESCE($2, department),
+           real_name = COALESCE($3, real_name)
+       WHERE LOWER(email) = $4
+       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain",
+                 department, subject, COALESCE(batches, '[]'::jsonb) as batches, picture,
+                 COALESCE(approved, false) as approved, created_at as "createdAt"`,
+      [cleanSubject ?? null, cleanDept ?? null, cleanName ?? null, cleanEmail]
+    );
+    return res.rows[0] ?? null;
+  }
+
+  const user = Object.values(localDb.users).find((u) => u.email.toLowerCase() === cleanEmail);
+  if (!user) return null;
+  if (cleanSubject !== undefined) user.subject = cleanSubject;
+  if (cleanDept !== undefined) user.department = cleanDept;
+  if (cleanName !== undefined) user.realName = cleanName;
+  saveLocalDb();
+  return user;
 }

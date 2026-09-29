@@ -102,9 +102,12 @@ export function isConfiguredAdmin(email?: string): boolean {
 
 /**
  * The role an account actually holds right now, read from the database on
- * every call. A campus email grants nothing by itself: faculty rights need an
- * administrator's approval (`users.approved`), and admin rights need either a
- * seeded database row or an `ADMIN_EMAILS` entry.
+ * every call. Accounts on the faculty domain (@polariscampus.com) receive
+ * mentor access immediately by default (no pre-approval gate).
+ * If an administrator explicitly revokes an account (`users.approved === false`),
+ * all faculty/admin capabilities are cut off immediately and the user reverts
+ * to 'student' access on their very next request.
+ * Admin role resolution also respects an explicit `approved === false` override.
  */
 export async function resolveEffectiveRole(
   email: string
@@ -115,10 +118,18 @@ export async function resolveEffectiveRole(
   if (!isFacultyDomain(clean)) {
     return { role: 'student', approved: false };
   }
+
+  // Explicit revocation check: if an administrator revoked access (approved === false),
+  // immediately demote to student access regardless of domain or admin status.
+  if (record && record.approved === false) {
+    return { role: 'student', approved: false };
+  }
+
   if (record?.role === 'admin' || isConfiguredAdmin(clean) || clean.startsWith('admin@')) {
     return { role: 'admin', approved: true };
   }
-  // All verified @polariscampus.com accounts hold faculty mentor rights
+
+  // All verified @polariscampus.com accounts hold faculty mentor rights by default (no waiting)
   return { role: 'mentor', approved: true };
 }
 

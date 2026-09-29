@@ -31,7 +31,7 @@ import AIGenerateModal from '../components/AIGenerateModal';
 import { apiUrl } from '../api';
 import { cleanText } from '../cleanText';
 import { getAvatar } from '../utils/avatars';
-import { getAuthUser, getAuthToken, clearStoredAuth, AuthUser, fetchBatches, fetchBatchObjects, BatchObject, createMentorBatch, refreshAuthUser, isFacultyEmail } from '../auth';
+import { getAuthUser, getAuthToken, clearStoredAuth, AuthUser, fetchBatches, fetchBatchObjects, BatchObject, createMentorBatch, refreshAuthUser, isFacultyEmail, fetchSubjects, updateMentorProfile } from '../auth';
 import CollegeAuthModal from '../components/CollegeAuthModal';
 import MentorPinModal from '../components/MentorPinModal';
 import MentorQuizHistoryModal from '../components/MentorQuizHistoryModal';
@@ -59,7 +59,15 @@ export default function HostPage() {
   const [error, setError] = useState('');
   const [showAI, setShowAI] = useState(false);
   const [aiInitialTopic, setAiInitialTopic] = useState('');
-  const [quizSubject, setQuizSubject] = useState('Full Stack Web Development');
+  const [quizSubject, setQuizSubject] = useState(() => getAuthUser()?.subject || '');
+  const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
+  const [showProfileSubjectPrompt, setShowProfileSubjectPrompt] = useState(true);
+  const [savingProfileSubject, setSavingProfileSubject] = useState(false);
+  const [profileSubjectError, setProfileSubjectError] = useState('');
+  const [showProfileNewSubjectInput, setShowProfileNewSubjectInput] = useState(false);
+  const [profileNewSubjectText, setProfileNewSubjectText] = useState('');
+  const [showBuilderNewSubject, setShowBuilderNewSubject] = useState(false);
+  const [builderNewSubjectName, setBuilderNewSubjectName] = useState('');
   const [quizBatch, setQuizBatch] = useState('');
   const [quizBatchId, setQuizBatchId] = useState('');
   const [availableBatches, setAvailableBatches] = useState<string[]>([]);
@@ -118,6 +126,65 @@ export default function HostPage() {
       });
   }, []);
 
+  // Load campus subjects dynamically
+  useEffect(() => {
+    fetchSubjects()
+      .then((subs) => {
+        if (subs && subs.length > 0) setAvailableSubjects(subs);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Handler: save primary subject to mentor profile
+  const handleSaveProfileSubject = async (subj: string) => {
+    const trimmed = subj.trim();
+    if (!trimmed) {
+      setProfileSubjectError('Please select or enter a subject.');
+      return;
+    }
+    setSavingProfileSubject(true);
+    setProfileSubjectError('');
+    try {
+      const res = await updateMentorProfile({ subject: trimmed });
+      if (res?.user) setAuthUser(res.user);
+      setQuizSubject(trimmed);
+      setAvailableSubjects((prev) => {
+        if (!prev.some((s) => s.toLowerCase() === trimmed.toLowerCase())) {
+          return [trimmed, ...prev].sort((a, b) => a.localeCompare(b));
+        }
+        return prev;
+      });
+      setShowProfileSubjectPrompt(false);
+      setShowProfileNewSubjectInput(false);
+      setProfileNewSubjectText('');
+    } catch (err: any) {
+      setProfileSubjectError(err.message || 'Failed to update mentor profile subject.');
+    } finally {
+      setSavingProfileSubject(false);
+    }
+  };
+
+  // Handler: add a subject from within the quiz builder
+  const handleAddBuilderSubject = () => {
+    const trimmed = builderNewSubjectName.trim();
+    if (!trimmed) return;
+    setQuizSubject(trimmed);
+    setAvailableSubjects((prev) => {
+      if (!prev.some((s) => s.toLowerCase() === trimmed.toLowerCase())) {
+        return [trimmed, ...prev].sort((a, b) => a.localeCompare(b));
+      }
+      return prev;
+    });
+    // If mentor doesn't have a profile subject yet, set it automatically
+    if (authUser && !authUser.subject) {
+      updateMentorProfile({ subject: trimmed })
+        .then((res) => { if (res?.user) setAuthUser(res.user); })
+        .catch(() => {});
+    }
+    setShowBuilderNewSubject(false);
+    setBuilderNewSubjectName('');
+  };
+
   // Handler: create a new batch inline
   const handleCreateBatch = async () => {
     const name = newBatchName.trim();
@@ -159,6 +226,9 @@ export default function HostPage() {
           setAuthUser(synced);
           if (synced.role === 'mentor' || synced.role === 'admin') {
             setShowPinModal(false);
+          }
+          if (synced.subject && !quizSubject) {
+            setQuizSubject(synced.subject);
           }
         }
       })
@@ -1429,6 +1499,168 @@ export default function HostPage() {
             </div>
           </section>
 
+          {/* Mentor Profile Subject Setup Prompt */}
+          {authUser && !authUser.subject && (authUser.role === 'mentor' || authUser.role === 'admin') && showProfileSubjectPrompt && (
+            <div
+              style={{
+                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.12))',
+                border: '1px solid rgba(99, 102, 241, 0.35)',
+                borderRadius: '16px',
+                padding: '1.15rem 1.4rem',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                    <span style={{ fontSize: '1.25rem' }}>🎯</span>
+                    <strong style={{ fontSize: '0.98rem', color: 'var(--text-primary, #F2F2F2)' }}>
+                      Complete your Mentor Profile — Set Your Teaching Subject
+                    </strong>
+                    <span style={{ fontSize: '0.72rem', padding: '0.15rem 0.5rem', borderRadius: '12px', background: 'rgba(99, 102, 241, 0.25)', color: '#818CF8', fontWeight: 700 }}>
+                      Profile Setup
+                    </span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary, #9CA3AF)', lineHeight: 1.4 }}>
+                    Welcome, {authUser.realName}! Select your primary academic subject so your quizzes default to your subject across university reports.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowProfileSubjectPrompt(false)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted, #9CA3AF)',
+                    cursor: 'pointer',
+                    fontSize: '1.1rem',
+                    padding: '0.2rem',
+                  }}
+                  title="Dismiss for now"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {profileSubjectError && (
+                <div style={{ color: '#EF4444', fontSize: '0.82rem', fontWeight: 600 }}>
+                  ⚠️ {profileSubjectError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                {!showProfileNewSubjectInput ? (
+                  <>
+                    <select
+                      className="input"
+                      style={{
+                        minWidth: '220px',
+                        fontSize: '0.85rem',
+                        padding: '0.45rem 0.75rem',
+                        borderRadius: '8px',
+                        background: 'var(--surface, #1B1B1F)',
+                        border: '1px solid var(--border, #2A2A2F)',
+                        color: 'var(--text-primary, #F2F2F2)',
+                        fontWeight: 600,
+                      }}
+                      value={quizSubject}
+                      onChange={(e) => {
+                        if (e.target.value === '__NEW__') {
+                          setShowProfileNewSubjectInput(true);
+                        } else {
+                          setQuizSubject(e.target.value);
+                        }
+                      }}
+                    >
+                      <option value="">Choose an existing subject…</option>
+                      {availableSubjects.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                      <option value="__NEW__">＋ Add new subject…</option>
+                    </select>
+
+                    <button
+                      type="button"
+                      className="btn btn-primary btn--sm"
+                      disabled={!quizSubject || savingProfileSubject}
+                      onClick={() => handleSaveProfileSubject(quizSubject)}
+                      style={{ padding: '0.45rem 1rem', fontSize: '0.82rem', fontWeight: 700 }}
+                    >
+                      {savingProfileSubject ? 'Saving…' : 'Save to Profile'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowProfileNewSubjectInput(true)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--accent, #818CF8)',
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        padding: '0.3rem 0.5rem',
+                      }}
+                    >
+                      ＋ Add new subject
+                    </button>
+                  </>
+                ) : (
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', width: '100%', maxWidth: '480px' }}>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="e.g. Distributed Computing, Mobile App Dev"
+                      value={profileNewSubjectText}
+                      onChange={(e) => { setProfileNewSubjectText(e.target.value); setProfileSubjectError(''); }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveProfileSubject(profileNewSubjectText);
+                        if (e.key === 'Escape') setShowProfileNewSubjectInput(false);
+                      }}
+                      disabled={savingProfileSubject}
+                      style={{
+                        flex: 1,
+                        fontSize: '0.85rem',
+                        padding: '0.45rem 0.75rem',
+                        borderRadius: '8px',
+                        background: 'var(--surface, #1B1B1F)',
+                        border: '1px solid var(--border, #2A2A2F)',
+                        color: 'var(--text-primary, #F2F2F2)',
+                      }}
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-primary btn--sm"
+                      onClick={() => handleSaveProfileSubject(profileNewSubjectText)}
+                      disabled={savingProfileSubject || !profileNewSubjectText.trim()}
+                      style={{ padding: '0.45rem 0.9rem', fontSize: '0.82rem', fontWeight: 700 }}
+                    >
+                      {savingProfileSubject ? 'Saving…' : 'Save Subject'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowProfileNewSubjectInput(false); setProfileNewSubjectText(''); }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted, #9CA3AF)',
+                        fontSize: '0.82rem',
+                        cursor: 'pointer',
+                        padding: '0.3rem 0.5rem',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <section ref={builderRef} style={{ scrollMarginTop: '80px' }}>
             <div
               style={{
@@ -1572,31 +1804,120 @@ export default function HostPage() {
                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary, #9CA3AF)', marginBottom: '0.3rem' }}>
                           Academic Subject
                         </label>
-                        <select
-                          className="input"
-                          style={{
-                            width: '100%',
-                            fontSize: '0.85rem',
-                            padding: '0.5rem 0.75rem',
-                            borderRadius: '10px',
-                            background: 'var(--surface, #1B1B1F)',
-                            border: '1px solid var(--border, #2A2A2F)',
-                            fontWeight: 600,
-                            color: 'var(--text-primary, #F2F2F2)',
-                          }}
-                          value={quizSubject}
-                          onChange={(e) => setQuizSubject(e.target.value)}
-                        >
-                          <option value="Full Stack Web Development">Full Stack Web Development</option>
-                          <option value="Operating Systems">Operating Systems</option>
-                          <option value="Data Structures & Algorithms">Data Structures &amp; Algorithms</option>
-                          <option value="Database Management Systems">Database Management Systems</option>
-                          <option value="Computer Networks & Security">Computer Networks &amp; Security</option>
-                          <option value="Artificial Intelligence & ML">Artificial Intelligence &amp; ML</option>
-                          <option value="Cloud Computing & DevOps">Cloud Computing &amp; DevOps</option>
-                          <option value="Software Engineering & Agile">Software Engineering &amp; Agile</option>
-                          <option value="General Technical Aptitude">General Technical Aptitude</option>
-                        </select>
+                        {!showBuilderNewSubject ? (
+                          <>
+                            <select
+                              className="input"
+                              style={{
+                                width: '100%',
+                                fontSize: '0.85rem',
+                                padding: '0.5rem 0.75rem',
+                                borderRadius: '10px',
+                                background: 'var(--surface, #1B1B1F)',
+                                border: '1px solid var(--border, #2A2A2F)',
+                                fontWeight: 600,
+                                color: 'var(--text-primary, #F2F2F2)',
+                              }}
+                              value={quizSubject}
+                              onChange={(e) => {
+                                if (e.target.value === '__NEW__') {
+                                  setShowBuilderNewSubject(true);
+                                } else {
+                                  setQuizSubject(e.target.value);
+                                }
+                              }}
+                            >
+                              {!quizSubject && <option value="">Select a subject…</option>}
+                              {authUser?.subject && !availableSubjects.some((s) => s.toLowerCase() === authUser.subject?.toLowerCase()) && (
+                                <option value={authUser.subject}>{authUser.subject} (My Subject)</option>
+                              )}
+                              {availableSubjects.map((s) => (
+                                <option key={s} value={s}>
+                                  {s}{authUser?.subject?.toLowerCase() === s.toLowerCase() ? ' (My Subject)' : ''}
+                                </option>
+                              ))}
+                              <option value="__NEW__">＋ Add custom subject…</option>
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => { setShowBuilderNewSubject(true); setBuilderNewSubjectName(''); }}
+                              style={{
+                                marginTop: '0.4rem',
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--accent, #818CF8)',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                padding: '0',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                              }}
+                            >
+                              <span style={{ fontSize: '1rem', lineHeight: 1 }}>＋</span> Add custom subject
+                            </button>
+                          </>
+                        ) : (
+                          <div style={{ marginTop: '0.2rem' }}>
+                            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                              <input
+                                type="text"
+                                className="input"
+                                placeholder="e.g. Distributed Systems"
+                                value={builderNewSubjectName}
+                                onChange={(e) => setBuilderNewSubjectName(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleAddBuilderSubject();
+                                  if (e.key === 'Escape') { setShowBuilderNewSubject(false); setBuilderNewSubjectName(''); }
+                                }}
+                                style={{
+                                  flex: 1,
+                                  fontSize: '0.82rem',
+                                  padding: '0.4rem 0.6rem',
+                                  borderRadius: '8px',
+                                  background: 'var(--surface, #1B1B1F)',
+                                  border: '1px solid var(--border, #2A2A2F)',
+                                  color: 'var(--text-primary, #F2F2F2)',
+                                }}
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={handleAddBuilderSubject}
+                                disabled={!builderNewSubjectName.trim()}
+                                style={{
+                                  padding: '0.4rem 0.75rem',
+                                  borderRadius: '8px',
+                                  background: 'var(--accent, #818CF8)',
+                                  color: '#fff',
+                                  border: 'none',
+                                  fontWeight: 700,
+                                  fontSize: '0.78rem',
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                Use
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setShowBuilderNewSubject(false); setBuilderNewSubjectName(''); }}
+                                style={{
+                                  padding: '0.4rem 0.5rem',
+                                  borderRadius: '8px',
+                                  background: 'transparent',
+                                  color: 'var(--text-muted, #9CA3AF)',
+                                  border: 'none',
+                                  fontSize: '0.78rem',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div>

@@ -14,6 +14,8 @@ export interface AuthUser {
    * student" — the distinction only the server can make.
    */
   facultyPending?: boolean;
+  subject?: string;
+  department?: string;
 }
 
 /** Campus domain for faculty. Kept in one place so the UI copy stays truthful. */
@@ -28,12 +30,16 @@ export function getStoredAuth(): { token: string; user: AuthUser } | null {
     const parsed = JSON.parse(raw);
     if (!parsed.token || !parsed.user?.email) return null;
 
-    // Self-healing: Any @polariscampus.com user is by definition faculty/admin, never student
+    // Accounts on the faculty domain receive mentor access by default, unless explicitly revoked (approved === false)
     if (isFacultyEmail(parsed.user.email)) {
-      if (parsed.user.role !== 'admin') {
-        parsed.user.role = 'mentor';
+      if (parsed.user.approved === false) {
+        parsed.user.role = 'student';
+      } else {
+        if (parsed.user.role !== 'admin') {
+          parsed.user.role = 'mentor';
+        }
+        parsed.user.approved = true;
       }
-      parsed.user.approved = true;
       parsed.user.facultyPending = false;
     }
 
@@ -63,10 +69,14 @@ export function getAuthUser(): AuthUser | null {
 export function setStoredAuth(token: string, user: AuthUser): void {
   try {
     if (isFacultyEmail(user.email)) {
-      if (user.role !== 'admin') {
-        user.role = 'mentor';
+      if (user.approved === false) {
+        user.role = 'student';
+      } else {
+        if (user.role !== 'admin') {
+          user.role = 'mentor';
+        }
+        user.approved = true;
       }
-      user.approved = true;
       user.facultyPending = false;
     }
     localStorage.setItem(AUTH_KEY, JSON.stringify({ token, user }));
@@ -86,10 +96,14 @@ export async function refreshAuthUser(): Promise<AuthUser | null> {
     const data = await res.json();
     if (data.user) {
       if (isFacultyEmail(data.user.email)) {
-        if (data.user.role !== 'admin') {
-          data.user.role = 'mentor';
+        if (data.user.approved === false) {
+          data.user.role = 'student';
+        } else {
+          if (data.user.role !== 'admin') {
+            data.user.role = 'mentor';
+          }
+          data.user.approved = true;
         }
-        data.user.approved = true;
         data.user.facultyPending = false;
       }
       setStoredAuth(data.token || token, data.user);
@@ -361,10 +375,11 @@ export interface MentorReportRow {
 export interface MentorReports {
   reports: MentorReportRow[];
   totals: {
+    sessions?: number;
     quizzes: number;
     participants: number;
     responses: number;
-    averageScore: number;
+    averageScore?: number;
     accuracyPercent: number;
   };
 }
@@ -375,6 +390,9 @@ export async function fetchMentorReports(options?: {
   startDate?: string;
   endDate?: string;
   mentorEmail?: string;
+  subject?: string;
+  year?: number | string;
+  mentorQuery?: string;
 }): Promise<MentorReports> {
   const token = getAuthToken();
   if (!token) throw new Error('Authentication required');
@@ -385,6 +403,9 @@ export async function fetchMentorReports(options?: {
   if (options?.startDate) params.set('startDate', options.startDate);
   if (options?.endDate) params.set('endDate', options.endDate);
   if (options?.mentorEmail) params.set('mentorEmail', options.mentorEmail);
+  if (options?.subject && options.subject !== 'all') params.set('subject', options.subject);
+  if (options?.year && options.year !== 'all') params.set('year', String(options.year));
+  if (options?.mentorQuery) params.set('mentorQuery', options.mentorQuery);
 
   const qs = params.toString();
   const res = await fetch(apiUrl(qs ? `/api/mentor/reports?${qs}` : '/api/mentor/reports'), {
@@ -398,6 +419,104 @@ export async function fetchMentorReports(options?: {
 
   return await res.json();
 }
+
+/**
+ * Lists all active subjects in use across the university.
+ */
+export async function fetchSubjects(): Promise<string[]> {
+  const token = getAuthToken();
+  if (!token) return [];
+  try {
+    const res = await fetch(apiUrl('/api/subjects'), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.subjects || [];
+  } catch (err) {
+    console.error('[auth] Failed to fetch subjects:', err);
+    return [];
+  }
+}
+
+/**
+ * Mentor self-service: update their profile subject, department, or display name.
+ */
+export async function updateMentorProfile(updates: {
+  subject?: string;
+  department?: string;
+  realName?: string;
+}): Promise<{ user: AuthUser; token: string }> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Authentication required');
+
+  const res = await fetch(apiUrl('/api/mentor/profile'), {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(updates),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to update profile');
+  }
+
+  if (data.token && data.user) {
+    setStoredAuth(data.token, data.user);
+  }
+  return data;
+}
+
+/**
+ * Admin: Download campus-wide filtered reports as CSV.
+ */
+export async function exportCampusReportsCsv(options?: {
+  batch?: string;
+  timeRange?: string;
+  startDate?: string;
+  endDate?: string;
+  subject?: string;
+  year?: number | string;
+  mentorQuery?: string;
+}): Promise<void> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Administrator authentication required');
+
+  const params = new URLSearchParams();
+  if (options?.batch && options.batch !== 'all') params.set('batch', options.batch);
+  if (options?.timeRange && options.timeRange !== 'all') params.set('timeRange', options.timeRange);
+  if (options?.startDate) params.set('startDate', options.startDate);
+  if (options?.endDate) params.set('endDate', options.endDate);
+  if (options?.subject && options.subject !== 'all') params.set('subject', options.subject);
+  if (options?.year && options.year !== 'all') params.set('year', String(options.year));
+  if (options?.mentorQuery) params.set('mentorQuery', options.mentorQuery);
+
+  const qs = params.toString();
+  const res = await fetch(apiUrl(qs ? `/api/admin/reports/export.csv?${qs}` : '/api/admin/reports/export.csv'), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to export reports CSV');
+  }
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const timestamp = new Date().toISOString().slice(0, 10);
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `pollmeter-campus-report-${timestamp}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 
 // ─── University Administration API ──────────────────────────────────────────
 
