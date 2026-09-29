@@ -1065,103 +1065,7 @@ export default function AdminPage() {
             </div>
           </section>
 
-          {/* ─── Subject Specialization Pills ──────────────────────────────────── */}
-          {overview?.subjects && overview.subjects.length > 0 && (
-            <section className="pm-admin-subjects-section">
-              <span className="pm-subjects-heading">Active Academic Subjects &amp; Courses:</span>
-              <div className="pm-subject-tags-list">
-                {overview.subjects.map((sub, i) => (
-                  <div key={i} className="pm-subject-pill">
-                    <span className="pm-subject-dot" />
-                    <strong>{sub.subject}</strong>
-                    <span className="pm-subject-count">{sub.count} {sub.count === 1 ? 'quiz' : 'quizzes'}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
 
-          {/* ─── Batch Distribution Cohort Pills ─────────────────────────────────── */}
-          {overview?.batches && overview.batches.length > 0 && (
-            <section className="pm-admin-subjects-section" style={{ marginTop: '0.65rem' }}>
-              <span className="pm-subjects-heading">Active Academic Cohorts &amp; Batches:</span>
-              <div className="pm-subject-tags-list">
-                {overview.batches.map((b, i) => (
-                  <div key={i} className="pm-subject-pill pm-batch-subject-pill">
-                    <span className="pm-subject-dot pm-batch-dot" />
-                    <strong>{b.batch}</strong>
-                    <span className="pm-subject-count pm-batch-count">
-                      {b.count} {b.count === 1 ? 'quiz' : 'quizzes'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* ─── Navigation Tabs Bar (Quick Switcher) ─── */}
-          <div className="pm-admin-tabs-bar">
-            <div className="pm-admin-tabs">
-              <button
-                className={`pm-admin-tab-btn ${activeTab === 'faculty' ? 'active' : ''}`}
-                onClick={() => setActiveTab('faculty')}
-              >
-                <span>👨‍🏫 Faculty &amp; Mentor Directory</span>
-                <span className="pm-tab-pill">{facultyList.length}</span>
-              </button>
-              <button
-                className={`pm-admin-tab-btn ${activeTab === 'students' ? 'active' : ''}`}
-                onClick={() => setActiveTab('students')}
-              >
-                <span>🎓 University Student Audit</span>
-                <span className="pm-tab-pill">{studentAudit.length}</span>
-              </button>
-              <button
-                className={`pm-admin-tab-btn ${activeTab === 'quizzes' ? 'active' : ''}`}
-                onClick={() => setActiveTab('quizzes')}
-              >
-                <span>📊 University Quiz Logs</span>
-                <span className="pm-tab-pill">{overview?.recentQuizzes?.length ?? 0}</span>
-              </button>
-              <button
-                className={`pm-admin-tab-btn ${activeTab === 'audit' ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveTab('audit');
-                  setLoadingAudit(true);
-                  fetchAdminAuditLogs()
-                    .then(setAuditLogs)
-                    .catch(() => {})
-                    .finally(() => setLoadingAudit(false));
-                }}
-              >
-                <span>🛡️ Security &amp; Audit Trail</span>
-                <span className="pm-tab-pill">{auditLogs.length || 'Logs'}</span>
-              </button>
-              <button
-                className={`pm-admin-tab-btn ${activeTab === 'batches' ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveTab('batches');
-                  adminFetchBatches().then((objs) => setAllBatchObjects(objs)).catch(() => {});
-                }}
-              >
-                <span>🗂️ Batch Management</span>
-                <span className="pm-tab-pill">{allBatchObjects.filter(b => b.status === 'active').length || standardBatches.length}</span>
-              </button>
-              <button
-                className={`pm-admin-tab-btn ${activeTab === 'reports' ? 'active' : ''}`}
-                onClick={() => setActiveTab('reports')}
-              >
-                <span>📈 Campus Reports &amp; All Sessions</span>
-                {reportData && <span className="pm-tab-pill">{reportData.reports.length}</span>}
-              </button>
-            </div>
-
-            {activeTab === 'faculty' && (
-              <button className="pm-admin-add-btn" onClick={handleOpenAdd}>
-                <span style={{ fontSize: '1.1rem' }}>+</span> Add Faculty Mentor
-              </button>
-            )}
-          </div>
 
           {/* ─── TAB 1: Faculty Directory ─────────────────────────────────────── */}
           {activeTab === 'faculty' && (
@@ -1210,10 +1114,18 @@ export default function AdminPage() {
                   </select>
                 </div>
 
-                <div className="pm-panel-toolbar-right">
+                <div className="pm-panel-toolbar-right" style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                   <span className="pm-table-count">
                     Showing <strong>{filteredFaculty.length}</strong> of <strong>{facultyList.length}</strong> faculty
                   </span>
+                  <button
+                    className="pm-admin-add-btn"
+                    onClick={handleOpenAdd}
+                    style={{ padding: '0.45rem 0.9rem', fontSize: '0.82rem' }}
+                    id="admin-faculty-add-btn"
+                  >
+                    <span style={{ fontSize: '1.1rem', lineHeight: 1 }}>+</span> Add Faculty Mentor
+                  </button>
                 </div>
               </div>
 
@@ -1465,11 +1377,50 @@ export default function AdminPage() {
         {activeTab === 'quizzes' && (
           <section className="pm-admin-panel-card">
             <div className="pm-panel-header-row">
-              <h3>All Quizzes Hosted Across Departments</h3>
+              <div>
+                <h3>All Quizzes Hosted Across Departments</h3>
+                <p style={{ fontSize: '0.82rem', color: '#64748B', marginTop: '0.2rem' }}>
+                  Audited classroom quiz sessions hosted by faculty mentors across courses and cohorts.
+                </p>
+              </div>
               <span className="pm-table-count">
                 <strong>{overview?.recentQuizzes?.length ?? 0}</strong> recent sessions
               </span>
             </div>
+
+            {/* Active Academic Subjects & Courses */}
+            {overview?.subjects && overview.subjects.length > 0 && (
+              <div className="pm-admin-subjects-section" style={{ marginBottom: '0.85rem', marginTop: '0.5rem' }}>
+                <span className="pm-subjects-heading">Active Academic Subjects &amp; Courses:</span>
+                <div className="pm-subject-tags-list">
+                  {overview.subjects.map((sub, i) => (
+                    <div key={i} className="pm-subject-pill">
+                      <span className="pm-subject-dot" />
+                      <strong>{sub.subject}</strong>
+                      <span className="pm-subject-count">{sub.count} {sub.count === 1 ? 'quiz' : 'quizzes'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Active Academic Cohorts & Batches */}
+            {overview?.batches && overview.batches.length > 0 && (
+              <div className="pm-admin-subjects-section" style={{ marginBottom: '1.25rem' }}>
+                <span className="pm-subjects-heading">Active Academic Cohorts &amp; Batches:</span>
+                <div className="pm-subject-tags-list">
+                  {overview.batches.map((b, i) => (
+                    <div key={i} className="pm-subject-pill pm-batch-subject-pill">
+                      <span className="pm-subject-dot pm-batch-dot" />
+                      <strong>{b.batch}</strong>
+                      <span className="pm-subject-count pm-batch-count">
+                        {b.count} {b.count === 1 ? 'quiz' : 'quizzes'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {!overview?.recentQuizzes || overview.recentQuizzes.length === 0 ? (
               <div className="pm-history-empty">
@@ -1634,6 +1585,24 @@ export default function AdminPage() {
                 </p>
               </div>
             </div>
+
+            {/* Active Academic Cohorts & Batches */}
+            {overview?.batches && overview.batches.length > 0 && (
+              <div className="pm-admin-subjects-section" style={{ marginBottom: '1.25rem', marginTop: '0.5rem' }}>
+                <span className="pm-subjects-heading">Active Academic Cohorts &amp; Batches:</span>
+                <div className="pm-subject-tags-list">
+                  {overview.batches.map((b, i) => (
+                    <div key={i} className="pm-subject-pill pm-batch-subject-pill">
+                      <span className="pm-subject-dot pm-batch-dot" />
+                      <strong>{b.batch}</strong>
+                      <span className="pm-subject-count pm-batch-count">
+                        {b.count} {b.count === 1 ? 'quiz' : 'quizzes'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Add new batch */}
             <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '0.6rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
