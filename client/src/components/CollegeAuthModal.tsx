@@ -56,6 +56,8 @@ export default function CollegeAuthModal({
   // OTP Form States
   const [emailInput, setEmailInput] = useState('');
   const [realNameInput, setRealNameInput] = useState('');
+  const [userExists, setUserExists] = useState<boolean | null>(null);
+  const [existingUserName, setExistingUserName] = useState<string | null>(null);
   const [otpCode, setOtpCode] = useState('');
   const [otpStep, setOtpStep] = useState<'request' | 'verify'>('request');
   const [devCodeHint, setDevCodeHint] = useState<string | null>(null);
@@ -189,7 +191,6 @@ export default function CollegeAuthModal({
   async function handleSendOtp(e: React.FormEvent) {
     e.preventDefault();
     const cleanEmail = emailInput.trim().toLowerCase();
-    const cleanName = realNameInput.trim();
 
     if (!cleanEmail) {
       setError('Please enter your college email address.');
@@ -209,16 +210,16 @@ export default function CollegeAuthModal({
       }
     }
 
-    if (!cleanName) {
-      setError('Please enter your full official name as registered with the university.');
-      return;
-    }
-
     setLoading(true);
     setError('');
 
     try {
       const res = await sendCollegeOtp(cleanEmail);
+      setUserExists(Boolean(res.userExists));
+      setExistingUserName(res.existingName || null);
+      if (res.userExists && res.existingName) {
+        setRealNameInput(res.existingName);
+      }
       setOtpStep('verify');
       setResendCooldown(45);
       if (res.devCode) {
@@ -242,11 +243,20 @@ export default function CollegeAuthModal({
       return;
     }
 
+    if (!userExists && !cleanName) {
+      setError('Please enter your official full name as registered with the university.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
-      const res = await verifyCollegeOtp(cleanEmail, cleanCode, cleanName);
+      const res = await verifyCollegeOtp(
+        cleanEmail,
+        cleanCode,
+        userExists ? undefined : cleanName
+      );
       onSuccess(res.user);
     } catch (err) {
       setError((err as Error).message);
@@ -469,30 +479,6 @@ export default function CollegeAuthModal({
                   </span>
                 </div>
 
-                <div className="pm-auth-field">
-                  <label htmlFor="official-name-input">Official Full Name</label>
-                  <div className="pm-auth-input-wrapper">
-                    <input
-                      id="official-name-input"
-                      type="text"
-                      placeholder="e.g. Don Sharma"
-                      value={realNameInput}
-                      onChange={(e) => {
-                        setRealNameInput(e.target.value);
-                        setError('');
-                      }}
-                      disabled={loading}
-                      required
-                    />
-                    <span className="pm-auth-input-icon">👤</span>
-                  </div>
-                  <span className="pm-auth-hint">
-                    {roleHint === 'mentor'
-                      ? 'Appears as faculty host for quiz sessions'
-                      : 'Mentors will see this on attendance and grade sheets'}
-                  </span>
-                </div>
-
                 <button
                   type="submit"
                   className={isFacultyRole ? 'pm-btn-faculty-primary' : 'pm-auth-submit-btn'}
@@ -524,9 +510,9 @@ export default function CollegeAuthModal({
             ) : (
               <form onSubmit={handleVerifyOtp} className="pm-auth-form">
                 <div className="pm-otp-notice">
-                  <div className="pm-otp-icon">📬</div>
+                  <div className="pm-otp-icon">{userExists ? '👋' : '📬'}</div>
                   <div>
-                    <h4>Check your College Inbox</h4>
+                    <h4>{userExists ? `Welcome back${existingUserName ? `, ${existingUserName}` : ''}!` : 'Check your College Inbox'}</h4>
                     <p>
                       We sent a 6-digit verification code to <strong>{emailInput}</strong>
                     </p>
@@ -538,6 +524,33 @@ export default function CollegeAuthModal({
                     <span className="pm-dev-tag">⚡ DEV / QUICK CODE</span>
                     <span>
                       Click to autofill: <strong>{devCodeHint}</strong>
+                    </span>
+                  </div>
+                )}
+
+                {!userExists && (
+                  <div className="pm-auth-field">
+                    <label htmlFor="official-name-input">Official Full Name</label>
+                    <div className="pm-auth-input-wrapper">
+                      <input
+                        id="official-name-input"
+                        type="text"
+                        placeholder={isFacultyRole ? 'e.g. Dr. Don Sharma' : 'e.g. Don Sharma'}
+                        value={realNameInput}
+                        onChange={(e) => {
+                          setRealNameInput(e.target.value);
+                          setError('');
+                        }}
+                        disabled={loading}
+                        required
+                        autoFocus
+                      />
+                      <span className="pm-auth-input-icon">👤</span>
+                    </div>
+                    <span className="pm-auth-hint">
+                      {roleHint === 'mentor'
+                        ? 'Appears as faculty host for quiz sessions'
+                        : 'Mentors will see this on attendance and grade sheets'}
                     </span>
                   </div>
                 )}
@@ -558,7 +571,7 @@ export default function CollegeAuthModal({
                         setError('');
                       }}
                       disabled={loading}
-                      autoFocus
+                      autoFocus={Boolean(userExists)}
                       required
                     />
                   </div>
@@ -571,6 +584,8 @@ export default function CollegeAuthModal({
                     onClick={() => {
                       setOtpStep('request');
                       setOtpCode('');
+                      setUserExists(null);
+                      setExistingUserName(null);
                       setError('');
                     }}
                     disabled={loading}
@@ -591,14 +606,14 @@ export default function CollegeAuthModal({
                 <button
                   type="submit"
                   className={isFacultyRole ? 'pm-btn-faculty-primary' : 'pm-auth-submit-btn'}
-                  disabled={loading || otpCode.length < 6}
+                  disabled={loading || otpCode.length < 6 || (!userExists && !realNameInput.trim())}
                   style={{
                     width: '100%',
                     height: '48px',
                     borderRadius: '12px',
                     fontWeight: 800,
                     fontSize: '0.95rem',
-                    cursor: loading || otpCode.length < 6 ? 'not-allowed' : 'pointer',
+                    cursor: loading || otpCode.length < 6 || (!userExists && !realNameInput.trim()) ? 'not-allowed' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -611,10 +626,14 @@ export default function CollegeAuthModal({
                     boxShadow: isFacultyRole
                       ? '0 4px 16px rgba(245, 158, 11, 0.4)'
                       : '0 4px 16px rgba(16, 185, 129, 0.4)',
-                    opacity: loading || otpCode.length < 6 ? 0.7 : 1,
+                    opacity: loading || otpCode.length < 6 || (!userExists && !realNameInput.trim()) ? 0.7 : 1,
                   }}
                 >
-                  {loading ? 'Verifying Code...' : 'Verify Code & Sign In →'}
+                  {loading
+                    ? 'Verifying Code...'
+                    : userExists
+                    ? 'Verify Code & Sign In →'
+                    : 'Complete Registration & Sign In →'}
                 </button>
               </form>
             )}

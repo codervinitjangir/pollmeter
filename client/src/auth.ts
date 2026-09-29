@@ -146,6 +146,8 @@ export async function loginWithGoogleCredential(credential: string): Promise<{
 
 export async function sendCollegeOtp(email: string): Promise<{
   success: boolean;
+  userExists: boolean;
+  existingName?: string;
   devCode?: string;
 }> {
   const res = await fetch(apiUrl('/api/auth/otp/send'), {

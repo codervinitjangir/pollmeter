@@ -253,12 +253,19 @@ interface OtpRecord {
 
 const otpStore = new Map<string, OtpRecord>();
 
-export function sendCollegeOtp(email: string): { success: boolean; devCode?: string } {
+export async function sendCollegeOtp(email: string): Promise<{
+  success: boolean;
+  userExists: boolean;
+  existingName?: string;
+  devCode?: string;
+}> {
   const cleanEmail = email.toLowerCase().trim();
   if (!isDomainAllowed(cleanEmail)) {
     const allowed = getAllowedDomains().join(' or @');
     throw new Error(`Domain not allowed. Email must end with @${allowed}`);
   }
+
+  const existing = await getUserByEmail(cleanEmail);
 
   // Generate 6-digit code
   const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -273,6 +280,8 @@ export function sendCollegeOtp(email: string): { success: boolean; devCode?: str
   const isSmtpConfigured = Boolean(process.env.RESEND_API_KEY || process.env.SMTP_HOST);
   return {
     success: true,
+    userExists: Boolean(existing?.realName),
+    existingName: existing?.realName,
     // Return devCode if SMTP not yet configured so teachers/students aren't stranded
     devCode: isSmtpConfigured ? undefined : code,
   };

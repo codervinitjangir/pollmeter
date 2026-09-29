@@ -429,7 +429,7 @@ app.post('/api/auth/otp/send', otpSendLimiter, async (req: Request, res: Respons
       res.status(400).json({ error: 'Please enter your college email address.' });
       return;
     }
-    const result = sendCollegeOtp(email);
+    const result = await sendCollegeOtp(email);
     res.json(result);
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
