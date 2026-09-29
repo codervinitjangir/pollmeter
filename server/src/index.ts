@@ -20,6 +20,7 @@ import {
   saveQuizSession,
   getMentorQuizzes,
   getQuizDetails,
+  deleteQuizSession,
   getStudentQuizzes,
   getAllFaculty,
   addOrUpdateFaculty,
@@ -723,6 +724,50 @@ function csvCell(value: unknown): string {
   if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
   return `"${text.replace(/"/g, '""')}"`;
 }
+
+/**
+ * Deletes one of the mentor's own quiz sessions, with its participants and
+ * responses. Until now a session could never be removed once created, so a
+ * mis-started or abandoned room stayed in the mentor's history and kept
+ * counting toward the campus totals for good. Ownership is checked the same way
+ * the CSV export checks it: mentors reach only their own sessions, admins any.
+ */
+app.delete('/api/mentor/quizzes/:id', requireMentor, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const details = await getQuizDetails(req.params.id);
+    if (!details) {
+      res.status(404).json({ error: 'Quiz session not found.' });
+      return;
+    }
+
+    if (
+      req.user?.role !== 'admin' &&
+      details.session.hostEmail.toLowerCase() !== req.user?.email?.toLowerCase()
+    ) {
+      res.status(403).json({ error: 'Access denied: You can only delete your own sessions.' });
+      return;
+    }
+
+    const deleted = await deleteQuizSession(req.params.id);
+    if (!deleted) {
+      res.status(404).json({ error: 'Quiz session not found.' });
+      return;
+    }
+
+    await recordAuditLog(req.user?.email || 'unknown', 'SESSION_DELETED', details.session.code, {
+      topic: details.session.topic,
+      subject: details.session.subject,
+      batch: details.session.batch,
+      participants: details.participants.length,
+      responses: details.responses.length,
+    });
+
+    res.json({ success: true, code: details.session.code });
+  } catch (err) {
+    console.error('[mentor] Failed to delete quiz session:', err);
+    res.status(500).json({ error: 'Failed to delete the quiz session.' });
+  }
+});
 
 app.get('/api/mentor/quizzes/:id/export.csv', requireMentor, async (req: AuthenticatedRequest, res: Response) => {
   try {

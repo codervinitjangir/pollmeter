@@ -852,6 +852,40 @@ export async function getQuizDetails(sessionId: string): Promise<{
   return { session, participants, responses };
 }
 
+/**
+ * Permanently removes a quiz session together with its participants and
+ * responses. Nothing referenced session_id with a foreign key, so there is no
+ * cascade to rely on -- each table is cleared explicitly inside one
+ * transaction. Returns false when no such session exists, so the caller can
+ * answer 404 rather than report a phantom success.
+ */
+export async function deleteQuizSession(sessionId: string): Promise<boolean> {
+  if (usePostgres && pool) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM student_responses WHERE session_id = $1', [sessionId]);
+      await client.query('DELETE FROM session_participants WHERE session_id = $1', [sessionId]);
+      const res = await client.query('DELETE FROM quiz_sessions WHERE id = $1', [sessionId]);
+      await client.query('COMMIT');
+      return (res.rowCount ?? 0) > 0;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error('[db] Error deleting quiz session from postgres:', err);
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  if (!localDb.sessions[sessionId]) return false;
+  delete localDb.sessions[sessionId];
+  localDb.participants = localDb.participants.filter((p) => p.sessionId !== sessionId);
+  localDb.responses = localDb.responses.filter((r) => r.sessionId !== sessionId);
+  saveLocalDb();
+  return true;
+}
+
 export async function getStudentQuizzes(studentEmail: string): Promise<Array<{
   session: QuizSessionRecord;
   participant: SessionParticipantRecord;
