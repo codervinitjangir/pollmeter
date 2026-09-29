@@ -432,12 +432,6 @@ export default function CollegeAuthModal({
                 )}
               </div>
 
-              <div className="pm-sso-mobile-tip">
-                <span className="pm-sso-tip-icon">💡</span>
-                <span className="pm-sso-tip-text">
-                  <strong>Multiple accounts?</strong> In the Google prompt, tap your account name or arrow (▼) to switch from your personal Gmail to your official <code>{isFacultyRole ? '@polariscampus.com' : '@medhaviskillsuniversity.edu.in'}</code> ID.
-                </span>
-              </div>
 
               <div className="pm-sso-features">
                 <div className="pm-sso-feature-item">
