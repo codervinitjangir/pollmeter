@@ -24,6 +24,7 @@ declare global {
           initialize: (config: any) => void;
           renderButton: (parent: HTMLElement, options: any) => void;
           prompt: () => void;
+          disableAutoSelect?: () => void;
         };
       };
     };
@@ -94,6 +95,25 @@ export default function CollegeAuthModal({
     return () => clearInterval(timer);
   }, [resendCooldown]);
 
+  const handleResetGoogleAccount = () => {
+    try {
+      window.google?.accounts?.id?.disableAutoSelect?.();
+      document.cookie = 'g_state=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    } catch {}
+    setError('');
+    if (googleBtnRef.current && window.google?.accounts?.id && googleClientId) {
+      googleBtnRef.current.innerHTML = '';
+      window.google.accounts.id.renderButton(googleBtnRef.current, {
+        theme: currentTheme === 'dark' ? 'filled_black' : 'outline',
+        size: 'large',
+        shape: 'pill',
+        width: 320,
+        text: 'continue_with',
+        logo_alignment: 'left',
+      });
+    }
+  };
+
   // Initialize Google GIS cleanly matching the current theme
   useEffect(() => {
     if (!isOpen || !googleClientId || !window.google?.accounts?.id || !googleBtnRef.current) {
@@ -101,8 +121,16 @@ export default function CollegeAuthModal({
     }
 
     try {
+      // Force account chooser: clear any cached auto-select credential
+      try {
+        window.google?.accounts?.id?.disableAutoSelect?.();
+        document.cookie = 'g_state=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      } catch {}
+
       window.google.accounts.id.initialize({
         client_id: googleClientId,
+        auto_select: false,
+        cancel_on_tap_outside: true,
         callback: async (response: { credential?: string }) => {
           if (!response.credential) return;
           setLoading(true);
@@ -111,15 +139,27 @@ export default function CollegeAuthModal({
             const data = await loginWithGoogleCredential(response.credential);
             const userEmail = (data.user.email || '').toLowerCase().trim();
             if (isFacultyRole && !userEmail.endsWith('@polariscampus.com')) {
-              setError('Access Restricted: Faculty & Admin access is strictly limited to @polariscampus.com accounts.');
+              try {
+                window.google?.accounts?.id?.disableAutoSelect?.();
+                document.cookie = 'g_state=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+              } catch {}
+              setError(`Access Restricted: Signed in as ${userEmail}. Faculty & Admin access is strictly limited to @polariscampus.com accounts.`);
               return;
             }
             if (!isFacultyRole && !userEmail.endsWith('@medhaviskillsuniversity.edu.in') && !userEmail.endsWith('@medhaviskillsunivercity.edu.in')) {
-              setError('Access Restricted: Student access is strictly limited to official Medhavi university emails (@medhaviskillsuniversity.edu.in).');
+              try {
+                window.google?.accounts?.id?.disableAutoSelect?.();
+                document.cookie = 'g_state=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+              } catch {}
+              setError(`Access Restricted: Signed in as ${userEmail}. Student access is strictly limited to official Medhavi university emails (@medhaviskillsuniversity.edu.in).`);
               return;
             }
             onSuccess(data.user);
           } catch (err) {
+            try {
+              window.google?.accounts?.id?.disableAutoSelect?.();
+              document.cookie = 'g_state=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+            } catch {}
             setError((err as Error).message);
           } finally {
             setLoading(false);
@@ -285,9 +325,50 @@ export default function CollegeAuthModal({
         </div>
 
         {error && (
-          <div className="pm-auth-error-alert" role="alert">
-            <span className="pm-auth-error-icon">⚠️</span>
-            <span>{error}</span>
+          <div className="pm-auth-error-alert" role="alert" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.6rem' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', width: '100%' }}>
+              <span className="pm-auth-error-icon" style={{ marginTop: '2px' }}>⚠️</span>
+              <span style={{ fontSize: '0.85rem', lineHeight: 1.45, flex: 1 }}>{error}</span>
+            </div>
+            {activeTab === 'google' && (
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', width: '100%', marginTop: '0.2rem' }}>
+                <button
+                  type="button"
+                  onClick={handleResetGoogleAccount}
+                  style={{
+                    background: 'rgba(59, 130, 246, 0.15)',
+                    color: '#93C5FD',
+                    border: '1px solid #3B82F6',
+                    borderRadius: '8px',
+                    padding: '0.35rem 0.75rem',
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  🔄 Switch Google Account
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('otp');
+                    setError('');
+                  }}
+                  style={{
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    color: '#6EE7B7',
+                    border: '1px solid #10B981',
+                    borderRadius: '8px',
+                    padding: '0.35rem 0.75rem',
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  ✉️ Use Email OTP Instead
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -337,6 +418,9 @@ export default function CollegeAuthModal({
                     <span>Continue with Google Workspace</span>
                   </button>
                 )}
+                <p style={{ fontSize: '0.74rem', color: '#94A3B8', marginTop: '0.6rem', textAlign: 'center', lineHeight: 1.45 }}>
+                  💡 <strong>Mobile tip:</strong> In the Google prompt, tap your name or arrow (▼) to switch from your personal Gmail to your <code>@medhaviskillsuniversity.edu.in</code> account.
+                </p>
               </div>
 
               <div className="pm-sso-features">
