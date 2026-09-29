@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import socket from '../socket';
 import {
   Question,
@@ -50,6 +51,7 @@ interface StoredHost {
 }
 
 export default function HostPage() {
+  const navigate = useNavigate();
   const [inSession, setInSession] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [code, setCode] = useState('');
@@ -88,6 +90,7 @@ export default function HostPage() {
     return Boolean(u && !isFacultyEmail(u.email) && u.role !== 'mentor' && u.role !== 'admin');
   });
   const [showPastQuizzes, setShowPastQuizzes] = useState(false);
+  const [hostView, setHostView] = useState<'builder' | 'reports'>('builder');
 
   // Fetch college batches dynamically
   useEffect(() => {
@@ -902,8 +905,8 @@ export default function HostPage() {
     <div className="menti-app-shell">
       <CollegeAuthModal
         isOpen={showAuthModal || !authUser}
-        title="Polaris Faculty &amp; Mentor Portal"
-        subtitle="Sign in with your official @polariscampus.com email ID to host quizzes and manage students"
+        title="Pollmeter Faculty &amp; Mentor Portal"
+        subtitle="Sign in with your official faculty email ID to host quizzes and manage students"
         onSuccess={(user) => {
           setAuthUser(user);
           setShowAuthModal(false);
@@ -911,7 +914,13 @@ export default function HostPage() {
             setShowPinModal(true);
           }
         }}
-        onClose={authUser ? () => setShowAuthModal(false) : undefined}
+        onClose={() => {
+          if (authUser) {
+            setShowAuthModal(false);
+          } else {
+            navigate('/');
+          }
+        }}
         roleHint="mentor"
       />
 
@@ -969,8 +978,9 @@ export default function HostPage() {
           <nav className="menti-nav-group">
             <div className="menti-nav-title">WORKSPACE</div>
             <button
-              className={`menti-nav-link ${activeNav === 'home' ? 'active' : ''}`}
+              className={`menti-nav-link ${hostView === 'builder' && activeNav === 'home' ? 'active' : ''}`}
               onClick={() => {
+                setHostView('builder');
                 setActiveNav('home');
                 mainPanelRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
                 setMobileSidebarOpen(false);
@@ -979,8 +989,9 @@ export default function HostPage() {
               <span>🏠</span> Home
             </button>
             <button
-              className={`menti-nav-link ${activeNav === 'build' ? 'active' : ''}`}
+              className={`menti-nav-link ${hostView === 'builder' && activeNav === 'build' ? 'active' : ''}`}
               onClick={() => {
+                setHostView('builder');
                 setActiveNav('build');
                 scrollToBuilder();
                 setMobileSidebarOpen(false);
@@ -991,6 +1002,7 @@ export default function HostPage() {
             <button
               className="menti-nav-link"
               onClick={() => {
+                setHostView('builder');
                 openWithTopic('');
                 setMobileSidebarOpen(false);
               }}
@@ -998,9 +1010,9 @@ export default function HostPage() {
               <span>✨</span> Generate with AI
             </button>
             <button
-              className="menti-nav-link"
+              className={`menti-nav-link ${hostView === 'reports' ? 'active' : ''}`}
               onClick={() => {
-                setShowPastQuizzes(true);
+                setHostView('reports');
                 setMobileSidebarOpen(false);
               }}
               id="past-quizzes-sidebar-btn"
@@ -1014,6 +1026,7 @@ export default function HostPage() {
             <button
               className="menti-nav-link"
               onClick={() => {
+                setHostView('builder');
                 scrollToBuilder();
                 setMobileSidebarOpen(false);
               }}
@@ -1029,15 +1042,6 @@ export default function HostPage() {
 
           <div className="menti-nav-group">
             <div className="menti-nav-title">CAMPUS SHORTCUTS</div>
-            <a
-              href="/student"
-              className="menti-nav-link"
-              style={{ textDecoration: 'none' }}
-              title="Student Portal & Live Arena"
-            >
-              <span>🎓</span>
-              <span>Student Portal</span>
-            </a>
             {authUser?.role === 'admin' && (
               <a
                 href="/admin"
@@ -1070,15 +1074,6 @@ export default function HostPage() {
           >
             <span>{hostTheme === 'dark' ? '☀️' : '🌙'}</span>
             <span>{hostTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
-          </button>
-          <button
-            className="menti-nav-link"
-            onClick={() => {
-              setShowHowItWorks(true);
-              setMobileSidebarOpen(false);
-            }}
-          >
-            <span>📖</span> How it works
           </button>
 
           {authUser && (
@@ -1138,30 +1133,23 @@ export default function HostPage() {
             </div>
           </div>
           <div className="menti-topbar-actions">
-            <span
-              className="pm-clearance-pill"
-              style={{
-                background: 'rgba(59, 130, 246, 0.1)',
-                color: '#3B82F6',
-                borderColor: 'rgba(59, 130, 246, 0.3)',
-              }}
+            <button
+              type="button"
+              className={`btn btn--sm ${hostView === 'reports' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setHostView(hostView === 'reports' ? 'builder' : 'reports')}
+              id="topbar-past-quizzes-btn"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              👨‍🏫 Faculty Mentor Clearance
-            </span>
-            <a
-              href="/student"
-              className="pm-btn-mentor-switch"
-              style={{ textDecoration: 'none' }}
-              title="Student Portal & Live Arena"
-            >
-              <span>🎓</span>
-              <span>Student Portal</span>
-            </a>
+              <span>📊</span>
+              <span>{hostView === 'reports' ? '← Quiz Builder' : 'Past Quizzes & Reports'}</span>
+            </button>
+
             <button
               className="pm-theme-toggle-btn"
               onClick={() => setHostTheme(toggleTheme())}
               title="Toggle Dark / Light Theme"
               id="topbar-theme-toggle-btn"
+              type="button"
             >
               {hostTheme === 'dark' ? '☀️ Light' : '🌙 Dark'}
             </button>
@@ -1182,20 +1170,12 @@ export default function HostPage() {
                       gap: '5px',
                     }}
                   >
-                    🏛️ Admin Console
+                    🏛️ Admin
                   </a>
                 )}
                 <span className="pm-auth-profile-badge">
-                  🎓 {authUser.realName} {authUser.role === 'admin' ? '(Admin)' : '(Faculty)'}
+                  🎓 {authUser.realName.split(' ')[0]} {authUser.role === 'admin' ? '(Admin)' : '(Faculty)'}
                 </span>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn--sm"
-                  onClick={() => setShowPastQuizzes(true)}
-                  id="topbar-past-quizzes-btn"
-                >
-                  📊 Past Quizzes
-                </button>
                 <button
                   type="button"
                   className="pm-auth-signout-btn"
@@ -1284,8 +1264,16 @@ export default function HostPage() {
           </div>
         )}
 
-        <main className="menti-content">
-          <h1 className="menti-welcome-title">Run a quiz with your class</h1>
+        {hostView === 'reports' ? (
+          <main className="menti-content" style={{ maxWidth: '1240px', margin: '0 auto', padding: '1.5rem', width: '100%' }}>
+            <MentorQuizHistoryModal
+              embedded={true}
+              onBack={() => setHostView('builder')}
+            />
+          </main>
+        ) : (
+          <main className="menti-content">
+            <h1 className="menti-welcome-title">Run a quiz with your class</h1>
 
           <section className="menti-hero-row">
             <div className="menti-card-live">
@@ -1646,6 +1634,7 @@ export default function HostPage() {
             )}
           </section>
         </main>
+        )}
       </div>
     </div>
   );

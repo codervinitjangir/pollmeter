@@ -10,6 +10,7 @@ export default function LandingPage() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(() => getAuthUser());
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authRoleHint, setAuthRoleHint] = useState<'student' | 'mentor'>('mentor');
+  const [heroTab, setHeroTab] = useState<'student' | 'faculty'>('student');
 
   // Six individual digit refs for PIN
   const digitRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -209,14 +210,11 @@ export default function LandingPage() {
               </>
             ) : (
               <>
-                <a className="lp-lnk lp-hide-s" href="#how">How it works</a>
-                <a className="lp-lnk lp-hide-s" href="#scoring">Scoring</a>
-                <a className="lp-lnk lp-hide-s" href="#faq">FAQ</a>
                 <button
                   className="lp-lnk lp-hide-s"
                   type="button"
                   onClick={() => openSignIn('student')}
-                  style={{ color: '#10B981' }}
+                  style={{ color: '#10B981', fontWeight: 600 }}
                 >
                   🎓 Student Login
                 </button>
@@ -345,139 +343,132 @@ export default function LandingPage() {
             </div>
           </div>
         ) : (
-          /* ── Unauthenticated two-column stage ── */
-          <div className="lp-wrap lp-stage">
-            {/* Faculty side */}
-            <section className="lp-side lp-side-f" aria-labelledby="lp-t1">
-              <div className="lp-tag lp-tag-blue">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1rem', height: '1rem' }}>
-                  <path d="M3 21h18M5 21V10M19 21V10M9 21V10M15 21V10M2.5 10L12 4l9.5 6z" />
-                </svg>
-                Teachers &amp; Faculty
-              </div>
-              <h1 id="lp-t1">Academic Faculty Studio</h1>
-              <p>Sign in with your official @polariscampus.com credentials to generate AI questions, host projector polls, and track student attendance.</p>
-              
-              <ul className="lp-pts">
-                <li>
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.9rem', height: '0.9rem', color: '#10B981', flexShrink: 0 }}><path d="M4 10.5l4 4 8-9" /></svg>
-                  <span>Official Faculty SSO</span>
-                </li>
-                <li>
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.9rem', height: '0.9rem', color: '#10B981', flexShrink: 0 }}><path d="M4 10.5l4 4 8-9" /></svg>
-                  <span>Quorum &amp; Gradebook</span>
-                </li>
-                <li>
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.9rem', height: '0.9rem', color: '#10B981', flexShrink: 0 }}><path d="M4 10.5l4 4 8-9" /></svg>
-                  <span>AI Question Generator</span>
-                </li>
-                <li>
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.9rem', height: '0.9rem', color: '#10B981', flexShrink: 0 }}><path d="M4 10.5l4 4 8-9" /></svg>
-                  <span>16:9 Projector Engine</span>
-                </li>
-              </ul>
+          /* ── Centered Clean Interactive Terminal Hero ── */
+          <div className="lp-hero-centered">
+            <div className="lp-hero-eyebrow">
+              <span className="lp-hero-eyebrow-dot" />
+              <span>Instant Live Quizzing &amp; Engagement</span>
+            </div>
 
-              <div className="lp-go">
-                <button className="lp-btn lp-btn-lg" type="button" onClick={() => openSignIn('mentor')} id="portal-faculty-signin-btn" style={{ width: '100%' }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1.1em', height: '1.1em' }}>
-                    <rect x="5" y="11" width="14" height="10" rx="2" />
-                    <path d="M8 11V8a4 4 0 018 0v3" />
-                  </svg>
-                  <span>Sign In with Faculty SSO →</span>
+            <h1 className="lp-hero-title">
+              Interactive Live Quizzing &amp; <br />
+              <span className="lp-hero-title-gradient">Instant Classroom Analytics</span>
+            </h1>
+
+            <p className="lp-hero-subtitle">
+              Transform lectures into live 60FPS competitive arenas. Fast PIN joining on any phone or laptop — no app install needed.
+            </p>
+
+            {/* Interactive Card with Segmented Switch */}
+            <div className="lp-interactive-card">
+              <div className="lp-tab-switch" role="tablist">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={heroTab === 'student'}
+                  className={`lp-tab-btn ${heroTab === 'student' ? 'active' : ''}`}
+                  onClick={() => setHeroTab('student')}
+                >
+                  <span style={{ fontSize: '1rem' }}>🎮</span>
+                  <span>Join Live Quiz</span>
                 </button>
-
-                <div className="lp-sub-card lp-sub-card-blue">
-                  <span>🏛️ University Administrator or Dean?</span>
-                  <button
-                    type="button"
-                    className="lp-lnk lp-sub-lnk-blue"
-                    onClick={() => openSignIn('mentor')}
-                  >
-                    Admin Access →
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={heroTab === 'faculty'}
+                  className={`lp-tab-btn ${heroTab === 'faculty' ? 'active' : ''}`}
+                  onClick={() => setHeroTab('faculty')}
+                >
+                  <span style={{ fontSize: '1rem' }}>👨‍🏫</span>
+                  <span>Faculty Studio</span>
+                </button>
               </div>
-            </section>
 
-            {/* Student side */}
-            <section className="lp-side lp-side-s" aria-labelledby="lp-t2">
-              <div className="lp-tag lp-tag-grn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1rem', height: '1rem' }}>
-                  <rect x="6" y="2.5" width="12" height="19" rx="2.5" />
-                  <path d="M11 18.5h2" />
-                </svg>
-                Students &amp; Participants
-              </div>
-              <h1 id="lp-t2">Student Live Arena &amp; Portal</h1>
-              <p>Enter the 6-digit session PIN displayed on your teacher&apos;s projector screen to join live, or open your personal student dashboard.</p>
-              
-              <ul className="lp-pts">
-                <li>
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.9rem', height: '0.9rem', color: '#10B981', flexShrink: 0 }}><path d="M4 10.5l4 4 8-9" /></svg>
-                  <span>Real-Time WebSocket</span>
-                </li>
-                <li>
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.9rem', height: '0.9rem', color: '#10B981', flexShrink: 0 }}><path d="M4 10.5l4 4 8-9" /></svg>
-                  <span>60FPS Racing Podium</span>
-                </li>
-                <li>
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.9rem', height: '0.9rem', color: '#10B981', flexShrink: 0 }}><path d="M4 10.5l4 4 8-9" /></svg>
-                  <span>Zero App Install</span>
-                </li>
-                <li>
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ width: '0.9rem', height: '0.9rem', color: '#10B981', flexShrink: 0 }}><path d="M4 10.5l4 4 8-9" /></svg>
-                  <span>Medhavi Google SSO</span>
-                </li>
-              </ul>
-
-              <div className="lp-go">
-                {/* PIN digits entry */}
-                <form className="lp-pin" onSubmit={handlePinSubmit}>
-                  <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <label style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#F59E0B' }}>
+              {heroTab === 'student' ? (
+                <div className="lp-tab-panel">
+                  <form className="lp-pin" onSubmit={handlePinSubmit}>
+                    <label style={{ fontSize: '0.74rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#F59E0B', marginBottom: '0.6rem', display: 'block' }}>
                       Enter 6-Digit Session PIN
                     </label>
-                  </div>
-                  <div className="lp-digits" role="group" aria-label="6-digit session PIN">
-                    {digits.map((d, i) => (
-                      <input
-                        key={i}
-                        ref={(el) => { digitRefs.current[i] = el; }}
-                        inputMode="numeric"
-                        maxLength={1}
-                        placeholder={String(i + 1)}
-                        aria-label={`Digit ${i + 1}`}
-                        value={d}
-                        onChange={(e) => handleDigitInput(i, e.target.value)}
-                        onKeyDown={(e) => handleDigitKey(i, e)}
-                        onPaste={handleDigitPaste}
-                        id={`portal-pin-digit-${i}`}
-                        className="lp-digit-input"
-                      />
-                    ))}
-                  </div>
-                  <button className="lp-btn lp-btn-lg" type="submit" id="portal-student-join-btn" style={{ width: '100%' }}>
-                    <span>Enter Live Arena</span>
-                    <span style={{ fontSize: '1.15rem' }}>⚡</span>
-                  </button>
-                </form>
+                    <div className="lp-digits" role="group" aria-label="6-digit session PIN">
+                      {digits.map((d, i) => (
+                        <input
+                          key={i}
+                          ref={(el) => { digitRefs.current[i] = el; }}
+                          inputMode="numeric"
+                          maxLength={1}
+                          placeholder={String(i + 1)}
+                          aria-label={`Digit ${i + 1}`}
+                          value={d}
+                          onChange={(e) => handleDigitInput(i, e.target.value)}
+                          onKeyDown={(e) => handleDigitKey(i, e)}
+                          onPaste={handleDigitPaste}
+                          id={`portal-pin-digit-${i}`}
+                          className="lp-digit-input"
+                        />
+                      ))}
+                    </div>
+                    <button className="lp-btn lp-btn-lg" type="submit" id="portal-student-join-btn" style={{ width: '100%', marginTop: '0.75rem' }}>
+                      <span>Enter Live Arena</span>
+                      <span style={{ fontSize: '1.15rem' }}>⚡</span>
+                    </button>
+                  </form>
 
-                {/* Student Dashboard Portal Access */}
-                <div className="lp-sub-card lp-sub-card-amber">
-                  <div>
-                    <strong>Student Academic Dashboard</strong>
-                    <small>View past scores, attendance, and rank records</small>
+                  <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
+                      Already have a student account?
+                    </span>
+                    <button
+                      type="button"
+                      className="lp-lnk"
+                      onClick={() => openSignIn('student')}
+                      style={{ color: '#10B981', fontWeight: 700, fontSize: '0.82rem' }}
+                    >
+                      Open Student Dashboard →
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    className="lp-lnk lp-sub-lnk-amber"
-                    onClick={() => openSignIn('student')}
-                  >
-                    Student Portal →
-                  </button>
                 </div>
-              </div>
-            </section>
+              ) : (
+                <div className="lp-tab-panel">
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0 0 0.35rem', color: 'var(--fg)' }}>
+                      Academic Faculty SSO
+                    </h3>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--muted)', margin: 0, lineHeight: 1.45 }}>
+                      Sign in with your verified @polariscampus.com faculty credentials to launch question banks, host live sessions, and export gradebooks.
+                    </p>
+                  </div>
+
+                  <button
+                    className="lp-btn lp-btn-lg"
+                    type="button"
+                    onClick={() => openSignIn('mentor')}
+                    id="portal-faculty-signin-btn"
+                    style={{ width: '100%', marginBottom: '1rem' }}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1.1em', height: '1.1em' }}>
+                      <rect x="5" y="11" width="14" height="10" rx="2" />
+                      <path d="M8 11V8a4 4 0 018 0v3" />
+                    </svg>
+                    <span>Sign In with Faculty SSO →</span>
+                  </button>
+
+                  <div style={{ paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
+                      University Dean or Administrator?
+                    </span>
+                    <button
+                      type="button"
+                      className="lp-lnk"
+                      onClick={() => openSignIn('mentor')}
+                      style={{ color: '#F59E0B', fontWeight: 700, fontSize: '0.82rem' }}
+                    >
+                      Admin Access →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>
@@ -518,13 +509,47 @@ export default function LandingPage() {
       <div className="lp-below">
         {/* Scroll cue */}
         <div className="lp-cue">
-          <a href="#how">
-            Scroll to learn how it works&nbsp;
+          <a href="#features">
+            Scroll to explore university features&nbsp;
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lp-cue-arrow" style={{ width: '1em', height: '1em' }}>
               <path d="M6 9l6 6 6-6" />
             </svg>
           </a>
         </div>
+
+        {/* ─── Bento Grid Features (Moved from above fold) ────────── */}
+        <section className="lp-bento-section" id="features">
+          <div className="lp-wrap">
+            <div className="lp-bento-header">
+              <div className="lp-eyebrow" style={{ color: '#F59E0B', margin: '0 auto 8px' }}>Institutional Grade Architecture</div>
+              <h2 className="lp-bento-title">Built for Modern Universities &amp; High-Quorum Auditoriums</h2>
+              <p className="lp-bento-sub">Everything faculty and students need for high-speed, zero-friction interactive engagement.</p>
+            </div>
+
+            <div className="lp-bento-grid">
+              <div className="lp-bento-card">
+                <div className="lp-bento-icon" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#F59E0B' }}>🔐</div>
+                <h3 className="lp-bento-h3">Official Faculty SSO</h3>
+                <p className="lp-bento-p">Institutional single sign-on with automatic faculty clearance, preventing unauthorized hosts.</p>
+              </div>
+              <div className="lp-bento-card">
+                <div className="lp-bento-icon" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10B981' }}>📊</div>
+                <h3 className="lp-bento-h3">Quorum &amp; Gradebook</h3>
+                <p className="lp-bento-p">Track student accuracy, question-by-question breakdown, and export CSV gradebooks instantly.</p>
+              </div>
+              <div className="lp-bento-card">
+                <div className="lp-bento-icon" style={{ background: 'rgba(56, 189, 248, 0.12)', color: '#38BDF8' }}>✨</div>
+                <h3 className="lp-bento-h3">AI Question Generator</h3>
+                <p className="lp-bento-p">Generate balanced syllabus questions, smart distractors, and timer limits in seconds using AI.</p>
+              </div>
+              <div className="lp-bento-card">
+                <div className="lp-bento-icon" style={{ background: 'rgba(236, 72, 153, 0.12)', color: '#EC4899' }}>🏁</div>
+                <h3 className="lp-bento-h3">60FPS Racing Engine</h3>
+                <p className="lp-bento-p">Low-latency WebSockets deliver an ultra-smooth competitive racing podium on projector screens.</p>
+              </div>
+            </div>
+          </div>
+        </section>
 
         {/* How it works */}
         <section className="lp-sec" id="how">

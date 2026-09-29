@@ -140,13 +140,23 @@ export default function AdminPage() {
     );
   };
 
-  // Action status message
-  const [toastMessage, setToastMessage] = useState('');
+  // Action status message & In-UI Confirmations
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  function showToast(msg: string) {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(''), 4000);
+  function showToast(message: string, type: 'success' | 'error' = 'success') {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
   }
+
+  interface ConfirmDialogState {
+    title: string;
+    message: string;
+    confirmLabel: string;
+    isDestructive?: boolean;
+    onConfirm: () => Promise<void> | void;
+  }
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
   // Load Admin Data
   const loadAllData = async () => {
@@ -292,42 +302,56 @@ export default function AdminPage() {
     }
   };
 
-  // Remove / Revoke Faculty
-  const handleRemoveFaculty = async (email: string, name: string) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to revoke faculty mentor privileges for ${name} (${email})? Their role will revert to student.`
-    );
-    if (!confirmed) return;
-
-    try {
-      await removeAdminFaculty(email);
-      showToast(`Revoked faculty privileges for ${name}`);
-      await loadAllData();
-    } catch (err: any) {
-      alert(err.message || 'Failed to revoke faculty member.');
-    }
+  // Remove / Revoke Faculty with in-UI confirmation
+  const handleRemoveFaculty = (email: string, name: string) => {
+    setConfirmDialog({
+      title: 'Revoke Faculty Privileges?',
+      message: `Are you sure you want to revoke faculty mentor privileges for ${name} (${email})? Their role will revert to student access.`,
+      confirmLabel: 'Revoke Privileges',
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          await removeAdminFaculty(email);
+          showToast(`Revoked faculty privileges for ${name}`, 'success');
+          await loadAllData();
+        } catch (err: any) {
+          showToast(err.message || 'Failed to revoke faculty member.', 'error');
+        }
+      },
+    });
   };
 
   // Approve / revoke the faculty gate for an account that has already signed in
   const handleSetApproval = async (fac: FacultyMember, approve: boolean) => {
     if (!approve) {
-      const confirmed = window.confirm(
-        `Withdraw faculty approval for ${fac.realName} (${fac.email})? They will drop back to student access and lose the ability to host quizzes.`
-      );
-      if (!confirmed) return;
+      setConfirmDialog({
+        title: 'Withdraw Faculty Approval?',
+        message: `Withdraw faculty approval for ${fac.realName} (${fac.email})? They will drop back to student access and lose the ability to host quizzes.`,
+        confirmLabel: 'Withdraw Approval',
+        isDestructive: true,
+        onConfirm: async () => {
+          setApprovingEmail(fac.email);
+          try {
+            await setFacultyApproval(fac.email, false);
+            showToast(`Withdrew faculty approval for ${fac.realName}`, 'success');
+            await loadAllData();
+          } catch (err: any) {
+            showToast(err.message || 'Failed to update faculty approval.', 'error');
+          } finally {
+            setApprovingEmail('');
+          }
+        },
+      });
+      return;
     }
 
     setApprovingEmail(fac.email);
     try {
-      await setFacultyApproval(fac.email, approve);
-      showToast(
-        approve
-          ? `Approved ${fac.realName} as faculty mentor`
-          : `Withdrew faculty approval for ${fac.realName}`
-      );
+      await setFacultyApproval(fac.email, true);
+      showToast(`Approved ${fac.realName} as faculty mentor`, 'success');
       await loadAllData();
     } catch (err: any) {
-      alert(err.message || 'Failed to update faculty approval.');
+      showToast(err.message || 'Failed to update faculty approval.', 'error');
     } finally {
       setApprovingEmail('');
     }
@@ -568,9 +592,73 @@ export default function AdminPage() {
   return (
     <div className={`menti-app-shell pm-admin-shell ${adminTheme === 'dark' ? 'dark' : ''}`}>
       {/* Toast Notification */}
-      {toastMessage && (
-        <div className="pm-admin-toast">
-          <span>✅ {toastMessage}</span>
+      {toast && (
+        <div className={`pm-admin-toast ${toast.type === 'error' ? 'pm-toast-error' : ''}`}>
+          <span>{toast.type === 'error' ? '❌' : '✅'} {toast.message}</span>
+        </div>
+      )}
+
+      {/* In-UI Confirmation Modal Dialog */}
+      {confirmDialog && (
+        <div
+          className="pm-auth-backdrop"
+          onClick={() => !confirmLoading && setConfirmDialog(null)}
+          style={{ zIndex: 9999 }}
+        >
+          <div className="pm-confirm-dialog-card" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="pm-confirm-icon-wrap"
+              style={
+                confirmDialog.isDestructive
+                  ? { background: 'rgba(239, 68, 68, 0.12)', borderColor: 'rgba(239, 68, 68, 0.35)' }
+                  : undefined
+              }
+            >
+              <span>{confirmDialog.isDestructive ? '⚠️' : '❓'}</span>
+            </div>
+            <h3 className="pm-confirm-title">{confirmDialog.title}</h3>
+            <p className="pm-confirm-message">{confirmDialog.message}</p>
+            <div className="pm-confirm-actions">
+              <button
+                type="button"
+                className="pm-btn-secondary"
+                disabled={confirmLoading}
+                onClick={() => setConfirmDialog(null)}
+                style={{ padding: '0.6rem 1.4rem', borderRadius: '10px' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={confirmLoading}
+                onClick={async () => {
+                  setConfirmLoading(true);
+                  try {
+                    await confirmDialog.onConfirm();
+                  } finally {
+                    setConfirmLoading(false);
+                    setConfirmDialog(null);
+                  }
+                }}
+                style={{
+                  padding: '0.6rem 1.4rem',
+                  borderRadius: '10px',
+                  border: 'none',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  background: confirmDialog.isDestructive
+                    ? 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)'
+                    : 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                  color: '#FFFFFF',
+                  boxShadow: confirmDialog.isDestructive
+                    ? '0 4px 14px rgba(220, 38, 38, 0.35)'
+                    : '0 4px 14px rgba(217, 119, 6, 0.35)',
+                }}
+              >
+                {confirmLoading ? 'Processing...' : confirmDialog.confirmLabel}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -668,31 +756,11 @@ export default function AdminPage() {
 
           {/* Shortcuts */}
           <div className="menti-nav-group">
-            <div className="menti-nav-title">CAMPUS SHORTCUTS</div>
-            <button
-              className="menti-nav-link"
-              onClick={() => navigate('/dashboard')}
-              title="Switch to Mentor Quiz Host"
-            >
-              <span>👨‍🏫</span>
-              <span>Mentor Studio</span>
-              <span style={{ marginLeft: 'auto', fontSize: '0.85rem', color: '#F59E0B' }}>→</span>
-            </button>
-
-            <button
-              className="menti-nav-link"
-              onClick={() => navigate('/student')}
-              title="View Pollmeter Student Portal"
-            >
-              <span>🎓</span>
-              <span>Student Portal</span>
-              <span style={{ marginLeft: 'auto', fontSize: '0.85rem', color: '#10B981' }}>→</span>
-            </button>
-
+            <div className="menti-nav-title">SHORTCUTS</div>
             <button
               className="menti-nav-link"
               onClick={() => navigate('/')}
-              title="Go to University Landing Page"
+              title="Go to Pollmeter Campus Home"
             >
               <span>🏛️</span>
               <span>Campus Home</span>
@@ -717,7 +785,7 @@ export default function AdminPage() {
               {authUser.realName.slice(0, 2).toUpperCase()}
             </div>
             <div className="pm-admin-user-info">
-              <strong>{authUser.realName}</strong>
+              <strong title={authUser.realName}>{authUser.realName}</strong>
               <small title={authUser.email}>{authUser.email}</small>
             </div>
             <button
@@ -750,7 +818,7 @@ export default function AdminPage() {
               ☰
             </button>
             <div className="pm-admin-topbar-breadcrumb">
-              <span className="pm-breadcrumb-root">Polaris Admin</span>
+              <span className="pm-breadcrumb-root">Pollmeter Admin</span>
               <span className="pm-breadcrumb-sep">/</span>
               <span className="pm-breadcrumb-current">
                 {activeTab === 'faculty' && 'Faculty & Mentor Directory'}
@@ -773,15 +841,6 @@ export default function AdminPage() {
               title="Toggle Dark / Light Theme"
             >
               {adminTheme === 'dark' ? '☀️ Light' : '🌙 Dark'}
-            </button>
-
-            <button
-              className="pm-btn-mentor-switch"
-              onClick={() => navigate('/dashboard')}
-              title="Launch classroom host studio"
-            >
-              <span>⚡ Mentor Studio</span>
-              <span>→</span>
             </button>
           </div>
         </header>

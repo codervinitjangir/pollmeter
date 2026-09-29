@@ -218,20 +218,23 @@ export default function CollegeAuthModal({
   const defaultTitle = isFacultyRole ? 'University Faculty & Admin Access' : 'Student Classroom Login';
 
   return (
-    <div className="pm-auth-modal-backdrop" onClick={onClose ? () => onClose() : undefined}>
+    <div className="pm-auth-modal-backdrop" onClick={onClose ? () => onClose() : () => { window.location.href = '/'; }}>
       <div
         className={`pm-auth-modal-card ${
           isFacultyRole ? 'pm-auth-modal-card-faculty' : 'pm-auth-modal-card-student'
         }`}
         onClick={(e) => e.stopPropagation()}
       >
-        {onClose && (
-          <button className="pm-auth-close-btn" onClick={onClose} aria-label="Close modal">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M13 1L1 13M1 1L13 13" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-        )}
+        <button
+          className="pm-auth-close-btn"
+          onClick={onClose ? onClose : () => { window.location.href = '/'; }}
+          aria-label="Close modal"
+          type="button"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M13 1L1 13M1 1L13 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
 
         {/* Institutional Branding Header */}
         <div className="pm-auth-header">
@@ -410,7 +413,26 @@ export default function CollegeAuthModal({
                   type="submit"
                   className={isFacultyRole ? 'pm-btn-faculty-primary' : 'pm-auth-submit-btn'}
                   disabled={loading}
-                  style={{ width: '100%' }}
+                  style={{
+                    width: '100%',
+                    height: '48px',
+                    borderRadius: '12px',
+                    fontWeight: 800,
+                    fontSize: '0.95rem',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    border: 'none',
+                    background: isFacultyRole
+                      ? 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)'
+                      : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                    color: isFacultyRole ? '#09090B' : '#FFFFFF',
+                    boxShadow: isFacultyRole
+                      ? '0 4px 16px rgba(245, 158, 11, 0.4)'
+                      : '0 4px 16px rgba(16, 185, 129, 0.4)',
+                  }}
                 >
                   {loading ? 'Sending Code...' : 'Send 6-Digit Verification Code →'}
                 </button>
@@ -486,7 +508,27 @@ export default function CollegeAuthModal({
                   type="submit"
                   className={isFacultyRole ? 'pm-btn-faculty-primary' : 'pm-auth-submit-btn'}
                   disabled={loading || otpCode.length < 6}
-                  style={{ width: '100%' }}
+                  style={{
+                    width: '100%',
+                    height: '48px',
+                    borderRadius: '12px',
+                    fontWeight: 800,
+                    fontSize: '0.95rem',
+                    cursor: loading || otpCode.length < 6 ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    border: 'none',
+                    background: isFacultyRole
+                      ? 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)'
+                      : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                    color: isFacultyRole ? '#09090B' : '#FFFFFF',
+                    boxShadow: isFacultyRole
+                      ? '0 4px 16px rgba(245, 158, 11, 0.4)'
+                      : '0 4px 16px rgba(16, 185, 129, 0.4)',
+                    opacity: loading || otpCode.length < 6 ? 0.7 : 1,
+                  }}
                 >
                   {loading ? 'Verifying Code...' : 'Verify Code & Sign In →'}
                 </button>

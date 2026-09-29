@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { fetchMentorQuizzes, fetchQuizDetails, fetchBatches, downloadQuizCsv } from '../auth';
 
 interface Props {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
+  embedded?: boolean;
+  onBack?: () => void;
 }
 
-export default function MentorQuizHistoryModal({ isOpen, onClose }: Props) {
+export default function MentorQuizHistoryModal({ isOpen = false, onClose, embedded = false, onBack }: Props) {
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -36,17 +38,17 @@ export default function MentorQuizHistoryModal({ isOpen, onClose }: Props) {
 
   // Load available batches dynamically
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen && !embedded) return;
     fetchBatches()
       .then((b) => {
         if (b && b.length > 0) setBatchOptions(b);
       })
       .catch(() => {});
-  }, [isOpen]);
+  }, [isOpen, embedded]);
 
   // Load mentor-scoped quizzes with active filters
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen && !embedded) return;
     setLoading(true);
     setError('');
     fetchMentorQuizzes({
@@ -58,7 +60,7 @@ export default function MentorQuizHistoryModal({ isOpen, onClose }: Props) {
       .then((data) => setQuizzes(data))
       .catch((err) => setError(err.message || 'Failed to load past quizzes'))
       .finally(() => setLoading(false));
-  }, [isOpen, timeRange, selectedBatch, startDate, endDate]);
+  }, [isOpen, embedded, timeRange, selectedBatch, startDate, endDate]);
 
   async function handleSelectQuiz(id: string) {
     setSelectedQuizId(id);
@@ -73,18 +75,6 @@ export default function MentorQuizHistoryModal({ isOpen, onClose }: Props) {
     }
   }
 
-  /**
-   * Downloads the gradebook from the server rather than assembling it here.
-   *
-   * The previous version built the CSV out of the already-fetched participant
-   * summaries and handed it to the browser as a `data:` URI. Three things were
-   * wrong with that: `encodeURI` silently truncates the file at the first `#`
-   * in a student's answer, there was no UTF-8 BOM so Excel rendered Devanagari
-   * names as mojibake, and a value beginning with `=` was still a live formula
-   * when the file was opened. The server route escapes those, emits per-answer
-   * rows instead of per-student totals, and records the export in the audit log
-   * itself — so the separate audit POST that used to live here is gone too.
-   */
   async function handleExportCsv() {
     if (!selectedQuizId) return;
     setExporting(true);
@@ -101,35 +91,40 @@ export default function MentorQuizHistoryModal({ isOpen, onClose }: Props) {
     }
   }
 
-  if (!isOpen) return null;
+  if (!isOpen && !embedded) return null;
 
-  return (
-    <div className="pm-auth-modal-backdrop" onClick={onClose}>
-      <div className="pm-history-modal-card" onClick={(e) => e.stopPropagation()}>
-        <div className="pm-history-header">
-          <div className="pm-history-header-left">
-            <span className="pm-history-icon">📊</span>
-            <div>
-              <h2 className="pm-history-title">
-                {selectedQuizId ? 'Quiz Session Report' : 'Past Hosted Quizzes & Analytics'}
-              </h2>
-              <p className="pm-history-subtitle">
-                {selectedQuizId
-                  ? 'Deanonymized student records, scores, and real attendance'
-                  : 'Track longitudinal student performance and classroom attendance'}
-              </p>
-            </div>
+  const cardContent = (
+    <div className={embedded ? "pm-reports-workspace-card" : "pm-history-modal-card"} onClick={(e) => e.stopPropagation()}>
+      <div className="pm-history-header">
+        <div className="pm-history-header-left">
+          <span className="pm-history-icon">📊</span>
+          <div>
+            <h2 className="pm-history-title">
+              {selectedQuizId ? 'Quiz Session Report' : 'Past Hosted Quizzes & Analytics'}
+            </h2>
+            <p className="pm-history-subtitle">
+              {selectedQuizId
+                ? 'Deanonymized student records, scores, and real attendance'
+                : 'Track longitudinal student performance and classroom attendance'}
+            </p>
           </div>
-          <button className="pm-auth-close-btn" onClick={onClose} aria-label="Close">
+        </div>
+        {embedded && onBack ? (
+          <button className="btn btn-secondary btn--sm" onClick={onBack} type="button" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <span>←</span> Back to Quiz Builder
+          </button>
+        ) : onClose ? (
+          <button className="pm-auth-close-btn" onClick={onClose} aria-label="Close" type="button">
             ✕
           </button>
-        </div>
+        ) : null}
+      </div>
 
-        {error && (
-          <div className="pm-auth-error-alert" style={{ margin: '16px 24px 0' }}>
-            <span>⚠️ {error}</span>
-          </div>
-        )}
+      {error && (
+        <div className="pm-auth-error-alert" style={{ margin: '16px 24px 0' }}>
+          <span>⚠️ {error}</span>
+        </div>
+      )}
 
         {/* Detail View */}
         {selectedQuizId ? (
@@ -375,7 +370,16 @@ export default function MentorQuizHistoryModal({ isOpen, onClose }: Props) {
           </div>
         )}
       </div>
-    </div>
-  );
-}
+    );
+
+    if (embedded) {
+      return cardContent;
+    }
+
+    return (
+      <div className="pm-auth-modal-backdrop" onClick={onClose}>
+        {cardContent}
+      </div>
+    );
+  }
 
