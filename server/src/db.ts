@@ -1142,7 +1142,11 @@ export async function searchStudents(query?: string): Promise<Array<{
     if (cleanQ && !p.email.toLowerCase().includes(cleanQ) && !p.realName.toLowerCase().includes(cleanQ)) {
       continue;
     }
-    const existing = studentMap.get(p.email.toLowerCase()) || {
+    // Group on email *and* name, matching the Postgres branch above. Students who
+    // join by code without signing in all share one placeholder email, so keying
+    // on email alone folded an entire anonymous class into a single roster row.
+    const key = `${p.email.toLowerCase()}|${p.realName.toLowerCase()}`;
+    const existing = studentMap.get(key) || {
       email: p.email.toLowerCase(),
       realName: p.realName,
       scores: [],
@@ -1152,7 +1156,7 @@ export async function searchStudents(query?: string): Promise<Array<{
     if (new Date(p.joinedAt).getTime() > new Date(existing.lastDate).getTime()) {
       existing.lastDate = p.joinedAt;
     }
-    studentMap.set(p.email.toLowerCase(), existing);
+    studentMap.set(key, existing);
   }
 
   return Array.from(studentMap.values()).map((s) => ({
