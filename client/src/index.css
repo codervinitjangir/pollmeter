@@ -6066,9 +6066,11 @@ fieldset.field {
 }
 
 .pm-sso-btn-container {
-  margin: 0.5rem 0;
+  margin: 0.5rem 0 0.25rem;
   width: 100%;
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
 }
 
@@ -6117,6 +6119,65 @@ fieldset.field {
   border-color: #94A3B8;
   color: #0F172A;
 }
+
+.pm-sso-mobile-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0.75rem 0 1rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.22);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #94A3B8;
+  text-align: left;
+}
+
+[data-theme="light"] .pm-sso-mobile-tip {
+  background: #F1F5F9;
+  border: 1px solid #CBD5E1;
+  color: #475569;
+}
+
+.pm-sso-tip-icon {
+  font-size: 0.95rem;
+  line-height: 1.2;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.pm-sso-tip-text {
+  flex: 1;
+}
+
+.pm-sso-tip-text strong {
+  color: #F8FAFC;
+  font-weight: 700;
+}
+
+[data-theme="light"] .pm-sso-tip-text strong {
+  color: #0F172A;
+}
+
+.pm-sso-tip-text code {
+  font-family: inherit;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: rgba(99, 102, 241, 0.18);
+  color: #A5B4FC;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+[data-theme="light"] .pm-sso-tip-text code {
+  background: #E0E7FF;
+  color: #4338CA;
+}
+
 
 .pm-sso-features {
   display: flex;

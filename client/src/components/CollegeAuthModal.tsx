@@ -428,9 +428,13 @@ export default function CollegeAuthModal({
                     <span>Continue with Google Workspace</span>
                   </button>
                 )}
-                <p style={{ fontSize: '0.74rem', color: '#94A3B8', marginTop: '0.6rem', textAlign: 'center', lineHeight: 1.45 }}>
-                  💡 <strong>Mobile tip:</strong> In the Google prompt, tap your name or arrow (▼) to switch from your personal Gmail to your <code>@medhaviskillsuniversity.edu.in</code> account.
-                </p>
+              </div>
+
+              <div className="pm-sso-mobile-tip">
+                <span className="pm-sso-tip-icon">💡</span>
+                <span className="pm-sso-tip-text">
+                  <strong>Multiple accounts?</strong> In the Google prompt, tap your account name or arrow (▼) to switch from your personal Gmail to your official <code>{isFacultyRole ? '@polariscampus.com' : '@medhaviskillsuniversity.edu.in'}</code> ID.
+                </span>
               </div>
 
               <div className="pm-sso-features">
