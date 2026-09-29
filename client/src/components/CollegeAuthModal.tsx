@@ -68,7 +68,6 @@ export default function CollegeAuthModal({
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
   const isFacultyRole = roleHint === 'mentor';
-  const activeDomain = isFacultyRole ? 'polariscampus.com' : 'medhaviskillsuniversity.edu.in';
 
   // Sync theme changes dynamically
   useEffect(() => {
@@ -133,6 +132,10 @@ export default function CollegeAuthModal({
         client_id: googleClientId,
         auto_select: false,
         cancel_on_tap_outside: true,
+        // NOTE: hosted_domain is intentionally NOT set here.
+        // Setting it causes Google to skip the account chooser and redirect to
+        // email input when the user has no matching account active.
+        // Domain validation is enforced manually in the callback below.
         callback: async (response: { credential?: string }) => {
           if (!response.credential) return;
           setLoading(true);
@@ -145,7 +148,7 @@ export default function CollegeAuthModal({
                 window.google?.accounts?.id?.disableAutoSelect?.();
                 document.cookie = 'g_state=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
               } catch {}
-              setError(`Access Restricted: Signed in as ${userEmail}. Faculty & Admin access is strictly limited to @polariscampus.com accounts.`);
+              setError(`Access Restricted: Signed in as ${userEmail}. Please use your @polariscampus.com faculty account.`);
               return;
             }
             if (!isFacultyRole && !userEmail.endsWith('@medhaviskillsuniversity.edu.in') && !userEmail.endsWith('@medhaviskillsunivercity.edu.in')) {
@@ -153,7 +156,7 @@ export default function CollegeAuthModal({
                 window.google?.accounts?.id?.disableAutoSelect?.();
                 document.cookie = 'g_state=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
               } catch {}
-              setError(`Access Restricted: Signed in as ${userEmail}. Student access is strictly limited to official Medhavi university emails (@medhaviskillsuniversity.edu.in).`);
+              setError(`Access Restricted: Signed in as ${userEmail}. Please use your official @medhaviskillsuniversity.edu.in student email.`);
               return;
             }
             onSuccess(data.user);
@@ -167,7 +170,6 @@ export default function CollegeAuthModal({
             setLoading(false);
           }
         },
-        hosted_domain: activeDomain,
       });
 
       // Clear previous buttons
@@ -184,7 +186,7 @@ export default function CollegeAuthModal({
     } catch (err) {
       console.warn('[auth] GIS button render warning:', err);
     }
-  }, [isOpen, googleClientId, activeDomain, isFacultyRole, onSuccess, activeTab, currentTheme]);
+  }, [isOpen, googleClientId, isFacultyRole, onSuccess, activeTab, currentTheme]);
 
   if (!isOpen) return null;
 
