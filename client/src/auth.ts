@@ -450,49 +450,41 @@ export interface BatchObject {
 /** Returns display-name strings for backward-compat dropdowns. */
 export async function fetchBatches(): Promise<string[]> {
   try {
-    const res = await fetch(apiUrl('/api/batches'));
-    if (!res.ok) throw new Error();
+    const token = getAuthToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(apiUrl('/api/batches'), { headers });
+    if (!res.ok) return [];
     const data = await res.json();
-    // API now returns { batches: string[], batchObjects: BatchObject[] }
-    if (Array.isArray(data.batches) && data.batches.length > 0) return data.batches;
-    throw new Error('empty');
+    if (Array.isArray(data.batches)) return data.batches;
+    return [];
   } catch {
-    return [
-      '1st Year - Batch A',
-      '1st Year - Batch B',
-      '1st Year - Batch C',
-      '2nd Year - Batch A',
-      '2nd Year - Batch B',
-      '2nd Year - Batch C',
-      '3rd Year - Batch A',
-    ];
+    return [];
   }
 }
 
 /** Returns the full Batch objects from the database (includes id, status, etc.). */
 export async function fetchBatchObjects(): Promise<BatchObject[]> {
   try {
-    const res = await fetch(apiUrl('/api/batches'));
-    if (!res.ok) throw new Error();
+    const token = getAuthToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(apiUrl('/api/batches'), { headers });
+    if (!res.ok) return [];
     const data = await res.json();
-    if (Array.isArray(data.batchObjects) && data.batchObjects.length > 0) return data.batchObjects;
-    // Fallback: wrap string list into minimal objects
-    return (data.batches || []).map((name: string, i: number) => ({
-      id: `local-${i}`,
-      displayName: name,
-      label: name,
-      status: 'active' as const,
-      createdAt: '',
-    }));
+    if (Array.isArray(data.batchObjects)) return data.batchObjects;
+    if (Array.isArray(data.batches)) {
+      return data.batches.map((name: string, i: number) => ({
+        id: `local-${i}`,
+        displayName: name,
+        label: name,
+        status: 'active' as const,
+        createdAt: '',
+      }));
+    }
+    return [];
   } catch {
-    const fallback = [
-      '1st Year - Batch A', '1st Year - Batch B', '1st Year - Batch C',
-      '2nd Year - Batch A', '2nd Year - Batch B', '2nd Year - Batch C',
-      '3rd Year - Batch A',
-    ];
-    return fallback.map((name, i) => ({
-      id: `local-${i}`, displayName: name, label: name, status: 'active' as const, createdAt: '',
-    }));
+    return [];
   }
 }
 
@@ -561,6 +553,47 @@ export async function adminDeactivateBatch(id: string): Promise<boolean> {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Failed to deactivate batch');
+  return data.success;
+}
+
+/** Admin: rename or update status of a batch. */
+export async function adminRenameBatch(
+  id: string,
+  displayName: string,
+  status?: 'active' | 'inactive'
+): Promise<BatchObject> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Administrator authentication required');
+
+  const res = await fetch(apiUrl(`/api/admin/batches/${encodeURIComponent(id)}`), {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ displayName, status }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to update batch');
+  return data.batch;
+}
+
+/** Admin: merge a source batch into a target batch. */
+export async function adminMergeBatches(sourceId: string, targetId: string): Promise<boolean> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Administrator authentication required');
+
+  const res = await fetch(
+    apiUrl(`/api/admin/batches/${encodeURIComponent(sourceId)}/merge-into/${encodeURIComponent(targetId)}`),
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to merge batches');
   return data.success;
 }
 

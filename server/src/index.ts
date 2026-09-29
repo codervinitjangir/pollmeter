@@ -31,6 +31,10 @@ import {
   getUniversityOverview,
   searchStudents,
   getAllBatches,
+  getBatchById,
+  addBatchToUser,
+  updateBatch,
+  mergeBatches,
   createBatch,
   deactivateBatch,
   recordAuditLog,
@@ -270,7 +274,7 @@ app.post('/api/sessions', sessionCreationLimiter, requireMentor, async (req: Aut
     questions?: unknown;
     topic?: string;
     subject?: string;
-    batch?: string;
+    batchId?: string;
   };
   const result = validateQuestions(body?.questions);
 
@@ -279,17 +283,49 @@ app.post('/api/sessions', sessionCreationLimiter, requireMentor, async (req: Aut
     return;
   }
 
+  if (!body?.batchId || typeof body.batchId !== 'string' || !body.batchId.trim()) {
+    res.status(400).json({ error: 'batchId is required to create a quiz session.' });
+    return;
+  }
+
+  const batchId = body.batchId.trim();
+  const batchRecord = await getBatchById(batchId);
+  if (!batchRecord || batchRecord.status !== 'active') {
+    res.status(404).json({ error: 'Batch not found or is inactive.' });
+    return;
+  }
+
+  // Mentor ownership check: live user record must have this batch assigned
+  if (req.user?.role !== 'admin') {
+    const liveUser = await getUserByEmail(req.user!.email);
+    const assigned = liveUser?.batches ?? [];
+    const isAssigned =
+      assigned.includes(batchRecord.id) ||
+      assigned.includes(batchRecord.displayName) ||
+      assigned.some(
+        (b) =>
+          b.toLowerCase() === batchRecord.displayName.toLowerCase() ||
+          b.toLowerCase() === batchRecord.id.toLowerCase()
+      );
+
+    if (!isAssigned) {
+      res.status(403).json({ error: 'Access denied: You are not assigned to this batch.' });
+      return;
+    }
+  }
+
   const hostEmail = req.user!.email.toLowerCase();
   const hostName = req.user!.realName || 'Faculty Mentor';
 
   const topic = body?.topic?.trim() || (result.questions[0]?.text ? `Quiz: ${result.questions[0].text.slice(0, 40)}...` : 'Classroom Quiz');
   const subject = body?.subject?.trim() || 'General';
-  const batch = body?.batch?.trim() || '2nd Year - Batch A';
+  const batch = batchRecord.displayName;
 
   const session = createSession(result.questions, {
     topic,
     subject,
     batch,
+    batchId: batchRecord.id,
     hostEmail,
     hostName,
   });
@@ -301,6 +337,7 @@ app.post('/api/sessions', sessionCreationLimiter, requireMentor, async (req: Aut
       topic,
       subject,
       batch,
+      batchId: batchRecord.id,
       hostEmail: session.hostEmail,
       hostName: session.hostName,
       questionCount: session.questions.length,
@@ -313,13 +350,13 @@ app.post('/api/sessions', sessionCreationLimiter, requireMentor, async (req: Aut
       session.hostEmail,
       'SESSION_CREATED',
       session.code,
-      { topic, subject, batch, questionCount: session.questions.length }
+      { topic, subject, batch, batchId: batchRecord.id, questionCount: session.questions.length }
     );
   } catch (err) {
     console.error('[db] Error pre-saving session to DB:', err);
   }
 
-  console.log(`[session] created ${session.code} with ${result.questions.length} question(s) [${topic}] [${subject}] [${batch}] by ${hostEmail}`);
+  console.log(`[session] created ${session.code} with ${result.questions.length} question(s) [${topic}] [${subject}] [${batch}] (${batchRecord.id}) by ${hostEmail}`);
   res.status(201).json({
     code: session.code,
     hostId: session.hostId,
@@ -327,6 +364,7 @@ app.post('/api/sessions', sessionCreationLimiter, requireMentor, async (req: Aut
     topic,
     subject,
     batch,
+    batchId: batchRecord.id,
   });
 });
 
@@ -861,14 +899,38 @@ app.post('/api/admin/faculty', requireAdmin, async (req: AuthenticatedRequest, r
   }
 });
 
-/** Public: list all active batches. Used by mentor quiz creation and admin faculty form. */
-app.get('/api/batches', async (_req: Request, res: Response) => {
+/** Authenticated: list active batches filtered by user role and assignment (Gap 2). */
+app.get('/api/batches', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const batches = await getAllBatches();
-    res.json({
-      batches: batches.map((b) => b.displayName),
-      batchObjects: batches,
-    });
+    const allBatches = await getAllBatches();
+    if (req.user?.role === 'admin') {
+      res.json({
+        batches: allBatches.map((b) => b.displayName),
+        batchObjects: allBatches,
+      });
+      return;
+    }
+
+    if (req.user?.role === 'mentor') {
+      const liveUser = await getUserByEmail(req.user.email);
+      const assigned = liveUser?.batches ?? [];
+      const mentorBatches = allBatches.filter(
+        (b) =>
+          assigned.includes(b.id) ||
+          assigned.includes(b.displayName) ||
+          assigned.some(
+            (a) => a.toLowerCase() === b.displayName.toLowerCase() || a.toLowerCase() === b.id.toLowerCase()
+          )
+      );
+      res.json({
+        batches: mentorBatches.map((b) => b.displayName),
+        batchObjects: mentorBatches,
+      });
+      return;
+    }
+
+    // Default for students or other roles: empty
+    res.json({ batches: [], batchObjects: [] });
   } catch {
     res.status(500).json({ error: 'Failed to fetch batches.' });
   }
@@ -878,6 +940,7 @@ app.get('/api/batches', async (_req: Request, res: Response) => {
  * Mentor self-service: create a new batch inline from the quiz creation screen.
  * Requires mentor (or admin) auth. Creates the batch globally so other mentors
  * can reuse it; admins can deactivate it later.
+ * Gap 3: Always assigns the batch to the requesting mentor's own user assignment.
  */
 app.post('/api/mentor/batches', requireMentor, async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -899,13 +962,19 @@ app.post('/api/mentor/batches', requireMentor, async (req: AuthenticatedRequest,
       createdBy: req.user?.email || 'unknown',
       createdByRole: req.user?.role || 'mentor',
     });
+
+    // Gap 3: Always assign batch to the requesting mentor's own user record
+    if (req.user?.email) {
+      await addBatchToUser(req.user.email, batch.displayName);
+    }
+
     await recordAuditLog(
       req.user?.email || 'unknown',
       'BATCH_CREATED',
       batch.id,
       { displayName: name, role: req.user?.role }
     );
-    console.log(`[batch] Created batch '${name}' by ${req.user?.email}`);
+    console.log(`[batch] Created/assigned batch '${name}' to ${req.user?.email}`);
     res.status(201).json({ success: true, batch });
   } catch (err) {
     console.error('[batch] Failed to create batch:', err);
@@ -971,6 +1040,76 @@ app.delete('/api/admin/batches/:id', requireAdmin, async (req: AuthenticatedRequ
   } catch (err) {
     console.error('[admin] Failed to deactivate batch:', err);
     res.status(500).json({ error: 'Failed to deactivate batch.' });
+  }
+});
+
+/** Admin: rename or update status of a batch (Gap 5). */
+app.patch('/api/admin/batches/:id', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { displayName, status } = req.body as { displayName?: string; status?: 'active' | 'inactive' };
+
+    if (displayName !== undefined && !displayName.trim()) {
+      res.status(400).json({ error: 'displayName cannot be empty.' });
+      return;
+    }
+    if (status !== undefined && status !== 'active' && status !== 'inactive') {
+      res.status(400).json({ error: "status must be 'active' or 'inactive'." });
+      return;
+    }
+
+    const result = await updateBatch(id, { displayName, status });
+    if (result.notFound) {
+      res.status(404).json({ error: 'Batch not found.' });
+      return;
+    }
+    if (result.conflict) {
+      res.status(409).json({ error: `A batch with the name '${displayName}' already exists.` });
+      return;
+    }
+
+    await recordAuditLog(
+      req.user?.email || 'admin',
+      'BATCH_UPDATED',
+      id,
+      { displayName, status }
+    );
+    res.json({ success: true, batch: result.batch });
+  } catch (err) {
+    console.error('[admin] Failed to update batch:', err);
+    res.status(500).json({ error: 'Failed to update batch.' });
+  }
+});
+
+/** Admin: merge a source batch into a target batch (Gap 5). */
+app.post('/api/admin/batches/:id/merge-into/:targetId', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id, targetId } = req.params;
+    if (id === targetId) {
+      res.status(400).json({ error: 'Cannot merge a batch into itself.' });
+      return;
+    }
+
+    const result = await mergeBatches(id, targetId);
+    if (result.notFound) {
+      res.status(404).json({ error: 'Source or target batch not found.' });
+      return;
+    }
+    if (result.sameBatch) {
+      res.status(400).json({ error: 'Cannot merge a batch into itself.' });
+      return;
+    }
+
+    await recordAuditLog(
+      req.user?.email || 'admin',
+      'BATCH_MERGED',
+      id,
+      { targetId }
+    );
+    res.json({ success: true, message: 'Batch merged successfully.' });
+  } catch (err) {
+    console.error('[admin] Failed to merge batch:', err);
+    res.status(500).json({ error: 'Failed to merge batch.' });
   }
 });
 

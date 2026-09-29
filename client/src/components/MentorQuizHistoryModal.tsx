@@ -26,15 +26,7 @@ export default function MentorQuizHistoryModal({ isOpen = false, onClose, embedd
   const [selectedBatch, setSelectedBatch] = useState<string>('all');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
-  const [batchOptions, setBatchOptions] = useState<string[]>([
-    '1st Year - Batch A',
-    '1st Year - Batch B',
-    '1st Year - Batch C',
-    '2nd Year - Batch A',
-    '2nd Year - Batch B',
-    '2nd Year - Batch C',
-    '3rd Year - Batch A',
-  ]);
+  const [batchOptions, setBatchOptions] = useState<string[]>([]);
 
   // Load available batches dynamically
   useEffect(() => {

@@ -50,6 +50,7 @@ export interface QuizSessionRecord {
   topic: string;
   subject?: string;
   batch?: string;
+  batchId?: string;
   hostEmail: string;
   hostName?: string;
   questionCount: number;
@@ -67,6 +68,7 @@ export interface SessionParticipantRecord {
   email: string;
   screenName: string;
   batch?: string;
+  batchId?: string;
   finalScore: number;
   correctCount: number;
   totalQuestions: number;
@@ -257,6 +259,7 @@ export async function initDb(): Promise<void> {
 
           ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS subject VARCHAR(160) DEFAULT 'General';
           ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS batch VARCHAR(100) DEFAULT 'General';
+          ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS batch_id VARCHAR(64);
 
           CREATE TABLE IF NOT EXISTS session_participants (
             id VARCHAR(64) PRIMARY KEY,
@@ -272,6 +275,8 @@ export async function initDb(): Promise<void> {
             rank INT DEFAULT 0,
             joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           );
+
+          ALTER TABLE session_participants ADD COLUMN IF NOT EXISTS batch_id VARCHAR(64);
 
           CREATE TABLE IF NOT EXISTS student_responses (
             id VARCHAR(64) PRIMARY KEY,
@@ -435,7 +440,7 @@ export async function getUserByEmail(email: string): Promise<User | null> {
   const cleanEmail = email.toLowerCase().trim();
   if (usePostgres && pool) {
     const res = await pool.query(
-      `SELECT id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, COALESCE(approved, false) as approved, created_at as "createdAt"
+      `SELECT id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, COALESCE(batches, '[]'::jsonb) as batches, picture, COALESCE(approved, false) as approved, created_at as "createdAt"
        FROM users WHERE LOWER(email) = $1`,
       [cleanEmail]
     );
@@ -449,7 +454,7 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 export async function getUserById(id: string): Promise<User | null> {
   if (usePostgres && pool) {
     const res = await pool.query(
-      `SELECT id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, COALESCE(approved, false) as approved, created_at as "createdAt"
+      `SELECT id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, COALESCE(batches, '[]'::jsonb) as batches, picture, COALESCE(approved, false) as approved, created_at as "createdAt"
        FROM users WHERE id = $1`,
       [id]
     );
@@ -523,19 +528,21 @@ export async function countAdmins(): Promise<number> {
 export async function saveQuizSession(session: QuizSessionRecord): Promise<void> {
   if (usePostgres && pool) {
     await pool.query(
-      `INSERT INTO quiz_sessions (id, code, topic, subject, batch, host_email, host_name, question_count, participant_count, questions, created_at, ended_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `INSERT INTO quiz_sessions (id, code, topic, subject, batch, batch_id, host_email, host_name, question_count, participant_count, questions, created_at, ended_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        ON CONFLICT (id) DO UPDATE
        SET participant_count = EXCLUDED.participant_count,
            ended_at = EXCLUDED.ended_at,
            subject = COALESCE(EXCLUDED.subject, quiz_sessions.subject),
-           batch = COALESCE(EXCLUDED.batch, quiz_sessions.batch)`,
+           batch = COALESCE(EXCLUDED.batch, quiz_sessions.batch),
+           batch_id = COALESCE(EXCLUDED.batch_id, quiz_sessions.batch_id)`,
       [
         session.id,
         session.code,
         session.topic,
         session.subject || 'General',
         session.batch || 'General',
+        session.batchId ?? null,
         session.hostEmail.toLowerCase(),
         session.hostName ?? null,
         session.questionCount,
@@ -573,13 +580,14 @@ export async function saveSessionResults(
       // Upsert participants
       for (const p of participants) {
         await client.query(
-          `INSERT INTO session_participants (id, session_id, user_id, real_name, email, screen_name, batch, final_score, correct_count, total_questions, rank, joined_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          `INSERT INTO session_participants (id, session_id, user_id, real_name, email, screen_name, batch, batch_id, final_score, correct_count, total_questions, rank, joined_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
            ON CONFLICT (id) DO UPDATE
            SET final_score = EXCLUDED.final_score,
                correct_count = EXCLUDED.correct_count,
                rank = EXCLUDED.rank,
-               batch = COALESCE(EXCLUDED.batch, session_participants.batch)`,
+               batch = COALESCE(EXCLUDED.batch, session_participants.batch),
+               batch_id = COALESCE(EXCLUDED.batch_id, session_participants.batch_id)`,
           [
             p.id || uuidv4(),
             sessionId,
@@ -588,6 +596,7 @@ export async function saveSessionResults(
             p.email.toLowerCase(),
             p.screenName,
             p.batch || 'General',
+            p.batchId ?? null,
             p.finalScore,
             p.correctCount,
             p.totalQuestions,
@@ -750,6 +759,7 @@ export async function getQuizDetails(sessionId: string): Promise<{
   if (usePostgres && pool) {
     const sRes = await pool.query(
       `SELECT id, code, topic, COALESCE(subject, 'General') as subject, COALESCE(batch, 'General') as batch,
+              batch_id as "batchId",
               host_email as "hostEmail", host_name as "hostName",
               question_count as "questionCount", participant_count as "participantCount",
               questions, created_at as "createdAt", ended_at as "endedAt"
@@ -761,6 +771,7 @@ export async function getQuizDetails(sessionId: string): Promise<{
     const pRes = await pool.query(
       `SELECT id, session_id as "sessionId", user_id as "userId", real_name as "realName",
               email, screen_name as "screenName", COALESCE(batch, 'General') as batch,
+              batch_id as "batchId",
               final_score as "finalScore", correct_count as "correctCount",
               total_questions as "totalQuestions", rank, joined_at as "joinedAt"
        FROM session_participants WHERE session_id = $1 ORDER BY rank ASC, final_score DESC`,
@@ -1199,19 +1210,27 @@ export async function getAllBatches(includeInactive = false): Promise<Batch[]> {
     return res.rows;
   }
 
-  // Local JSON fallback
-  const local = Object.values(localDb.batches ?? {});
-  if (local.length === 0) {
-    // First time: synthesise from seed list
-    return STANDARD_BATCHES.map((name, i) => ({
-      id: `local-${i}`,
-      year: name.split(' - ')[0]?.trim() || '',
-      label: name.split(' - ')[1]?.trim() || name,
-      displayName: name,
-      status: 'active' as const,
-      createdAt: new Date().toISOString(),
-    }));
+  // Local JSON fallback: synthesize if empty
+  if (!localDb.batches || Object.keys(localDb.batches).length === 0) {
+    localDb.batches = {};
+    for (let i = 0; i < STANDARD_BATCHES.length; i++) {
+      const name = STANDARD_BATCHES[i];
+      const bId = `local-${i}`;
+      localDb.batches[bId] = {
+        id: bId,
+        year: name.split(' - ')[0]?.trim() || '',
+        label: name.split(' - ')[1]?.trim() || name,
+        displayName: name,
+        status: 'active',
+        createdBy: 'system',
+        createdByRole: 'admin',
+        createdAt: new Date().toISOString(),
+      };
+    }
+    saveLocalDb();
   }
+
+  const local = Object.values(localDb.batches);
   return local
     .filter((b) => includeInactive || b.status === 'active')
     .sort(
@@ -1219,10 +1238,66 @@ export async function getAllBatches(includeInactive = false): Promise<Batch[]> {
     );
 }
 
+/** Looks up a single batch by ID. */
+export async function getBatchById(id: string): Promise<Batch | null> {
+  if (usePostgres && pool) {
+    const res = await pool.query(
+      `SELECT id, year, label, display_name as "displayName", status,
+              created_by as "createdBy", created_by_role as "createdByRole",
+              created_at as "createdAt"
+       FROM batches
+       WHERE id = $1`,
+      [id]
+    );
+    return res.rows[0] ?? null;
+  }
+
+  // Ensure local batches exist
+  if (!localDb.batches || Object.keys(localDb.batches).length === 0) {
+    await getAllBatches();
+  }
+  return localDb.batches?.[id] ?? null;
+}
+
 /**
- * Inserts a new batch, or re-activates it if a matching display_name already
- * exists. The UNIQUE constraint is case-sensitive in Postgres; normalise the
- * display_name to the canonical casing before calling.
+ * Assigns a batch (by displayName or ID) to a user's `batches` JSONB array if not already present.
+ */
+export async function addBatchToUser(email: string, batchIdentifier: string): Promise<User | null> {
+  const cleanEmail = email.toLowerCase().trim();
+  if (usePostgres && pool) {
+    const user = await getUserByEmail(cleanEmail);
+    if (!user) return null;
+    const currentBatches: string[] = Array.isArray(user.batches) ? [...user.batches] : [];
+    if (!currentBatches.includes(batchIdentifier)) {
+      currentBatches.push(batchIdentifier);
+      const res = await pool.query(
+        `UPDATE users
+         SET batches = $1
+         WHERE LOWER(email) = $2
+         RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain",
+                   department, subject, batches, picture, COALESCE(approved, false) as approved,
+                   created_at as "createdAt"`,
+        [JSON.stringify(currentBatches), cleanEmail]
+      );
+      return res.rows[0] ?? null;
+    }
+    return user;
+  }
+
+  // Local JSON fallback
+  const user = Object.values(localDb.users).find((u) => u.email.toLowerCase() === cleanEmail);
+  if (!user) return null;
+  if (!user.batches) user.batches = [];
+  if (!user.batches.includes(batchIdentifier)) {
+    user.batches.push(batchIdentifier);
+    saveLocalDb();
+  }
+  return user;
+}
+
+/**
+ * Inserts a new batch, or re-activates it if a case-insensitive matching display_name
+ * already exists on both Postgres and JSON fallback backends (Gap 6 fix).
  */
 export async function createBatch(data: {
   year?: string;
@@ -1233,8 +1308,27 @@ export async function createBatch(data: {
 }): Promise<Batch> {
   const id = uuidv4();
   const now = new Date().toISOString();
+  const cleanName = data.displayName.trim();
 
   if (usePostgres && pool) {
+    // Gap 6: Check case-insensitively before INSERT
+    const existingRes = await pool.query(
+      `SELECT id, year, label, display_name as "displayName", status,
+              created_by as "createdBy", created_by_role as "createdByRole",
+              created_at as "createdAt"
+       FROM batches
+       WHERE LOWER(display_name) = LOWER($1)`,
+      [cleanName]
+    );
+    if (existingRes.rows.length > 0) {
+      const existing = existingRes.rows[0];
+      if (existing.status !== 'active') {
+        await pool.query(`UPDATE batches SET status = 'active' WHERE id = $1`, [existing.id]);
+        existing.status = 'active';
+      }
+      return existing;
+    }
+
     const res = await pool.query(
       `INSERT INTO batches (id, year, label, display_name, status, created_by, created_by_role)
        VALUES ($1, $2, $3, $4, 'active', $5, $6)
@@ -1247,7 +1341,7 @@ export async function createBatch(data: {
         id,
         data.year ?? '',
         data.label,
-        data.displayName,
+        cleanName,
         data.createdBy ?? 'system',
         data.createdByRole ?? 'mentor',
       ]
@@ -1256,9 +1350,11 @@ export async function createBatch(data: {
   }
 
   // Local JSON fallback
-  if (!localDb.batches) localDb.batches = {};
-  const existing = Object.values(localDb.batches).find(
-    (b) => b.displayName.toLowerCase() === data.displayName.toLowerCase()
+  if (!localDb.batches || Object.keys(localDb.batches).length === 0) {
+    await getAllBatches();
+  }
+  const existing = Object.values(localDb.batches ?? {}).find(
+    (b) => b.displayName.toLowerCase() === cleanName.toLowerCase()
   );
   if (existing) {
     existing.status = 'active';
@@ -1269,12 +1365,13 @@ export async function createBatch(data: {
     id,
     year: data.year,
     label: data.label,
-    displayName: data.displayName,
+    displayName: cleanName,
     status: 'active',
     createdBy: data.createdBy,
     createdByRole: data.createdByRole,
     createdAt: now,
   };
+  if (!localDb.batches) localDb.batches = {};
   localDb.batches[id] = batch;
   saveLocalDb();
   return batch;
@@ -1295,4 +1392,175 @@ export async function deactivateBatch(id: string): Promise<boolean> {
     return true;
   }
   return false;
+}
+
+/**
+ * Admin: Updates a batch's display_name or status. Checks case-insensitive
+ * collisions before updating name.
+ */
+export async function updateBatch(
+  id: string,
+  updates: { displayName?: string; status?: 'active' | 'inactive' }
+): Promise<{ batch?: Batch; conflict?: boolean; notFound?: boolean }> {
+  const cleanName = updates.displayName ? updates.displayName.trim() : undefined;
+
+  if (usePostgres && pool) {
+    const existingRes = await pool.query(`SELECT id FROM batches WHERE id = $1`, [id]);
+    if (existingRes.rowCount === 0) {
+      return { notFound: true };
+    }
+
+    if (cleanName) {
+      const conflictRes = await pool.query(
+        `SELECT id FROM batches WHERE LOWER(display_name) = LOWER($1) AND id <> $2`,
+        [cleanName, id]
+      );
+      if ((conflictRes.rowCount ?? 0) > 0) {
+        return { conflict: true };
+      }
+    }
+
+    const parts = cleanName ? cleanName.split(' - ') : null;
+    const year = parts ? parts[0]?.trim() || '' : null;
+    const label = parts ? parts[1]?.trim() || cleanName : null;
+
+    const res = await pool.query(
+      `UPDATE batches
+       SET display_name = COALESCE($1, display_name),
+           year = CASE WHEN $1 IS NOT NULL THEN $2 ELSE year END,
+           label = CASE WHEN $1 IS NOT NULL THEN $3 ELSE label END,
+           status = COALESCE($4, status)
+       WHERE id = $5
+       RETURNING id, year, label, display_name as "displayName", status,
+                 created_by as "createdBy", created_by_role as "createdByRole",
+                 created_at as "createdAt"`,
+      [cleanName ?? null, year, label, updates.status ?? null, id]
+    );
+    return { batch: res.rows[0] };
+  }
+
+  // Local JSON fallback
+  if (!localDb.batches || Object.keys(localDb.batches).length === 0) {
+    await getAllBatches();
+  }
+  const current = localDb.batches?.[id];
+  if (!current) {
+    return { notFound: true };
+  }
+
+  if (cleanName) {
+    const collision = Object.values(localDb.batches ?? {}).find(
+      (b) => b.id !== id && b.displayName.toLowerCase() === cleanName.toLowerCase()
+    );
+    if (collision) {
+      return { conflict: true };
+    }
+    const parts = cleanName.split(' - ');
+    current.displayName = cleanName;
+    current.year = parts[0]?.trim() || '';
+    current.label = parts[1]?.trim() || cleanName;
+  }
+
+  if (updates.status) {
+    current.status = updates.status;
+  }
+
+  saveLocalDb();
+  return { batch: current };
+}
+
+/**
+ * Admin: Merges sourceId into targetId.
+ * Reassigns user assignments, batch_id on quiz_sessions & session_participants,
+ * then deactivates sourceId.
+ */
+export async function mergeBatches(
+  sourceId: string,
+  targetId: string
+): Promise<{ success: boolean; notFound?: boolean; sameBatch?: boolean }> {
+  if (sourceId === targetId) {
+    return { success: false, sameBatch: true };
+  }
+
+  if (usePostgres && pool) {
+    const sRes = await pool.query(`SELECT id, display_name as "displayName" FROM batches WHERE id = $1`, [sourceId]);
+    const tRes = await pool.query(`SELECT id, display_name as "displayName" FROM batches WHERE id = $1`, [targetId]);
+    if (sRes.rowCount === 0 || tRes.rowCount === 0) {
+      return { success: false, notFound: true };
+    }
+    const source = sRes.rows[0];
+    const target = tRes.rows[0];
+
+    // 1. Move all user assignments
+    const usersRes = await pool.query(`SELECT id, batches FROM users WHERE batches IS NOT NULL`);
+    for (const u of usersRes.rows) {
+      let bArr: string[] = [];
+      if (Array.isArray(u.batches)) {
+        bArr = u.batches;
+      } else if (typeof u.batches === 'string') {
+        try {
+          bArr = JSON.parse(u.batches);
+        } catch {
+          bArr = [];
+        }
+      }
+      const hasSource = bArr.includes(source.displayName) || bArr.includes(source.id);
+      if (hasSource) {
+        const next = bArr.filter((b) => b !== source.displayName && b !== source.id);
+        if (!next.includes(target.displayName)) {
+          next.push(target.displayName);
+        }
+        await pool.query(`UPDATE users SET batches = $1 WHERE id = $2`, [JSON.stringify(next), u.id]);
+      }
+    }
+
+    // 2. Reassign batch_id on quiz_sessions and session_participants
+    await pool.query(`UPDATE quiz_sessions SET batch_id = $1 WHERE batch_id = $2`, [targetId, sourceId]);
+    await pool.query(`UPDATE session_participants SET batch_id = $1 WHERE batch_id = $2`, [targetId, sourceId]);
+
+    // 3. Deactivate source batch
+    await pool.query(`UPDATE batches SET status = 'inactive' WHERE id = $1`, [sourceId]);
+
+    return { success: true };
+  }
+
+  // Local JSON fallback
+  if (!localDb.batches || Object.keys(localDb.batches).length === 0) {
+    await getAllBatches();
+  }
+  const source = localDb.batches?.[sourceId];
+  const target = localDb.batches?.[targetId];
+  if (!source || !target) {
+    return { success: false, notFound: true };
+  }
+
+  // 1. Move user assignments
+  for (const u of Object.values(localDb.users)) {
+    if (Array.isArray(u.batches)) {
+      const hasSource = u.batches.includes(source.displayName) || u.batches.includes(source.id);
+      if (hasSource) {
+        u.batches = u.batches.filter((b) => b !== source.displayName && b !== source.id);
+        if (!u.batches.includes(target.displayName)) {
+          u.batches.push(target.displayName);
+        }
+      }
+    }
+  }
+
+  // 2. Reassign batchId on sessions and participants
+  for (const s of Object.values(localDb.sessions)) {
+    if (s.batchId === sourceId) {
+      s.batchId = targetId;
+    }
+  }
+  for (const p of localDb.participants) {
+    if (p.batchId === sourceId) {
+      p.batchId = targetId;
+    }
+  }
+
+  // 3. Deactivate source batch
+  source.status = 'inactive';
+  saveLocalDb();
+  return { success: true };
 }

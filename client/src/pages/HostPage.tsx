@@ -31,7 +31,7 @@ import AIGenerateModal from '../components/AIGenerateModal';
 import { apiUrl } from '../api';
 import { cleanText } from '../cleanText';
 import { getAvatar } from '../utils/avatars';
-import { getAuthUser, getAuthToken, clearStoredAuth, AuthUser, fetchBatches, createMentorBatch, refreshAuthUser, isFacultyEmail } from '../auth';
+import { getAuthUser, getAuthToken, clearStoredAuth, AuthUser, fetchBatches, fetchBatchObjects, BatchObject, createMentorBatch, refreshAuthUser, isFacultyEmail } from '../auth';
 import CollegeAuthModal from '../components/CollegeAuthModal';
 import MentorPinModal from '../components/MentorPinModal';
 import MentorQuizHistoryModal from '../components/MentorQuizHistoryModal';
@@ -60,12 +60,10 @@ export default function HostPage() {
   const [showAI, setShowAI] = useState(false);
   const [aiInitialTopic, setAiInitialTopic] = useState('');
   const [quizSubject, setQuizSubject] = useState('Full Stack Web Development');
-  const [quizBatch, setQuizBatch] = useState('2nd Year - Batch A');
-  const [availableBatches, setAvailableBatches] = useState<string[]>([
-    '1st Year - Batch A', '1st Year - Batch B', '1st Year - Batch C',
-    '2nd Year - Batch A', '2nd Year - Batch B', '2nd Year - Batch C',
-    '3rd Year - Batch A',
-  ]);
+  const [quizBatch, setQuizBatch] = useState('');
+  const [quizBatchId, setQuizBatchId] = useState('');
+  const [availableBatches, setAvailableBatches] = useState<string[]>([]);
+  const [availableBatchObjects, setAvailableBatchObjects] = useState<BatchObject[]>([]);
   const [showNewBatchInput, setShowNewBatchInput] = useState(false);
   const [newBatchName, setNewBatchName] = useState('');
   const [creatingBatch, setCreatingBatch] = useState(false);
@@ -92,16 +90,32 @@ export default function HostPage() {
   const [showPastQuizzes, setShowPastQuizzes] = useState(false);
   const [hostView, setHostView] = useState<'builder' | 'reports'>('builder');
 
-  // Fetch college batches dynamically
+  // Fetch college batches dynamically with role & assignment awareness (Gap 4)
   useEffect(() => {
-    fetchBatches()
-      .then((b) => {
-        if (b && b.length > 0) {
-          setAvailableBatches(b);
-          setQuizBatch(b[0]);
+    fetchBatchObjects()
+      .then((objs) => {
+        setAvailableBatchObjects(objs || []);
+        setAvailableBatches((objs || []).map((o) => o.displayName));
+        if (objs && objs.length === 1) {
+          // Exactly one batch assigned: pre-select it
+          setQuizBatchId(objs[0].id);
+          setQuizBatch(objs[0].displayName);
+        } else if (!objs || objs.length === 0) {
+          // Zero batches assigned: go straight to inline create form
+          setQuizBatchId('');
+          setQuizBatch('');
+          setShowNewBatchInput(true);
+        } else {
+          // Multiple batches: leave unset so user must explicitly pick
+          setQuizBatchId('');
+          setQuizBatch('');
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setAvailableBatchObjects([]);
+        setAvailableBatches([]);
+        setShowNewBatchInput(true);
+      });
   }, []);
 
   // Handler: create a new batch inline
@@ -113,9 +127,17 @@ export default function HostPage() {
     setBatchError('');
     try {
       const created = await createMentorBatch(name);
-      const updated = [...availableBatches.filter((b) => b !== created.displayName), created.displayName];
-      updated.sort();
-      setAvailableBatches(updated);
+      setAvailableBatchObjects((prev) => {
+        const filtered = prev.filter((b) => b.id !== created.id && b.displayName !== created.displayName);
+        const updated = [...filtered, created];
+        return updated.sort((a, b) => a.displayName.localeCompare(b.displayName));
+      });
+      setAvailableBatches((prev) => {
+        const filtered = prev.filter((b) => b !== created.displayName);
+        const updated = [...filtered, created.displayName];
+        return updated.sort();
+      });
+      setQuizBatchId(created.id);
       setQuizBatch(created.displayName);
       setNewBatchName('');
       setShowNewBatchInput(false);
@@ -505,6 +527,10 @@ export default function HostPage() {
       setError('Add at least one question.');
       return;
     }
+    if (!quizBatchId) {
+      setError('Please select a batch before starting the session.');
+      return;
+    }
     setLoading(true);
     try {
       const token = getAuthToken();
@@ -529,7 +555,7 @@ export default function HostPage() {
           questions,
           topic,
           subject: quizSubject || 'General',
-          batch: quizBatch || 'General',
+          batchId: quizBatchId,
         }),
       });
       const d = await res.json();
@@ -550,7 +576,7 @@ export default function HostPage() {
                   questions,
                   topic,
                   subject: quizSubject || 'General',
-                  batch: quizBatch || 'General',
+                  batchId: quizBatchId,
                 }),
               });
               if (retryRes.ok) {
@@ -1577,27 +1603,41 @@ export default function HostPage() {
                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary, #9CA3AF)', marginBottom: '0.3rem' }}>
                           Target Batch / Class
                         </label>
-                        <select
-                          className="input"
-                          style={{
-                            width: '100%',
-                            fontSize: '0.85rem',
-                            padding: '0.5rem 0.75rem',
-                            borderRadius: '10px',
-                            background: 'var(--surface, #1B1B1F)',
-                            border: '1px solid var(--border, #2A2A2F)',
-                            fontWeight: 600,
-                            color: 'var(--text-primary, #F2F2F2)',
-                          }}
-                          value={quizBatch}
-                          onChange={(e) => setQuizBatch(e.target.value)}
-                        >
-                          {availableBatches.map((b) => (
-                            <option key={b} value={b}>
-                              {b}
-                            </option>
-                          ))}
-                        </select>
+                        {availableBatchObjects.length === 0 ? (
+                          <div style={{ padding: '0.4rem 0', color: 'var(--text-secondary, #9CA3AF)', fontSize: '0.82rem' }}>
+                            No batches assigned. Please create a batch below to continue.
+                          </div>
+                        ) : (
+                          <select
+                            className="input"
+                            style={{
+                              width: '100%',
+                              fontSize: '0.85rem',
+                              padding: '0.5rem 0.75rem',
+                              borderRadius: '10px',
+                              background: 'var(--surface, #1B1B1F)',
+                              border: '1px solid var(--border, #2A2A2F)',
+                              fontWeight: 600,
+                              color: 'var(--text-primary, #F2F2F2)',
+                            }}
+                            value={quizBatchId}
+                            onChange={(e) => {
+                              const selectedId = e.target.value;
+                              setQuizBatchId(selectedId);
+                              const b = availableBatchObjects.find((x) => x.id === selectedId);
+                              setQuizBatch(b ? b.displayName : '');
+                            }}
+                          >
+                            {availableBatchObjects.length > 1 && (
+                              <option value="">Select a batch…</option>
+                            )}
+                            {availableBatchObjects.map((b) => (
+                              <option key={b.id} value={b.id}>
+                                {b.displayName}
+                              </option>
+                            ))}
+                          </select>
+                        )}
 
                         {/* ── Inline "Create new batch" ────────────────── */}
                         {!showNewBatchInput ? (
@@ -1715,7 +1755,7 @@ export default function HostPage() {
                   <button
                     className="btn btn-primary btn--lg btn--full"
                     onClick={createSession}
-                    disabled={loading || questions.length === 0}
+                    disabled={loading || questions.length === 0 || !quizBatchId}
                     id="create-session-btn"
                   >
                     {loading ? (

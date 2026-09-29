@@ -103,6 +103,7 @@ export interface Session {
   topic?: string;
   subject?: string;
   batch?: string;
+  batchId?: string;
   /** The authenticated mentor who created the session. Never client-supplied. */
   hostEmail: string;
   hostName: string;
