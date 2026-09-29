@@ -51,7 +51,7 @@ export default function StudentQuizHistoryModal({ isOpen, currentUser, onClose }
         <div className="pm-history-content">
           {loading ? (
             <div className="pm-history-loading">
-              <div className="pm-spinner" />
+              <div className="spinner" />
               <p>Fetching your past quiz scores...</p>
             </div>
           ) : history.length === 0 ? (

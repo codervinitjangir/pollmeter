@@ -727,7 +727,7 @@ export default function AdminPage() {
       {/* In-UI Confirmation Modal Dialog */}
       {confirmDialog && (
         <div
-          className="pm-auth-backdrop"
+          className="pm-auth-modal-backdrop"
           onClick={() => !confirmLoading && setConfirmDialog(null)}
           style={{ zIndex: 9999 }}
         >
@@ -1146,7 +1146,7 @@ export default function AdminPage() {
 
             {loading ? (
               <div className="pm-history-loading">
-                <div className="pm-spinner" />
+                <div className="spinner" />
                 <p>Loading faculty roster...</p>
               </div>
             ) : filteredFaculty.length === 0 ? (
@@ -1303,7 +1303,7 @@ export default function AdminPage() {
 
             {loading ? (
               <div className="pm-history-loading">
-                <div className="pm-spinner" />
+                <div className="spinner" />
                 <p>Auditing cross-subject student records...</p>
               </div>
             ) : studentAudit.length === 0 ? (
@@ -1512,7 +1512,7 @@ export default function AdminPage() {
 
             {loadingAudit ? (
               <div className="pm-history-loading">
-                <div className="pm-spinner" />
+                <div className="spinner" />
                 <p>Loading security audit logs...</p>
               </div>
             ) : auditLogs.length === 0 ? (
@@ -1918,7 +1918,7 @@ export default function AdminPage() {
             {/* Reports Table */}
             {loadingReports ? (
               <div className="pm-history-loading" style={{ padding: '3rem 0', textAlign: 'center' }}>
-                <div className="pm-spinner" />
+                <div className="spinner" />
                 <p style={{ marginTop: '0.75rem', color: '#94A3B8' }}>Aggregating campus sessions and grades…</p>
               </div>
             ) : !reportData?.reports || reportData.reports.length === 0 ? (

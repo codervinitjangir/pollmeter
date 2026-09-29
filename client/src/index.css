@@ -7458,6 +7458,21 @@ fieldset.field {
   border-color: rgba(245, 158, 11, 0.35) !important;
 }
 
+/* The dot inside the clearance pill had no rule, so it rendered invisible and
+   the pill showed only its label. Geometry matches .pm-status-dot; the fill
+   takes the pill's own amber rather than that dot's green. */
+.pm-clearance-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #D97706;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .pm-clearance-dot {
+  background: #F59E0B;
+}
+
 .pm-btn-mentor-switch {
   display: inline-flex;
   align-items: center;

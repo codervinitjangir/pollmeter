@@ -145,7 +145,7 @@ export default function MentorQuizHistoryModal({ isOpen = false, onClose, embedd
 
             {loadingDetails ? (
               <div className="pm-history-loading">
-                <div className="pm-spinner" />
+                <div className="spinner" />
                 <p>Loading session report...</p>
               </div>
             ) : details ? (
@@ -307,7 +307,7 @@ export default function MentorQuizHistoryModal({ isOpen = false, onClose, embedd
 
             {loading ? (
               <div className="pm-history-loading">
-                <div className="pm-spinner" />
+                <div className="spinner" />
                 <p>Fetching your past quizzes...</p>
               </div>
             ) : quizzes.length === 0 ? (

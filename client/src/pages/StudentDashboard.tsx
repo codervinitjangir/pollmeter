@@ -737,7 +737,7 @@ export default function StudentDashboard() {
           <div style={{ padding: '1.25rem 1.5rem' }}>
             {loading ? (
               <div className="pm-history-loading">
-                <div className="pm-spinner" />
+                <div className="spinner" />
                 <p>Syncing your academic quiz records...</p>
               </div>
             ) : error ? (
