@@ -297,7 +297,12 @@ app.post('/api/sessions', sessionCreationLimiter, requireMentor, async (req: Aut
     return;
   }
 
-  // Mentor ownership check: live user record must have this batch assigned
+  // Mentor batch assignment. GET /api/batches deliberately offers every active
+  // batch in the mentor's dropdown, so denying an unassigned pick here made the
+  // dropdown lie: a mentor with no assignments could select any batch and every
+  // one of them failed. Instead, claim the batch on first use and audit it --
+  // the same rule POST /api/mentor/batches already applies when a mentor creates
+  // one. The real guard stays above: the batch must exist and be active.
   const liveUser = await getUserByEmail(req.user!.email);
   if (req.user?.role !== 'admin') {
     const assigned = liveUser?.batches ?? [];
@@ -311,8 +316,14 @@ app.post('/api/sessions', sessionCreationLimiter, requireMentor, async (req: Aut
       );
 
     if (!isAssigned) {
-      res.status(403).json({ error: 'Access denied: You are not assigned to this batch.' });
-      return;
+      await addBatchToUser(req.user!.email, batchRecord.displayName);
+      await recordAuditLog(req.user!.email, 'BATCH_SELF_ASSIGNED', batchRecord.id, {
+        displayName: batchRecord.displayName,
+        via: 'session_create',
+      });
+      console.log(
+        `[batch] Auto-assigned '${batchRecord.displayName}' to ${req.user!.email} on first host`
+      );
     }
   }
 
