@@ -8,6 +8,7 @@ import os from 'os';
 import {
   createSession,
   getSession,
+  deleteSession,
   startSessionSweeper,
   sessionCount,
   MAX_QUESTIONS,
@@ -767,12 +768,28 @@ app.delete('/api/mentor/quizzes/:id', requireMentor, async (req: AuthenticatedRe
       return;
     }
 
+    // The room also lives in memory, keyed by code, and that copy is what a
+    // student's join actually reaches. Removing only the stored rows left the
+    // code joinable until the idle sweeper got to it, and anyone joining then
+    // wrote participants against a session row that no longer existed. Close
+    // the room too, and tell whoever is still in it rather than leaving them
+    // on a screen that will never advance.
+    const liveRoom = getSession(details.session.code);
+    if (liveRoom) {
+      io.to(details.session.code).emit('session_ended', {
+        code: details.session.code,
+        reason: 'deleted_by_host',
+      });
+      deleteSession(details.session.code);
+    }
+
     await recordAuditLog(req.user?.email || 'unknown', 'SESSION_DELETED', details.session.code, {
       topic: details.session.topic,
       subject: details.session.subject,
       batch: details.session.batch,
       participants: details.participants.length,
       responses: details.responses.length,
+      wasLive: Boolean(liveRoom),
     });
 
     res.json({ success: true, code: details.session.code });
