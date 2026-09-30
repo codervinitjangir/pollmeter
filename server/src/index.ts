@@ -73,7 +73,7 @@ const PORT = parseInt(process.env.PORT ?? '3001', 10);
  * and known deployment domains (Cloudflare Pages, Vercel, Netlify).
  */
 const PRIVATE_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|10\.[\d.]+|192\.168\.[\d.]+|172\.(1[6-9]|2\d|3[01])\.[\d.]+|[\w-]+\.local)(:\d+)?$/i;
-const DEPLOY_ORIGIN  = /^https:\/\/([\w.-]+\.pages\.dev|[\w.-]+\.vercel\.app|[\w.-]+\.netlify\.app|[\w.-]+\.onrender\.com|([\w.-]+\.)?visionexam\.xyz)(:\d+)?$/i;
+const DEPLOY_ORIGIN = /^https:\/\/([\w.-]+\.pages\.dev|[\w.-]+\.vercel\.app|[\w.-]+\.netlify\.app|[\w.-]+\.onrender\.com|([\w.-]+\.)?visionexam\.xyz)(:\d+)?$/i;
 
 const extraOrigins = (process.env.CLIENT_ORIGIN ?? '')
   .split(',')
@@ -97,7 +97,7 @@ const corsOptions: cors.CorsOptions = {
       : callback(new Error(`Origin ${origin} is not allowed.`)),
   // DELETE is needed for revoking a faculty member; without it the browser's
   // preflight for that route fails cross-origin.
-  methods: ['GET', 'POST', 'DELETE'],
+  methods: ['GET', 'POST', 'DELETE', 'PATCH'],
 };
 
 // ─── Express app ──────────────────────────────────────────────────────────────
@@ -1123,12 +1123,12 @@ app.get('/api/batches', requireAuth, async (req: AuthenticatedRequest, res: Resp
       // Sort batches with mentor's assigned batches first (if any), then alphabetically
       const sortedBatches = assigned.length > 0
         ? [...allBatches].sort((a, b) => {
-            const aAssigned = assigned.includes(a.id) || assigned.includes(a.displayName);
-            const bAssigned = assigned.includes(b.id) || assigned.includes(b.displayName);
-            if (aAssigned && !bAssigned) return -1;
-            if (!aAssigned && bAssigned) return 1;
-            return a.displayName.localeCompare(b.displayName);
-          })
+          const aAssigned = assigned.includes(a.id) || assigned.includes(a.displayName);
+          const bAssigned = assigned.includes(b.id) || assigned.includes(b.displayName);
+          if (aAssigned && !bAssigned) return -1;
+          if (!aAssigned && bAssigned) return 1;
+          return a.displayName.localeCompare(b.displayName);
+        })
         : allBatches;
 
       res.json({
