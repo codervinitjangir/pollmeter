@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import { User, getUserByEmail, upsertUser, setUserApproval } from './db';
 import { v4 as uuidv4 } from 'uuid';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
@@ -12,24 +12,44 @@ const IS_PRODUCTION = process.env.NODE_ENV === 'production';
  * An unset variable in production is a deployment fault, but refusing to boot
  * is the wrong way to report it: the service is usually already live, and the
  * people who find out are a lecture hall full of students staring at a dead
- * page. So production generates a random secret instead and complains loudly.
- * The service stays up and no token can be forged from the repo — the only
- * cost is that a restart invalidates existing logins, which is precisely the
- * annoyance that gets `JWT_SECRET` set properly.
+ * page. So production derives a secret from another secret the environment
+ * already holds -- the database URL, which is not in the repo and carries
+ * generated credentials -- and complains loudly. That keeps the property that
+ * matters (no token can be forged from anything published) while surviving a
+ * restart, because a random per-boot secret signs every user out the moment the
+ * platform recycles the process, which during a live class is indistinguishable
+ * from the app being broken.
  *
- * Development still gets a stable fallback so `npm run dev` needs no setup.
+ * With nothing stable to derive from, it falls back to random: still safe, still
+ * loud, and the restart annoyance is what gets `JWT_SECRET` set properly.
+ *
+ * Development gets a stable fallback so `npm run dev` needs no setup.
  */
 function requiredSecret(name: string, devFallback: string): string {
   const value = process.env[name]?.trim();
   if (value) return value;
 
   if (IS_PRODUCTION) {
+    const derivedFrom = process.env.DATABASE_URL?.trim();
+    if (derivedFrom) {
+      console.error(
+        `\n[config] ******************************************************************\n` +
+          `[config] ${name} is NOT SET in production.\n` +
+          `[config] Deriving a stable secret from DATABASE_URL so that restarts do\n` +
+          `[config] not sign every user out. Nothing is forgeable from the repo, but\n` +
+          `[config] set ${name} in the environment to decouple logins from the\n` +
+          `[config] database credentials.\n` +
+          `[config] ******************************************************************\n`
+      );
+      return createHash('sha256').update(`pollmeter:${name}:${derivedFrom}`).digest('hex');
+    }
+
     console.error(
       `\n[config] ******************************************************************\n` +
-        `[config] ${name} is NOT SET in production.\n` +
-        `[config] Using a random secret generated at startup. The server will run,\n` +
-        `[config] but every restart will sign users out. Set ${name} in the\n` +
-        `[config] environment to fix this permanently.\n` +
+        `[config] ${name} is NOT SET in production and there is nothing stable to\n` +
+        `[config] derive it from. Using a random secret generated at startup: the\n` +
+        `[config] server will run, but every restart will sign users out. Set\n` +
+        `[config] ${name} in the environment to fix this permanently.\n` +
         `[config] ******************************************************************\n`
     );
     return randomBytes(48).toString('hex');

@@ -5672,10 +5672,74 @@ fieldset.field {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 99999;
-  padding: 3rem 1.25rem;
-  overflow-y: auto;
-  animation: pmFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 16px rgba(245,158,11,0.3);
+}
+
+.pm-auth-submit-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(245,158,11,0.45);
+  background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%);
+}
+
+.pm-auth-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.pm-auth-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.25);
+  text-align: center;
+  padding-top: 0.1rem;
+}
+
+[data-theme="light"] .pm-auth-footer { color: #94A3B8; }
+
+.pm-auth-lock-icon { font-size: 0.82rem; opacity: 0.7; }
+
+.pm-pin-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  width: 100%;
+}
+
+.pm-pin-cancel-btn {
+  height: 44px;
+  padding: 0 1.25rem;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.65);
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pm-pin-cancel-btn:hover:not(:disabled) {
+  background: rgba(255,255,255,0.1);
+  color: #FFFFFF;
+}
+
+[data-theme="light"] .pm-pin-cancel-btn { background: #F1F5F9; border-color: #CBD5E1; color: #475569; }
+[data-theme="light"] .pm-pin-cancel-btn:hover:not(:disabled) { background: #E2E8F0; color: #1E293B; }
+
+.pm-pin-modal-actions .pm-auth-submit-btn {
+  margin-top: 0;
+  flex: 1;
 }
 
 @keyframes pmFadeIn {
@@ -6574,8 +6638,8 @@ fieldset.field {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.5rem 1.8rem;
-  border-bottom: 1px solid #F1F5F9;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #E2E8F0;
   background: #F8FAFC;
 }
 
@@ -6808,12 +6872,14 @@ fieldset.field {
 
 .pm-quiz-card-code {
   font-family: monospace;
-  font-size: 1.15rem;
+  font-size: 1rem;
   font-weight: 800;
-  color: #2563EB;
-  background: #EFF6FF;
-  padding: 0.3rem 0.65rem;
-  border-radius: 8px;
+  color: #F59E0B;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  padding: 0.28rem 0.6rem;
+  border-radius: 7px;
+  white-space: nowrap;
 }
 
 .pm-quiz-card-topic {
@@ -9456,11 +9522,138 @@ html[data-theme="dark"] body {
 [data-theme="dark"] .pm-quiz-history-card,
 [data-theme="dark"] .pm-student-history-card,
 [data-theme="dark"] .pm-admin-locked-card {
-  background: #0a0a0b !important;
-  border: 1px solid #1f1f23 !important;
+  background: #141418 !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
   border-radius: 14px !important;
   color: #f4f4f5 !important;
   box-shadow: none !important;
+}
+
+[data-theme="dark"] .pm-quiz-history-card:hover {
+  background: #1a1a20 !important;
+  border-color: rgba(245,158,11,0.3) !important;
+  border-top-color: #F59E0B !important;
+}
+
+/* History Modal & Reports Workspace — Dark Mode */
+[data-theme="dark"] .pm-history-modal-card {
+  background: #111114 !important;
+  border-color: rgba(255,255,255,0.07) !important;
+}
+
+[data-theme="dark"] .pm-history-header {
+  background: #0d0d10 !important;
+  border-bottom-color: rgba(255,255,255,0.07) !important;
+}
+
+[data-theme="dark"] .pm-history-title {
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .pm-history-subtitle {
+  color: rgba(255,255,255,0.45) !important;
+}
+
+[data-theme="dark"] .pm-history-content {
+  color: #f4f4f5 !important;
+}
+
+[data-theme="dark"] .pm-history-summary-item {
+  background: #141418 !important;
+  border-color: rgba(255,255,255,0.07) !important;
+}
+
+[data-theme="dark"] .pm-summary-label {
+  color: rgba(255,255,255,0.45) !important;
+}
+
+[data-theme="dark"] .pm-summary-value {
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .pm-history-table-container {
+  border-color: rgba(255,255,255,0.07) !important;
+}
+
+[data-theme="dark"] .pm-history-table-caption {
+  background: #0d0d10 !important;
+  border-bottom-color: rgba(255,255,255,0.07) !important;
+  color: rgba(255,255,255,0.7) !important;
+}
+
+[data-theme="dark"] .pm-history-table th {
+  background: #0d0d10 !important;
+  color: rgba(255,255,255,0.45) !important;
+  border-bottom-color: rgba(255,255,255,0.07) !important;
+}
+
+[data-theme="dark"] .pm-history-table td {
+  color: #f4f4f5 !important;
+  border-bottom-color: rgba(255,255,255,0.05) !important;
+}
+
+[data-theme="dark"] .pm-history-table tr:hover td {
+  background: rgba(255,255,255,0.03) !important;
+}
+
+[data-theme="dark"] .pm-history-loading,
+[data-theme="dark"] .pm-history-empty {
+  color: rgba(255,255,255,0.4) !important;
+}
+
+/* Quiz card inner elements — Dark */
+[data-theme="dark"] .pm-quiz-card-topic {
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .pm-quiz-card-date {
+  color: rgba(255,255,255,0.4) !important;
+}
+
+[data-theme="dark"] .pm-stat-num {
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .pm-stat-label {
+  color: rgba(255,255,255,0.4) !important;
+}
+
+[data-theme="dark"] .pm-rank-pill {
+  background: rgba(255,255,255,0.07) !important;
+  color: rgba(255,255,255,0.7) !important;
+}
+
+[data-theme="dark"] .pm-rank-gold {
+  background: rgba(245,158,11,0.15) !important;
+  color: #F59E0B !important;
+}
+
+[data-theme="dark"] .pm-rank-silver {
+  background: rgba(148,163,184,0.15) !important;
+  color: #94A3B8 !important;
+}
+
+[data-theme="dark"] .pm-rank-bronze {
+  background: rgba(180,130,80,0.15) !important;
+  color: #CD853F !important;
+}
+
+[data-theme="dark"] .pm-history-deanonymized-tag {
+  background: rgba(16,185,129,0.12) !important;
+  color: #34D399 !important;
+  border-color: rgba(16,185,129,0.25) !important;
+}
+
+[data-theme="dark"] .pm-view-report-btn {
+  background: rgba(255,255,255,0.05) !important;
+  border-color: rgba(255,255,255,0.1) !important;
+  color: rgba(255,255,255,0.75) !important;
+}
+
+[data-theme="dark"] .pm-view-report-btn:hover {
+  background: rgba(245,158,11,0.12) !important;
+  border-color: rgba(245,158,11,0.3) !important;
+  color: #F59E0B !important;
 }
 
 [data-theme="dark"] .pm-admin-panel-card {
@@ -9472,9 +9665,8 @@ html[data-theme="dark"] body {
 }
 
 /* Card Top Accent Bar */
-[data-theme="dark"] .pm-landing-card-host,
-[data-theme="dark"] .pm-quiz-history-card:hover {
-  border-top: 2px solid #4f8cff !important;
+[data-theme="dark"] .pm-landing-card-host {
+  border-top: 2px solid #F59E0B !important;
 }
 
 [data-theme="dark"] .pm-landing-card-join {

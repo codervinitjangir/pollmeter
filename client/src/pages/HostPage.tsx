@@ -99,7 +99,7 @@ export default function HostPage() {
   const [hostView, setHostView] = useState<'builder' | 'reports'>('builder');
 
   // Fetch college batches dynamically with role & assignment awareness (Gap 4)
-  useEffect(() => {
+  const loadBatches = useCallback(() => {
     fetchBatchObjects()
       .then((objs) => {
         setAvailableBatchObjects(objs || []);
@@ -122,13 +122,18 @@ export default function HostPage() {
   }, []);
 
   // Load campus subjects dynamically
-  useEffect(() => {
+  const loadSubjects = useCallback(() => {
     fetchSubjects()
       .then((subs) => {
         if (subs && subs.length > 0) setAvailableSubjects(subs);
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    loadBatches();
+    loadSubjects();
+  }, [authUser, loadBatches, loadSubjects]);
 
   // Handler: save primary subject to mentor profile
   const handleSaveProfileSubject = async (subj: string) => {
@@ -592,11 +597,37 @@ export default function HostPage() {
       setError('Add at least one question.');
       return;
     }
-    if (!quizBatchId) {
-      setError('Please select a batch before starting the session.');
+
+    setLoading(true);
+
+    let activeBatchId = quizBatchId;
+    if (!activeBatchId) {
+      if (availableBatchObjects.length > 0) {
+        activeBatchId = availableBatchObjects[0].id;
+        setQuizBatchId(activeBatchId);
+        setQuizBatch(availableBatchObjects[0].displayName);
+      } else {
+        try {
+          const objs = await fetchBatchObjects();
+          if (objs && objs.length > 0) {
+            setAvailableBatchObjects(objs);
+            setAvailableBatches(objs.map((o) => o.displayName));
+            activeBatchId = objs[0].id;
+            setQuizBatchId(activeBatchId);
+            setQuizBatch(objs[0].displayName);
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+
+    if (!activeBatchId) {
+      setLoading(false);
+      setError('Please select or create a batch before starting the session.');
       return;
     }
-    setLoading(true);
+
     try {
       const token = getAuthToken();
       if (!token) {
@@ -620,7 +651,7 @@ export default function HostPage() {
           questions,
           topic,
           subject: quizSubject || 'General',
-          batchId: quizBatchId,
+          batchId: activeBatchId,
         }),
       });
       const d = await res.json();
@@ -641,7 +672,7 @@ export default function HostPage() {
                   questions,
                   topic,
                   subject: quizSubject || 'General',
-                  batchId: quizBatchId,
+                  batchId: activeBatchId,
                 }),
               });
               if (retryRes.ok) {
@@ -1023,6 +1054,8 @@ export default function HostPage() {
         onSuccess={(user) => {
           setAuthUser(user);
           setShowAuthModal(false);
+          loadBatches();
+          loadSubjects();
           if (user.role !== 'mentor' && user.role !== 'admin') {
             setShowPinModal(true);
           }
@@ -1043,6 +1076,8 @@ export default function HostPage() {
         onSuccess={(updated) => {
           setAuthUser(updated);
           setShowPinModal(false);
+          loadBatches();
+          loadSubjects();
         }}
         onCancel={() => {
           setShowPinModal(false);
@@ -1866,8 +1901,18 @@ export default function HostPage() {
                           Target Batch / Class
                         </label>
                         {availableBatchObjects.length === 0 ? (
-                          <div style={{ padding: '0.5rem 0', color: 'var(--text-secondary, #9CA3AF)', fontSize: '0.85rem' }}>
-                            No active batches found in database.
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.4rem 0' }}>
+                            <span style={{ color: 'var(--text-secondary, #9CA3AF)', fontSize: '0.85rem' }}>
+                              Loading batches…
+                            </span>
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              onClick={loadBatches}
+                              style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+                            >
+                              ↻ Reload
+                            </button>
                           </div>
                         ) : (
                           <select
@@ -1959,7 +2004,7 @@ export default function HostPage() {
                   <button
                     className="btn btn-primary btn--lg btn--full"
                     onClick={createSession}
-                    disabled={loading || questions.length === 0 || !quizBatchId}
+                    disabled={loading || questions.length === 0}
                     id="create-session-btn"
                   >
                     {loading ? (
