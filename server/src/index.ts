@@ -129,7 +129,7 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
 // These endpoints can allocate memory or spend an external AI quota. Keep a
 // small dependency-free limiter in front of them; the classroom socket flow is
 // intentionally not limited by this HTTP limiter.
-function rateLimit(windowMs: number, maxRequests: number) {
+function rateLimit(windowMs: number, maxRequests: number, keyFn?: (req: Request) => string) {
   const hits = new Map<string, { startedAt: number; count: number }>();
 
   // Periodically clean up expired entries to prevent memory accumulation
@@ -145,7 +145,7 @@ function rateLimit(windowMs: number, maxRequests: number) {
 
   return (req: Request, res: Response, next: NextFunction): void => {
     const now = Date.now();
-    const key = req.ip || req.socket.remoteAddress || 'unknown';
+    const key = keyFn?.(req) || req.ip || req.socket.remoteAddress || 'unknown';
     const current = hits.get(key);
     if (!current || now - current.startedAt >= windowMs) {
       hits.set(key, { startedAt: now, count: 1 });
@@ -166,7 +166,20 @@ const aiGenerationLimiter = rateLimit(60_000, 10);
 
 // Both of these hand out or check a credential, so they are brute-force
 // targets in a way the rest of the API is not.
-const otpSendLimiter = rateLimit(15 * 60_000, 5);
+//
+// The OTP cap is counted per email address, not per IP. A whole class joining
+// from one lecture hall leaves the campus network through a single NAT address,
+// so an IP-keyed cap of 5 was spent by the fifth student and locked everyone
+// after them out of logging in at all -- and login is mandatory before a student
+// can reach the join screen. Per email, each student still gets 5 attempts
+// while one address cannot be flooded. The IP ceiling below stays as the
+// backstop against enumerating many addresses from one host; it is set high
+// enough for a full room of students to sign in.
+const otpSendLimiter = rateLimit(15 * 60_000, 5, (req) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.toLowerCase().trim() : '';
+  return email ? `email:${email}` : `ip:${req.ip || req.socket.remoteAddress || 'unknown'}`;
+});
+const otpSendIpCeiling = rateLimit(15 * 60_000, 400);
 const pinAttemptLimiter = rateLimit(15 * 60_000, 10);
 const bootstrapLimiter = rateLimit(60 * 60_000, 5);
 
@@ -436,7 +449,7 @@ app.post('/api/auth/demo', async (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/auth/otp/send', otpSendLimiter, async (req: Request, res: Response) => {
+app.post('/api/auth/otp/send', otpSendIpCeiling, otpSendLimiter, async (req: Request, res: Response) => {
   try {
     const { email } = req.body as { email?: string };
     if (!email) {
