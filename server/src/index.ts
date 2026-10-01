@@ -45,6 +45,12 @@ import {
   isUsingPostgres,
   getAllSubjects,
   updateUserProfile,
+  createQuizDraft,
+  getQuizDrafts,
+  getQuizDraftById,
+  updateQuizDraft,
+  deleteQuizDraft,
+  touchQuizDraftLastUsed,
 } from './db';
 import {
   getAllowedDomains,
@@ -293,12 +299,39 @@ app.post('/api/sessions', sessionCreationLimiter, requireMentor, async (req: Aut
     topic?: string;
     subject?: string;
     batchId?: string;
+    draftId?: string;
   };
-  const result = validateQuestions(body?.questions);
 
-  if (!result.ok) {
-    res.status(400).json({ error: result.error });
-    return;
+  let questionsToUse: Question[];
+  let draftSubject: string | undefined;
+  let sourceDraftId: string | undefined;
+
+  if (body?.draftId) {
+    const draftId = String(body.draftId).trim();
+    const draft = await getQuizDraftById(draftId);
+    if (!draft) {
+      res.status(404).json({ error: 'Quiz draft not found.' });
+      return;
+    }
+    if (draft.mentorEmail.toLowerCase() !== req.user!.email.toLowerCase() && req.user?.role !== 'admin') {
+      res.status(403).json({ error: 'Access denied: You do not own this quiz draft.' });
+      return;
+    }
+    const valResult = validateQuestions(draft.questions);
+    if (!valResult.ok) {
+      res.status(400).json({ error: `Invalid draft questions: ${valResult.error}` });
+      return;
+    }
+    questionsToUse = valResult.questions;
+    draftSubject = draft.subject;
+    sourceDraftId = draft.id;
+  } else {
+    const result = validateQuestions(body?.questions);
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    questionsToUse = result.questions;
   }
 
   if (!body?.batchId || typeof body.batchId !== 'string' || !body.batchId.trim()) {
@@ -334,15 +367,16 @@ app.post('/api/sessions', sessionCreationLimiter, requireMentor, async (req: Aut
   const hostEmail = req.user!.email.toLowerCase();
   const hostName = req.user!.realName || 'Faculty Mentor';
 
-  const topic = body?.topic?.trim() || (result.questions[0]?.text ? `Quiz: ${result.questions[0].text.slice(0, 40)}...` : 'Classroom Quiz');
-  const subject = body?.subject?.trim() || liveUser?.subject || 'General';
+  const topic = body?.topic?.trim() || (questionsToUse[0]?.text ? `Quiz: ${questionsToUse[0].text.slice(0, 40)}...` : 'Classroom Quiz');
+  const subject = body?.subject?.trim() || draftSubject || liveUser?.subject || 'General';
   const batch = batchRecord.displayName;
 
-  const session = createSession(result.questions, {
+  const session = createSession(questionsToUse, {
     topic,
     subject,
     batch,
     batchId: batchRecord.id,
+    sourceDraftId,
     hostEmail,
     hostName,
   });
@@ -355,6 +389,7 @@ app.post('/api/sessions', sessionCreationLimiter, requireMentor, async (req: Aut
       subject,
       batch,
       batchId: batchRecord.id,
+      sourceDraftId,
       hostEmail: session.hostEmail,
       hostName: session.hostName,
       questionCount: session.questions.length,
@@ -363,17 +398,21 @@ app.post('/api/sessions', sessionCreationLimiter, requireMentor, async (req: Aut
       createdAt: new Date(session.createdAt).toISOString(),
     });
 
+    if (sourceDraftId) {
+      await touchQuizDraftLastUsed(sourceDraftId);
+    }
+
     await recordAuditLog(
       session.hostEmail,
       'SESSION_CREATED',
       session.code,
-      { topic, subject, batch, batchId: batchRecord.id, questionCount: session.questions.length }
+      { topic, subject, batch, batchId: batchRecord.id, sourceDraftId, questionCount: session.questions.length }
     );
   } catch (err) {
     console.error('[db] Error pre-saving session to DB:', err);
   }
 
-  console.log(`[session] created ${session.code} with ${result.questions.length} question(s) [${topic}] [${subject}] [${batch}] (${batchRecord.id}) by ${hostEmail}`);
+  console.log(`[session] created ${session.code} with ${questionsToUse.length} question(s) [${topic}] [${subject}] [${batch}] (${batchRecord.id}) by ${hostEmail}`);
   res.status(201).json({
     code: session.code,
     hostId: session.hostId,
@@ -382,6 +421,7 @@ app.post('/api/sessions', sessionCreationLimiter, requireMentor, async (req: Aut
     subject,
     batch,
     batchId: batchRecord.id,
+    sourceDraftId,
   });
 });
 
@@ -590,6 +630,202 @@ app.post('/api/admin/bootstrap', bootstrapLimiter, requireAuth, async (req: Auth
   } catch (err) {
     console.error('[admin] Bootstrap failed:', err);
     res.status(500).json({ error: 'Failed to bootstrap administrator.' });
+  }
+});
+
+// ─── REST: Quiz Drafts (Reusable Quizzes) ──────────────────────────────────
+
+/**
+ * Create a new quiz draft (reusable quiz).
+ */
+app.post('/api/mentor/quizzes/draft', requireMentor, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { title, subject, questions } = req.body as {
+      title?: string;
+      subject?: string;
+      questions?: unknown;
+    };
+
+    if (!title || typeof title !== 'string' || !title.trim()) {
+      res.status(400).json({ error: 'Quiz title is required.' });
+      return;
+    }
+
+    const valResult = validateQuestions(questions);
+    if (!valResult.ok) {
+      res.status(400).json({ error: valResult.error });
+      return;
+    }
+
+    const mentorEmail = req.user!.email.toLowerCase().trim();
+    const draft = await createQuizDraft({
+      title: title.trim(),
+      subject: typeof subject === 'string' ? subject.trim() : undefined,
+      questions: valResult.questions,
+      mentorEmail,
+    });
+
+    await recordAuditLog(mentorEmail, 'QUIZ_DRAFT_CREATED', draft.id, {
+      title: draft.title,
+      questionCount: valResult.questions.length,
+    });
+
+    res.status(201).json(draft);
+  } catch (err: any) {
+    console.error('[quiz-draft] Error creating draft:', err);
+    res.status(500).json({ error: 'Failed to create quiz draft.' });
+  }
+});
+
+/**
+ * List quiz drafts owned by the mentor (or for admin viewing another mentor's drafts with ?mentorEmail=).
+ */
+app.get('/api/mentor/quizzes/draft', requireMentor, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const status = req.query.status === 'archived' ? 'archived' : 'draft';
+    let targetEmail = req.user!.email.toLowerCase().trim();
+
+    if (req.user?.role === 'admin' && req.query.mentorEmail) {
+      targetEmail = String(req.query.mentorEmail).toLowerCase().trim();
+    }
+
+    const drafts = await getQuizDrafts(targetEmail, status);
+    res.json(drafts);
+  } catch (err: any) {
+    console.error('[quiz-draft] Error fetching drafts:', err);
+    res.status(500).json({ error: 'Failed to fetch quiz drafts.' });
+  }
+});
+
+/**
+ * Fetch a single quiz draft by ID (full questions included).
+ */
+app.get('/api/mentor/quizzes/draft/:id', requireMentor, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const draft = await getQuizDraftById(id);
+    if (!draft) {
+      res.status(404).json({ error: 'Quiz draft not found.' });
+      return;
+    }
+
+    if (draft.mentorEmail.toLowerCase() !== req.user!.email.toLowerCase() && req.user?.role !== 'admin') {
+      res.status(403).json({ error: 'Access denied: You do not own this quiz draft.' });
+      return;
+    }
+
+    res.json(draft);
+  } catch (err: any) {
+    console.error('[quiz-draft] Error fetching draft:', err);
+    res.status(500).json({ error: 'Failed to fetch quiz draft.' });
+  }
+});
+
+/**
+ * Update a quiz draft (PATCH). Only the owning mentor may update; admin is read-only.
+ */
+app.patch('/api/mentor/quizzes/draft/:id', requireMentor, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const draft = await getQuizDraftById(id);
+    if (!draft) {
+      res.status(404).json({ error: 'Quiz draft not found.' });
+      return;
+    }
+
+    // Strictly mentor ownership: admin cannot PATCH someone else's draft
+    if (draft.mentorEmail.toLowerCase() !== req.user!.email.toLowerCase()) {
+      res.status(403).json({ error: 'Access denied: You do not own this quiz draft.' });
+      return;
+    }
+
+    const body = req.body as {
+      title?: string;
+      subject?: string;
+      questions?: unknown;
+      status?: 'draft' | 'archived';
+    };
+
+    const updates: {
+      title?: string;
+      subject?: string;
+      questions?: unknown[];
+      status?: 'draft' | 'archived';
+    } = {};
+
+    if (body.title !== undefined) {
+      if (typeof body.title !== 'string' || !body.title.trim()) {
+        res.status(400).json({ error: 'Quiz title cannot be empty.' });
+        return;
+      }
+      updates.title = body.title.trim().slice(0, 200);
+    }
+
+    if (body.subject !== undefined) {
+      updates.subject = typeof body.subject === 'string' ? body.subject.trim().slice(0, 120) : '';
+    }
+
+    if (body.status !== undefined) {
+      if (body.status !== 'draft' && body.status !== 'archived') {
+        res.status(400).json({ error: 'Invalid status. Must be "draft" or "archived".' });
+        return;
+      }
+      updates.status = body.status;
+    }
+
+    if (body.questions !== undefined) {
+      const valResult = validateQuestions(body.questions);
+      if (!valResult.ok) {
+        res.status(400).json({ error: valResult.error });
+        return;
+      }
+      updates.questions = valResult.questions;
+    }
+
+    const updated = await updateQuizDraft(id, updates);
+    await recordAuditLog(req.user!.email, 'QUIZ_DRAFT_UPDATED', id, {
+      title: updated?.title,
+      questionCount: updated?.questions.length,
+    });
+
+    res.json(updated);
+  } catch (err: any) {
+    console.error('[quiz-draft] Error updating draft:', err);
+    res.status(500).json({ error: 'Failed to update quiz draft.' });
+  }
+});
+
+/**
+ * Delete a quiz draft. Hard delete; only the owning mentor may delete; admin is read-only.
+ */
+app.delete('/api/mentor/quizzes/draft/:id', requireMentor, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const draft = await getQuizDraftById(id);
+    if (!draft) {
+      res.status(404).json({ error: 'Quiz draft not found.' });
+      return;
+    }
+
+    if (draft.mentorEmail.toLowerCase() !== req.user!.email.toLowerCase()) {
+      res.status(403).json({ error: 'Access denied: You do not own this quiz draft.' });
+      return;
+    }
+
+    const deleted = await deleteQuizDraft(id);
+    if (!deleted) {
+      res.status(404).json({ error: 'Quiz draft not found.' });
+      return;
+    }
+
+    await recordAuditLog(req.user!.email, 'QUIZ_DRAFT_DELETED', id, {
+      title: draft.title,
+    });
+
+    res.json({ success: true, id });
+  } catch (err: any) {
+    console.error('[quiz-draft] Error deleting draft:', err);
+    res.status(500).json({ error: 'Failed to delete quiz draft.' });
   }
 });
 

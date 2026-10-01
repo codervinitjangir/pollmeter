@@ -51,6 +51,7 @@ export interface QuizSessionRecord {
   subject?: string;
   batch?: string;
   batchId?: string;
+  sourceDraftId?: string;
   hostEmail: string;
   hostName?: string;
   questionCount: number;
@@ -58,6 +59,18 @@ export interface QuizSessionRecord {
   questions?: unknown[];
   createdAt: string;
   endedAt?: string;
+}
+
+export interface QuizRecord {
+  id: string;
+  mentorEmail: string;
+  title: string;
+  subject?: string;
+  questions: unknown[];
+  status: 'draft' | 'archived';
+  createdAt: string;
+  updatedAt: string;
+  lastUsedAt?: string | null;
 }
 
 export interface SessionParticipantRecord {
@@ -107,6 +120,7 @@ interface LocalSchema {
   responses: StudentResponseRecord[];
   auditLogs?: AuditLogRecord[];
   batches?: Record<string, Batch>;
+  quizzes?: Record<string, QuizRecord>;
 }
 
 let pool: Pool | null = null;
@@ -260,6 +274,7 @@ export async function initDb(): Promise<void> {
           ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS subject VARCHAR(160) DEFAULT 'General';
           ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS batch VARCHAR(100) DEFAULT 'General';
           ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS batch_id VARCHAR(64);
+          ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS source_draft_id VARCHAR(64);
 
           CREATE TABLE IF NOT EXISTS session_participants (
             id VARCHAR(64) PRIMARY KEY,
@@ -317,6 +332,18 @@ export async function initDb(): Promise<void> {
             created_by_role VARCHAR(20),
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             CONSTRAINT uq_batch_display_name UNIQUE (display_name)
+          );
+
+          CREATE TABLE IF NOT EXISTS quizzes (
+            id UUID PRIMARY KEY,
+            mentor_email VARCHAR(160) NOT NULL,
+            title VARCHAR(200) NOT NULL,
+            subject VARCHAR(120),
+            questions JSONB NOT NULL,
+            status VARCHAR(20) DEFAULT 'draft',
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            last_used_at TIMESTAMP WITH TIME ZONE
           );
         `);
 
@@ -528,14 +555,15 @@ export async function countAdmins(): Promise<number> {
 export async function saveQuizSession(session: QuizSessionRecord): Promise<void> {
   if (usePostgres && pool) {
     await pool.query(
-      `INSERT INTO quiz_sessions (id, code, topic, subject, batch, batch_id, host_email, host_name, question_count, participant_count, questions, created_at, ended_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      `INSERT INTO quiz_sessions (id, code, topic, subject, batch, batch_id, source_draft_id, host_email, host_name, question_count, participant_count, questions, created_at, ended_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        ON CONFLICT (id) DO UPDATE
        SET participant_count = EXCLUDED.participant_count,
            ended_at = EXCLUDED.ended_at,
            subject = COALESCE(EXCLUDED.subject, quiz_sessions.subject),
            batch = COALESCE(EXCLUDED.batch, quiz_sessions.batch),
-           batch_id = COALESCE(EXCLUDED.batch_id, quiz_sessions.batch_id)`,
+           batch_id = COALESCE(EXCLUDED.batch_id, quiz_sessions.batch_id),
+           source_draft_id = COALESCE(EXCLUDED.source_draft_id, quiz_sessions.source_draft_id)`,
       [
         session.id,
         session.code,
@@ -543,6 +571,7 @@ export async function saveQuizSession(session: QuizSessionRecord): Promise<void>
         session.subject || 'General',
         session.batch || 'General',
         session.batchId ?? null,
+        session.sourceDraftId ?? null,
         session.hostEmail.toLowerCase(),
         session.hostName ?? null,
         session.questionCount,
@@ -701,7 +730,7 @@ export async function getMentorQuizzes(
   if (usePostgres && pool) {
     let query = `
       SELECT qs.id, qs.code, qs.topic, COALESCE(qs.subject, 'General') as subject, COALESCE(qs.batch, 'General') as batch,
-             qs.batch_id as "batchId",
+             qs.batch_id as "batchId", qs.source_draft_id as "sourceDraftId",
              qs.host_email as "hostEmail", qs.host_name as "hostName", qs.question_count as "questionCount",
              qs.participant_count as "participantCount", qs.questions, qs.created_at as "createdAt", qs.ended_at as "endedAt"
       FROM quiz_sessions qs
@@ -803,7 +832,7 @@ export async function getQuizDetails(sessionId: string): Promise<{
   if (usePostgres && pool) {
     const sRes = await pool.query(
       `SELECT id, code, topic, COALESCE(subject, 'General') as subject, COALESCE(batch, 'General') as batch,
-              batch_id as "batchId",
+              batch_id as "batchId", source_draft_id as "sourceDraftId",
               host_email as "hostEmail", host_name as "hostName",
               question_count as "questionCount", participant_count as "participantCount",
               questions, created_at as "createdAt", ended_at as "endedAt"
@@ -1773,4 +1802,206 @@ export async function updateUserProfile(
   if (cleanName !== undefined) user.realName = cleanName;
   saveLocalDb();
   return user;
+}
+
+// ─── Quiz Drafts (reusable, batch-agnostic) ───────────────────────────────────
+
+export interface QuizDraftSummary {
+  id: string;
+  mentorEmail: string;
+  title: string;
+  subject?: string;
+  questionCount: number;
+  status: 'draft' | 'archived';
+  createdAt: string;
+  updatedAt: string;
+  lastUsedAt?: string | null;
+}
+
+export async function createQuizDraft(draft: {
+  title: string;
+  subject?: string;
+  questions: unknown[];
+  mentorEmail: string;
+}): Promise<QuizRecord> {
+  const id = uuidv4();
+  const now = new Date().toISOString();
+  const cleanEmail = draft.mentorEmail.toLowerCase().trim();
+  const title = draft.title.trim().slice(0, 200);
+  const subject = draft.subject?.trim().slice(0, 120) || 'General';
+
+  if (usePostgres && pool) {
+    const res = await pool.query(
+      `INSERT INTO quizzes (id, mentor_email, title, subject, questions, status, created_at, updated_at, last_used_at)
+       VALUES ($1, $2, $3, $4, $5, 'draft', $6, $6, NULL)
+       RETURNING id, mentor_email as "mentorEmail", title, subject, questions, status,
+                 created_at as "createdAt", updated_at as "updatedAt", last_used_at as "lastUsedAt"`,
+      [id, cleanEmail, title, subject, JSON.stringify(draft.questions), now]
+    );
+    return res.rows[0];
+  }
+
+  // Local JSON fallback
+  if (!localDb.quizzes) {
+    localDb.quizzes = {};
+  }
+  const record: QuizRecord = {
+    id,
+    mentorEmail: cleanEmail,
+    title,
+    subject,
+    questions: draft.questions,
+    status: 'draft',
+    createdAt: now,
+    updatedAt: now,
+    lastUsedAt: null,
+  };
+  localDb.quizzes[id] = record;
+  saveLocalDb();
+  return record;
+}
+
+export async function getQuizDrafts(mentorEmail?: string, status: string = 'draft'): Promise<QuizDraftSummary[]> {
+  const cleanStatus = status === 'archived' ? 'archived' : 'draft';
+  const cleanEmail = mentorEmail ? mentorEmail.toLowerCase().trim() : null;
+
+  if (usePostgres && pool) {
+    let query = `
+      SELECT id, mentor_email as "mentorEmail", title, subject,
+             COALESCE(jsonb_array_length(CASE WHEN jsonb_typeof(questions) = 'array' THEN questions ELSE '[]'::jsonb END), 0) as "questionCount",
+             status, created_at as "createdAt", updated_at as "updatedAt", last_used_at as "lastUsedAt"
+      FROM quizzes
+      WHERE status = $1
+    `;
+    const params: unknown[] = [cleanStatus];
+    if (cleanEmail) {
+      params.push(cleanEmail);
+      query += ` AND LOWER(mentor_email) = $${params.length}`;
+    }
+    query += ` ORDER BY updated_at DESC`;
+    const res = await pool.query(query, params);
+    return res.rows.map((row) => ({
+      ...row,
+      questionCount: Number(row.questionCount || 0),
+    }));
+  }
+
+  // Local JSON fallback
+  if (!localDb.quizzes) localDb.quizzes = {};
+  const all = Object.values(localDb.quizzes);
+  let filtered = all.filter((q) => q.status === cleanStatus);
+  if (cleanEmail) {
+    filtered = filtered.filter((q) => q.mentorEmail.toLowerCase() === cleanEmail);
+  }
+  return filtered
+    .map((q) => ({
+      id: q.id,
+      mentorEmail: q.mentorEmail,
+      title: q.title,
+      subject: q.subject,
+      questionCount: Array.isArray(q.questions) ? q.questions.length : 0,
+      status: q.status,
+      createdAt: q.createdAt,
+      updatedAt: q.updatedAt,
+      lastUsedAt: q.lastUsedAt ?? null,
+    }))
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+}
+
+export async function getQuizDraftById(id: string): Promise<QuizRecord | null> {
+  if (usePostgres && pool) {
+    const res = await pool.query(
+      `SELECT id, mentor_email as "mentorEmail", title, subject, questions, status,
+              created_at as "createdAt", updated_at as "updatedAt", last_used_at as "lastUsedAt"
+       FROM quizzes
+       WHERE id = $1`,
+      [id]
+    );
+    return res.rows[0] ?? null;
+  }
+
+  // Local JSON fallback
+  if (!localDb.quizzes) return null;
+  return localDb.quizzes[id] ?? null;
+}
+
+export async function updateQuizDraft(
+  id: string,
+  updates: {
+    title?: string;
+    subject?: string;
+    questions?: unknown[];
+    status?: 'draft' | 'archived';
+  }
+): Promise<QuizRecord | null> {
+  const now = new Date().toISOString();
+
+  if (usePostgres && pool) {
+    const fields: string[] = ['updated_at = $2'];
+    const params: unknown[] = [id, now];
+
+    if (updates.title !== undefined) {
+      params.push(updates.title.trim().slice(0, 200));
+      fields.push(`title = $${params.length}`);
+    }
+    if (updates.subject !== undefined) {
+      params.push(updates.subject.trim().slice(0, 120));
+      fields.push(`subject = $${params.length}`);
+    }
+    if (updates.questions !== undefined) {
+      params.push(JSON.stringify(updates.questions));
+      fields.push(`questions = $${params.length}`);
+    }
+    if (updates.status !== undefined) {
+      params.push(updates.status === 'archived' ? 'archived' : 'draft');
+      fields.push(`status = $${params.length}`);
+    }
+
+    const query = `
+      UPDATE quizzes
+      SET ${fields.join(', ')}
+      WHERE id = $1
+      RETURNING id, mentor_email as "mentorEmail", title, subject, questions, status,
+                created_at as "createdAt", updated_at as "updatedAt", last_used_at as "lastUsedAt"
+    `;
+    const res = await pool.query(query, params);
+    return res.rows[0] ?? null;
+  }
+
+  // Local JSON fallback
+  if (!localDb.quizzes || !localDb.quizzes[id]) return null;
+  const current = localDb.quizzes[id];
+  if (updates.title !== undefined) current.title = updates.title.trim().slice(0, 200);
+  if (updates.subject !== undefined) current.subject = updates.subject.trim().slice(0, 120);
+  if (updates.questions !== undefined) current.questions = updates.questions;
+  if (updates.status !== undefined) current.status = updates.status === 'archived' ? 'archived' : 'draft';
+  current.updatedAt = now;
+  saveLocalDb();
+  return current;
+}
+
+export async function deleteQuizDraft(id: string): Promise<boolean> {
+  if (usePostgres && pool) {
+    const res = await pool.query('DELETE FROM quizzes WHERE id = $1', [id]);
+    return (res.rowCount ?? 0) > 0;
+  }
+
+  // Local JSON fallback
+  if (!localDb.quizzes || !localDb.quizzes[id]) return false;
+  delete localDb.quizzes[id];
+  saveLocalDb();
+  return true;
+}
+
+export async function touchQuizDraftLastUsed(id: string): Promise<void> {
+  const now = new Date().toISOString();
+  if (usePostgres && pool) {
+    await pool.query('UPDATE quizzes SET last_used_at = $1 WHERE id = $2', [now, id]);
+    return;
+  }
+
+  if (localDb.quizzes && localDb.quizzes[id]) {
+    localDb.quizzes[id].lastUsedAt = now;
+    saveLocalDb();
+  }
 }

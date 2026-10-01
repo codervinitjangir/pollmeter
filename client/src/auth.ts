@@ -1,4 +1,5 @@
 import { apiUrl } from './api';
+import { Question, QuizDraft, QuizDraftSummary } from './types';
 
 export interface AuthUser {
   id: string;
@@ -880,4 +881,120 @@ export async function fetchAdminAuditLogs(): Promise<AuditLogItem[]> {
   const data = await res.json();
   return data.logs || [];
 }
+
+// ─── Quiz Drafts Client API ───────────────────────────────────────────────────
+
+export async function fetchQuizDrafts(
+  status: string = 'draft',
+  mentorEmail?: string
+): Promise<QuizDraftSummary[]> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Authentication required');
+
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (mentorEmail) params.set('mentorEmail', mentorEmail);
+
+  const qs = params.toString();
+  const url = qs ? apiUrl(`/api/mentor/quizzes/draft?${qs}`) : apiUrl('/api/mentor/quizzes/draft');
+
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to fetch quiz drafts');
+  }
+
+  return res.json();
+}
+
+export async function fetchQuizDraftById(id: string): Promise<QuizDraft> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Authentication required');
+
+  const res = await fetch(apiUrl(`/api/mentor/quizzes/draft/${id}`), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to fetch quiz draft');
+  }
+
+  return res.json();
+}
+
+export async function createQuizDraft(data: {
+  title: string;
+  subject?: string;
+  questions: Question[];
+}): Promise<QuizDraft> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Authentication required');
+
+  const res = await fetch(apiUrl('/api/mentor/quizzes/draft'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to create quiz draft');
+  }
+
+  return res.json();
+}
+
+export async function updateQuizDraft(
+  id: string,
+  data: {
+    title?: string;
+    subject?: string;
+    questions?: Question[];
+    status?: 'draft' | 'archived';
+  }
+): Promise<QuizDraft> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Authentication required');
+
+  const res = await fetch(apiUrl(`/api/mentor/quizzes/draft/${id}`), {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to update quiz draft');
+  }
+
+  return res.json();
+}
+
+export async function deleteQuizDraft(id: string): Promise<boolean> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Authentication required');
+
+  const res = await fetch(apiUrl(`/api/mentor/quizzes/draft/${id}`), {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to delete quiz draft');
+  }
+
+  return true;
+}
+
 

@@ -171,6 +171,7 @@ Requirements:
 - Only assert things you are certain of. Do not invent specific dates, version numbers, statistics, percentages, author names, or citations. If you are not sure of a specific figure, ask about the underlying concept instead — a concept question that is right beats a precise-sounding question that is wrong.
 - Before you emit each question, re-read your own options and confirm that exactly one is correct and every other option is clearly, defensibly wrong. If two options could both be argued, rewrite the question.
 - correctAnswer must be copied character-for-character from one of the options, with identical spelling, casing and spacing.
+- Randomize the position of the correct answer across the options. Do NOT always place the correct answer as option A or the first option.
 - Write in clean, simple plain text. DO NOT use markdown backticks, asterisks, or code symbols in question text or options (e.g. write process.nextTick plainly, write Node.js without spaces).
 - Keep question text under 140 characters; it has to be readable from the back of a classroom.
 - Keep each option under 65 characters.
@@ -412,6 +413,17 @@ function normalizeQuestions(
   const questions: Question[] = [];
   const seen = existingFingerprints ? new Set<string>(existingFingerprints) : new Set<string>();
 
+  // Slot balance pool for MCQ options:
+  // Randomly distribute the correct answer across indices 0, 1, 2, 3 so no single letter (like A) dominates.
+  let slotPool: number[] = [];
+  const getNextTargetSlot = (totalOptions: number): number => {
+    if (slotPool.length === 0) {
+      const slots = Array.from({ length: Math.min(4, totalOptions) }, (_, i) => i);
+      slotPool = shuffle(slots);
+    }
+    return slotPool.pop() ?? 0;
+  };
+
   for (const item of raw) {
     if (typeof item !== 'object' || item === null) continue;
     const record = item as Record<string, unknown>;
@@ -499,11 +511,17 @@ function normalizeQuestions(
       }
     }
 
+    // Distribute the correct answer into targetSlot so slot A isn't always favored
+    const shuffledDistractors = shuffle(distractors).slice(0, 5);
+    const targetSlot = Math.min(getNextTargetSlot(shuffledDistractors.length + 1), shuffledDistractors.length);
+    const finalOptions = [...shuffledDistractors];
+    finalOptions.splice(targetSlot, 0, matchingOption);
+
     questions.push({
       id: uuidv4(),
       type: 'mcq',
       text,
-      options: shuffle(unique.slice(0, 6)),
+      options: finalOptions,
       correctAnswer: matchingOption,
       timeLimitSeconds,
       ...reviewMeta(record),
@@ -628,27 +646,41 @@ function buildBankQuestions(req: GenerateRequest): Question[] {
   const questions: Question[] = [];
   const pool = shuffle(matched.questions);
 
+  let bankSlotPool: number[] = [];
+  const getBankTargetSlot = (totalOptions: number): number => {
+    if (bankSlotPool.length === 0) {
+      const slots = Array.from({ length: Math.min(4, totalOptions) }, (_, i) => i);
+      bankSlotPool = shuffle(slots);
+    }
+    return bankSlotPool.pop() ?? 0;
+  };
+
   for (let i = 0; i < Math.min(req.count, pool.length); i++) {
     const item = pool[i];
     const wantMcq = req.type === 'mcq' ? true : req.type === 'open_text' ? false : i % 3 !== 2;
 
-    questions.push(
-      wantMcq
-        ? {
-            id: uuidv4(),
-            type: 'mcq',
-            text: item.text,
-            options: shuffle(item.options),
-            correctAnswer: item.correctAnswer,
-            timeLimitSeconds: req.timeLimitSeconds,
-          }
-        : {
-            id: uuidv4(),
-            type: 'open_text',
-            text: item.openPrompt,
-            timeLimitSeconds: Math.max(req.timeLimitSeconds, 45),
-          }
-    );
+    if (wantMcq) {
+      const distractors = shuffle(item.options.filter((o) => o !== item.correctAnswer));
+      const targetSlot = Math.min(getBankTargetSlot(distractors.length + 1), distractors.length);
+      const finalOptions = [...distractors];
+      finalOptions.splice(targetSlot, 0, item.correctAnswer);
+
+      questions.push({
+        id: uuidv4(),
+        type: 'mcq',
+        text: item.text,
+        options: finalOptions,
+        correctAnswer: item.correctAnswer,
+        timeLimitSeconds: req.timeLimitSeconds,
+      });
+    } else {
+      questions.push({
+        id: uuidv4(),
+        type: 'open_text',
+        text: item.openPrompt,
+        timeLimitSeconds: Math.max(req.timeLimitSeconds, 45),
+      });
+    }
   }
 
   return questions;

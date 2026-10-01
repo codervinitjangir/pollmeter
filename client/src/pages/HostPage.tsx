@@ -35,6 +35,9 @@ import { getAuthUser, getAuthToken, clearStoredAuth, AuthUser, fetchBatches, fet
 import CollegeAuthModal from '../components/CollegeAuthModal';
 import MentorPinModal from '../components/MentorPinModal';
 import MentorQuizHistoryModal from '../components/MentorQuizHistoryModal';
+import QuizLibrary from '../components/QuizLibrary';
+import BatchPicker from '../components/BatchPicker';
+import { createQuizDraft, updateQuizDraft } from '../auth';
 import { getActiveTheme, toggleTheme, Theme } from '../theme';
 
 /**
@@ -101,8 +104,11 @@ export default function HostPage() {
     const u = getAuthUser();
     return Boolean(u && !isFacultyEmail(u.email) && u.role !== 'mentor' && u.role !== 'admin');
   });
-  const [showPastQuizzes, setShowPastQuizzes] = useState(false);
-  const [hostView, setHostView] = useState<'builder' | 'reports'>('builder');
+  const [hostView, setHostView] = useState<'builder' | 'library' | 'reports'>('builder');
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+  const [editingDraftTitle, setEditingDraftTitle] = useState<string | null>(null);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [draftSavedToast, setDraftSavedToast] = useState<{ message: string; draftId: string } | null>(null);
 
   const [batchesLoading, setBatchesLoading] = useState(false);
 
@@ -695,6 +701,94 @@ export default function HostPage() {
     }
   }
 
+  const handleSaveDraft = async () => {
+    setError('');
+    setDraftSavedToast(null);
+    if (!authUser) {
+      setShowAuthModal(true);
+      return;
+    }
+    if (authUser.role !== 'mentor' && authUser.role !== 'admin') {
+      setShowPinModal(true);
+      return;
+    }
+    if (questions.length === 0) {
+      setError('Add at least one question before saving as draft.');
+      return;
+    }
+
+    setSavingDraft(true);
+    try {
+      const title = aiInitialTopic.trim() || (questions[0]?.text ? `Quiz: ${questions[0].text.slice(0, 40)}...` : 'Classroom Quiz');
+      const subject = quizSubject || 'General';
+
+      if (editingDraftId) {
+        const updated = await updateQuizDraft(editingDraftId, {
+          title,
+          subject,
+          questions,
+        });
+        setEditingDraftTitle(updated.title);
+        setDraftSavedToast({ message: `Draft "${updated.title}" updated successfully.`, draftId: updated.id });
+      } else {
+        const created = await createQuizDraft({
+          title,
+          subject,
+          questions,
+        });
+        setEditingDraftId(created.id);
+        setEditingDraftTitle(created.title);
+        setDraftSavedToast({ message: `Draft "${created.title}" saved to your library!`, draftId: created.id });
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to save draft.');
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
+  const launchSessionFromDraft = async (draftId: string, batchId: string, batchName: string) => {
+    setError('');
+    setLoading(true);
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        setShowAuthModal(true);
+        throw new Error('Authentication required');
+      }
+
+      const res = await fetch(apiUrl('/api/sessions'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          draftId,
+          batchId,
+        }),
+      });
+
+      const d = await res.json();
+      if (!res.ok) {
+        throw new Error(d.error || 'Failed to start live session.');
+      }
+
+      credentials.current = { code: d.code, hostId: d.hostId };
+      localStorage.setItem(HOST_LS_KEY, JSON.stringify(credentials.current));
+      setCode(d.code);
+      setQuizBatchId(batchId);
+      setQuizBatch(batchName);
+      setQuestionCount(d.questions?.length || 0);
+      setQuestions(d.questions || []);
+      setPhase('lobby');
+      setInSession(true);
+      socket.emit('host_join', { code: d.code, hostId: d.hostId });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ─── Presenter commands ───────────────────────────────────────────────────
   const send = useCallback(
     (event: string, extra: Record<string, unknown> = {}) => {
@@ -1074,10 +1168,6 @@ export default function HostPage() {
         }}
       />
 
-      <MentorQuizHistoryModal
-        isOpen={showPastQuizzes}
-        onClose={() => setShowPastQuizzes(false)}
-      />
 
       <aside className={`menti-sidebar pm-admin-sidebar ${mobileSidebarOpen ? 'open' : ''}`}>
         <div>
@@ -1146,6 +1236,16 @@ export default function HostPage() {
               }}
             >
               <span>✨</span> Generate with AI
+            </button>
+            <button
+              className={`menti-nav-link ${hostView === 'library' ? 'active' : ''}`}
+              onClick={() => {
+                setHostView('library');
+                setMobileSidebarOpen(false);
+              }}
+              id="library-sidebar-btn"
+            >
+              <span>📚</span> My Quiz Library
             </button>
             <button
               className={`menti-nav-link ${hostView === 'reports' ? 'active' : ''}`}
@@ -1271,6 +1371,17 @@ export default function HostPage() {
             </div>
           </div>
           <div className="menti-topbar-actions">
+            <button
+              type="button"
+              className={`btn btn--sm ${hostView === 'library' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setHostView(hostView === 'library' ? 'builder' : 'library')}
+              id="topbar-quiz-library-btn"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <span>📚</span>
+              <span>{hostView === 'library' ? '← Quiz Builder' : 'My Quiz Library'}</span>
+            </button>
+
             <button
               type="button"
               className={`btn btn--sm ${hostView === 'reports' ? 'btn-primary' : 'btn-secondary'}`}
@@ -1407,6 +1518,49 @@ export default function HostPage() {
             <MentorQuizHistoryModal
               embedded={true}
               onBack={() => setHostView('builder')}
+            />
+          </main>
+        ) : hostView === 'library' ? (
+          <main className="menti-content" style={{ maxWidth: '1240px', margin: '0 auto', padding: '1.5rem', width: '100%' }}>
+            <QuizLibrary
+              authUser={authUser}
+              availableBatches={availableBatchObjects}
+              onBatchCreated={(b) => {
+                setAvailableBatchObjects((prev) => {
+                  const filtered = prev.filter((o) => o.id !== b.id && o.displayName !== b.displayName);
+                  return [...filtered, b].sort((x, y) => x.displayName.localeCompare(y.displayName));
+                });
+                setAvailableBatches((prev) => {
+                  const filtered = prev.filter((x) => x !== b.displayName);
+                  return [...filtered, b.displayName].sort();
+                });
+              }}
+              onGoLive={async (draftId, batchId, batchName) => {
+                await launchSessionFromDraft(draftId, batchId, batchName);
+              }}
+              onEditDraft={(draft) => {
+                setEditingDraftId(draft.id);
+                setEditingDraftTitle(draft.title);
+                setQuestions(draft.questions || []);
+                if (draft.subject) setQuizSubject(draft.subject);
+                setAiInitialTopic(draft.title);
+                setHostView('builder');
+                setTimeout(scrollToBuilder, 150);
+              }}
+              onNewQuiz={() => {
+                setEditingDraftId(null);
+                setEditingDraftTitle(null);
+                setQuestions([]);
+                setAiInitialTopic('');
+                setHostView('builder');
+                setTimeout(scrollToBuilder, 150);
+              }}
+              onOpenAi={() => {
+                setEditingDraftId(null);
+                setEditingDraftTitle(null);
+                setQuestions([]);
+                openWithTopic('');
+              }}
             />
           </main>
         ) : (
@@ -1706,6 +1860,75 @@ export default function HostPage() {
               </button>
             </div>
 
+            {editingDraftId && (
+              <div
+                style={{
+                  background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(59, 130, 246, 0.15))',
+                  border: '1px solid rgba(99, 102, 241, 0.4)',
+                  borderRadius: '14px',
+                  padding: '0.85rem 1.25rem',
+                  marginBottom: '1.25rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '1rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <span style={{ fontSize: '1.3rem' }}>📝</span>
+                  <div>
+                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary, #F2F2F2)' }}>
+                      Editing Draft: <span style={{ color: '#818CF8' }}>{editingDraftTitle || 'Untitled Draft'}</span>
+                    </div>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary, #9CA3AF)' }}>
+                      Changes you save will update this draft in your library.
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn--sm"
+                  onClick={() => {
+                    setEditingDraftId(null);
+                    setEditingDraftTitle(null);
+                    setQuestions([]);
+                    setAiInitialTopic('');
+                  }}
+                  style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
+                >
+                  ✕ Exit Draft Mode
+                </button>
+              </div>
+            )}
+
+            {draftSavedToast && (
+              <div
+                style={{
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                  borderRadius: '12px',
+                  padding: '0.75rem 1.2rem',
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#10B981', fontWeight: 600, fontSize: '0.88rem' }}>
+                  <span>✓</span>
+                  <span>{draftSavedToast.message}</span>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn--sm"
+                  onClick={() => setHostView('library')}
+                  style={{ color: '#10B981', fontWeight: 700, textDecoration: 'underline', padding: '0.2rem 0.5rem' }}
+                >
+                  View in Library →
+                </button>
+              </div>
+            )}
+
             <div
               style={{
                 display: 'grid',
@@ -1893,83 +2116,25 @@ export default function HostPage() {
                         <label className="pm-host-field-label">
                           Target Batch / Class
                         </label>
-                        {batchesLoading ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.4rem 0' }}>
-                            <span style={{ color: 'var(--text-secondary, #9CA3AF)', fontSize: '0.85rem' }}>
-                              Loading batches…
-                            </span>
-                          </div>
-                        ) : availableBatchObjects.length === 0 ? (
-                          <div style={{ padding: '0.4rem 0', color: 'var(--text-secondary, #9CA3AF)', fontSize: '0.85rem' }}>
-                            No assigned batches found. Create one below to get started.
-                          </div>
-                        ) : (
-                          <select
-                            className="input pm-host-select"
-                            value={quizBatchId}
-                            onChange={(e) => {
-                              const selectedId = e.target.value;
-                              setQuizBatchId(selectedId);
-                              const b = availableBatchObjects.find((x) => x.id === selectedId);
-                              setQuizBatch(b ? b.displayName : '');
-                            }}
-                          >
-                            {!quizBatchId && <option value="">Select a batch…</option>}
-                            {availableBatchObjects.map((b) => (
-                              <option key={b.id} value={b.id}>
-                                {b.displayName}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-
-                        {/* Inline Create New Batch Toggle */}
-                        {!showNewBatchInput ? (
-                          <button
-                            type="button"
-                            className="pm-host-action-link"
-                            onClick={() => { setShowNewBatchInput(true); setBatchError(''); }}
-                          >
-                            <span>＋</span> Create new batch
-                          </button>
-                        ) : (
-                          <div style={{ marginTop: '0.45rem' }}>
-                            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                              <input
-                                type="text"
-                                className="input pm-host-input"
-                                placeholder="e.g. 3rd Year – Batch B"
-                                value={newBatchName}
-                                onChange={(e) => { setNewBatchName(e.target.value); setBatchError(''); }}
-                                onKeyDown={(e) => { if (e.key === 'Enter') handleCreateBatch(); if (e.key === 'Escape') { setShowNewBatchInput(false); setNewBatchName(''); } }}
-                                disabled={creatingBatch}
-                                style={{ flex: 1 }}
-                                autoFocus
-                              />
-                              <button
-                                type="button"
-                                className="btn btn-primary btn-sm"
-                                onClick={handleCreateBatch}
-                                disabled={creatingBatch || !newBatchName.trim()}
-                                style={{ whiteSpace: 'nowrap' }}
-                              >
-                                {creatingBatch ? '…' : 'Add'}
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => { setShowNewBatchInput(false); setNewBatchName(''); setBatchError(''); }}
-                              >
-                                ✕
-                              </button>
-                            </div>
-                            {batchError && (
-                              <p style={{ color: '#F87171', fontSize: '0.72rem', marginTop: '0.3rem', margin: '0.3rem 0 0' }}>
-                                {batchError}
-                              </p>
-                            )}
-                          </div>
-                        )}
+                        <BatchPicker
+                          batches={availableBatchObjects}
+                          selectedBatchId={quizBatchId}
+                          onSelect={(id, name) => {
+                            setQuizBatchId(id);
+                            setQuizBatch(name);
+                          }}
+                          onBatchCreated={(b) => {
+                            setAvailableBatchObjects((prev) => {
+                              const filtered = prev.filter((x) => x.id !== b.id && x.displayName !== b.displayName);
+                              return [...filtered, b].sort((x, y) => x.displayName.localeCompare(y.displayName));
+                            });
+                            setAvailableBatches((prev) => {
+                              const filtered = prev.filter((x) => x !== b.displayName);
+                              return [...filtered, b.displayName].sort();
+                            });
+                          }}
+                          disabled={loading}
+                        />
                       </div>
                     </div>
 
@@ -1990,18 +2155,46 @@ export default function HostPage() {
 
                   {error && <div className="alert alert-error">⚠ {error}</div>}
 
-                  <button
-                    className="btn btn-primary btn--lg btn--full"
-                    onClick={createSession}
-                    disabled={loading || questions.length === 0 || !quizBatchId}
-                    id="create-session-btn"
-                  >
-                    {loading ? (
-                      <><span className="spinner spinner--sm" style={{ borderTopColor: '#fff' }} /> Creating…</>
-                    ) : (
-                      `🚀 Get the join code (${questions.length} question${questions.length === 1 ? '' : 's'})`
-                    )}
-                  </button>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: '0.75rem', marginTop: '0.5rem' }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn--lg"
+                      onClick={handleSaveDraft}
+                      disabled={savingDraft || questions.length === 0}
+                      id="save-draft-btn"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
+                        fontWeight: 700,
+                        border: '1px solid rgba(99, 102, 241, 0.4)',
+                        background: 'rgba(99, 102, 241, 0.08)',
+                        color: 'var(--text-primary, #F2F2F2)',
+                      }}
+                      title="Save this quiz to your library without needing a batch selected"
+                    >
+                      {savingDraft ? (
+                        <><span className="spinner spinner--sm" /> Saving…</>
+                      ) : (
+                        `💾 ${editingDraftId ? 'Update Draft' : 'Save for later'}`
+                      )}
+                    </button>
+
+                    <button
+                      className="btn btn-primary btn--lg"
+                      onClick={createSession}
+                      disabled={loading || questions.length === 0 || !quizBatchId}
+                      id="create-session-btn"
+                      title={!quizBatchId ? 'Please select a batch to go live' : 'Launch live session now'}
+                    >
+                      {loading ? (
+                        <><span className="spinner spinner--sm" style={{ borderTopColor: '#fff' }} /> Creating…</>
+                      ) : (
+                        `🚀 Start Live Session (${questions.length} Q${questions.length === 1 ? '' : 's'})`
+                      )}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

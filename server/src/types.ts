@@ -104,6 +104,7 @@ export interface Session {
   subject?: string;
   batch?: string;
   batchId?: string;
+  sourceDraftId?: string;
   /** The authenticated mentor who created the session. Never client-supplied. */
   hostEmail: string;
   hostName: string;
@@ -269,4 +270,28 @@ export interface ErrorPayload {
 export interface ParticipantsUpdatedPayload {
   participants: Participant[];
   count: number;
+}
+
+export interface QuizDraft {
+  id: string;
+  mentorEmail: string;
+  title: string;
+  subject?: string;
+  questions: Question[];
+  status: 'draft' | 'archived';
+  createdAt: string;
+  updatedAt: string;
+  lastUsedAt?: string | null;
+}
+
+export interface QuizDraftSummary {
+  id: string;
+  mentorEmail: string;
+  title: string;
+  subject?: string;
+  questionCount: number;
+  status: 'draft' | 'archived';
+  createdAt: string;
+  updatedAt: string;
+  lastUsedAt?: string | null;
 }

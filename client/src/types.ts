@@ -222,3 +222,27 @@ export interface SocketErrorPayload {
   message: string;
   fatal?: boolean;
 }
+
+export interface QuizDraft {
+  id: string;
+  mentorEmail: string;
+  title: string;
+  subject?: string;
+  questions: Question[];
+  status: 'draft' | 'archived';
+  createdAt: string;
+  updatedAt: string;
+  lastUsedAt?: string | null;
+}
+
+export interface QuizDraftSummary {
+  id: string;
+  mentorEmail: string;
+  title: string;
+  subject?: string;
+  questionCount: number;
+  status: 'draft' | 'archived';
+  createdAt: string;
+  updatedAt: string;
+  lastUsedAt?: string | null;
+}

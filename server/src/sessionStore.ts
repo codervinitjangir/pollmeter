@@ -48,6 +48,7 @@ export function createSession(
     subject?: string;
     batch?: string;
     batchId?: string;
+    sourceDraftId?: string;
     /** Always the authenticated mentor — the API derives it from the JWT. */
     hostEmail: string;
     hostName: string;
@@ -61,6 +62,7 @@ export function createSession(
     subject: meta?.subject,
     batch: meta?.batch,
     batchId: meta?.batchId,
+    sourceDraftId: meta?.sourceDraftId,
     hostEmail: meta.hostEmail,
     hostName: meta.hostName,
     questions,
