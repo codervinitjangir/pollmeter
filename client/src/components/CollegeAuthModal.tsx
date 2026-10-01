@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   AuthUser,
   fetchCollegeConfig,
@@ -78,6 +79,16 @@ export default function CollegeAuthModal({
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     return () => observer.disconnect();
   }, []);
+
+  // Prevent background body scrolling while modal is open
+  useEffect(() => {
+    if (!isOpen || typeof document === 'undefined') return;
+    const origOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = origOverflow;
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     fetchCollegeConfig().then((cfg) => {
@@ -268,7 +279,7 @@ export default function CollegeAuthModal({
 
   const defaultTitle = isFacultyRole ? 'University Faculty & Admin Access' : 'Student Classroom Login';
 
-  return (
+  const modalMarkup = (
     <div className="pm-auth-modal-backdrop" onClick={onClose ? () => onClose() : () => { window.location.href = '/'; }}>
       <div
         className={`pm-auth-modal-card ${
@@ -651,4 +662,6 @@ export default function CollegeAuthModal({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalMarkup, document.body) : modalMarkup;
 }
