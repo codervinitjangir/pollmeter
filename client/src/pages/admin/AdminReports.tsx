@@ -141,45 +141,47 @@ export default function AdminReports() {
       </div>
 
       {/* Total Metrics Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: '1rem',
-          margin: '1.25rem 0',
-        }}
-      >
-        <div className="pm-metric-card" style={{ padding: '1rem', borderRadius: '12px', background: 'var(--surface-mid, #1E2024)', border: '1px solid var(--border, #2A2A2F)' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Total Sessions
-          </span>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.25rem', color: 'var(--text-primary, #F2F2F2)' }}>
-            {reportData?.totals?.sessions ?? 0}
+      <div className="pm-stats-grid" style={{ margin: '1.25rem 0' }}>
+        <div className="pm-stat-box">
+          <div className="pm-stat-header">
+            <span className="pm-stat-label">Total Sessions</span>
+            <span className="pm-stat-icon">📊</span>
           </div>
+          <div className="pm-stat-value">{reportData?.totals?.sessions ?? 0}</div>
+          <div className="pm-stat-meta">Audited sessions</div>
         </div>
-        <div className="pm-metric-card" style={{ padding: '1rem', borderRadius: '12px', background: 'var(--surface-mid, #1E2024)', border: '1px solid var(--border, #2A2A2F)' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Total Student Attendees
-          </span>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.25rem', color: '#6366F1' }}>
-            👥 {reportData?.totals?.participants ?? 0}
+
+        <div className="pm-stat-box">
+          <div className="pm-stat-header">
+            <span className="pm-stat-label">Student Attendees</span>
+            <span className="pm-stat-icon">👥</span>
           </div>
+          <div className="pm-stat-value" style={{ color: '#6366F1' }}>
+            {reportData?.totals?.participants ?? 0}
+          </div>
+          <div className="pm-stat-meta">Unique participations</div>
         </div>
-        <div className="pm-metric-card" style={{ padding: '1rem', borderRadius: '12px', background: 'var(--surface-mid, #1E2024)', border: '1px solid var(--border, #2A2A2F)' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Responses Graded
-          </span>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.25rem', color: '#10B981' }}>
-            📝 {reportData?.totals?.responses ?? 0}
+
+        <div className="pm-stat-box">
+          <div className="pm-stat-header">
+            <span className="pm-stat-label">Responses Graded</span>
+            <span className="pm-stat-icon">📝</span>
           </div>
+          <div className="pm-stat-value" style={{ color: '#10B981' }}>
+            {reportData?.totals?.responses ?? 0}
+          </div>
+          <div className="pm-stat-meta">Graded answers</div>
         </div>
-        <div className="pm-metric-card" style={{ padding: '1rem', borderRadius: '12px', background: 'var(--surface-mid, #1E2024)', border: '1px solid var(--border, #2A2A2F)' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Campus Accuracy
-          </span>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.25rem', color: '#F59E0B' }}>
-            🎯 {reportData?.totals?.accuracyPercent ?? 0}%
+
+        <div className="pm-stat-box">
+          <div className="pm-stat-header">
+            <span className="pm-stat-label">Campus Accuracy</span>
+            <span className="pm-stat-icon">🎯</span>
           </div>
+          <div className="pm-stat-value" style={{ color: '#F59E0B' }}>
+            {reportData?.totals?.accuracyPercent ?? 0}%
+          </div>
+          <div className="pm-stat-meta">Average accuracy</div>
         </div>
       </div>
 
@@ -199,9 +201,9 @@ export default function AdminReports() {
       {/* Date range — an orthogonal axis, kept separate from the drill-down */}
       <div
         style={{
-          background: 'var(--surface-mid, #1E2024)',
-          border: '1px solid var(--border, #2A2A2F)',
-          borderRadius: '14px',
+          background: 'var(--surface, #FFFFFF)',
+          border: '1px solid var(--border, #E2E8F0)',
+          borderRadius: '12px',
           padding: '1rem 1.25rem',
           marginBottom: '1.5rem',
           display: 'flex',
