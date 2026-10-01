@@ -3,7 +3,13 @@ import LandingPage from './pages/LandingPage';
 import HostPage from './pages/HostPage';
 import JoinPage from './pages/JoinPage';
 import LegalPage from './pages/LegalPage';
-import AdminPage from './pages/AdminPage';
+import AdminLayout from './pages/admin/AdminLayout';
+import AdminFaculty from './pages/admin/AdminFaculty';
+import AdminStudents from './pages/admin/AdminStudents';
+import AdminQuizzes from './pages/admin/AdminQuizzes';
+import AdminAuditLog from './pages/admin/AdminAuditLog';
+import AdminBatches from './pages/admin/AdminBatches';
+import AdminReports from './pages/admin/AdminReports';
 
 import StudentDashboard from './pages/StudentDashboard';
 
@@ -15,7 +21,15 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
 
         {/* University Admin Console */}
-        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<Navigate to="faculty" replace />} />
+          <Route path="faculty" element={<AdminFaculty />} />
+          <Route path="students" element={<AdminStudents />} />
+          <Route path="quizzes" element={<AdminQuizzes />} />
+          <Route path="audit" element={<AdminAuditLog />} />
+          <Route path="batches" element={<AdminBatches />} />
+          <Route path="reports" element={<AdminReports />} />
+        </Route>
 
         {/* Teacher dashboard */}
         <Route path="/dashboard" element={<HostPage />} />
