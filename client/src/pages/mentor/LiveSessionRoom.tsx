@@ -1,5 +1,6 @@
-import React from 'react';
-import { QRCodeSVG } from 'qrcode.react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import socket from '../../socket';
 import {
   Question,
   SessionPhase,
@@ -9,121 +10,542 @@ import {
   TextAggregated,
   LeaderboardEntry,
   SessionEndedPayload,
+  HostStatePayload,
+  QuestionChangedPayload,
+  PhaseChangedPayload,
+  ResponseCountPayload,
+  ResultsRevealedPayload,
+  LeaderboardPayload,
+  TimerUpdatedPayload,
+  ParticipantsUpdatedPayload,
+  SocketErrorPayload,
 } from '../../types';
 import LiveBarChart from '../../components/LiveBarChart';
 import TextResponseList from '../../components/TextResponseList';
 import CountdownTimer from '../../components/CountdownTimer';
 import Leaderboard, { OlympicPodium, fire4CornerFireworks } from '../../components/Leaderboard';
+import { apiUrl } from '../../api';
 import { cleanText } from '../../cleanText';
 import { getAvatar } from '../../utils/avatars';
-import { toggleTheme, Theme } from '../../theme';
+import { playCue, unlockAudio, isMuted, toggleMuted } from '../../sounds';
+import { getActiveTheme, toggleTheme, Theme } from '../../theme';
+import { QRCodeSVG } from 'qrcode.react';
+import { getStoredHost, clearStoredHost, StoredHost } from './hostSession';
 
-export interface LiveSessionRoomProps {
-  code: string;
-  phase: SessionPhase;
-  participants: Participant[];
-  showRoster: boolean;
-  setShowRoster: React.Dispatch<React.SetStateAction<boolean>>;
-  joinAlerts: { id: string; name: string }[];
-  currentQuestion: Question | null;
-  currentIndex: number;
-  questionCount: number;
-  results: AggregatedResult | null;
-  answeredCount: number;
-  correctAnswer: string | undefined;
-  timer: {
+export default function LiveSessionRoom() {
+  const { code: urlCode } = useParams<{ code: string }>();
+  const navigate = useNavigate();
+  const [code, setCode] = useState(urlCode || '');
+  const credentials = useRef<StoredHost | null>(null);
+
+  // Guard against missing or mismatched localStorage host credentials
+  useEffect(() => {
+    const stored = getStoredHost();
+    if (!stored || !urlCode || stored.code.toUpperCase() !== urlCode.toUpperCase()) {
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+    credentials.current = stored;
+    setCode(stored.code);
+    if (!socket.connected) socket.connect();
+    socket.emit('host_join', { code: stored.code, hostId: stored.hostId });
+  }, [urlCode, navigate]);
+
+
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [hostTheme, setHostTheme] = useState<Theme>(getActiveTheme());
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', hostTheme);
+  }, [hostTheme]);
+
+  // Live session state — all server-authoritative.
+  const [phase, setPhase] = useState<SessionPhase>('lobby');
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  /**
+   * A student who joined mid-quiz used to be invisible to the mentor: the roster
+   * rendered only on the lobby screen, and someone on 0 points sits well below
+   * the top-10 leaderboard cut. The server was broadcasting them correctly all
+   * along — nothing on the presenter screen drew them. These back an always-on
+   * head count plus a short-lived toast per genuinely new arrival.
+   */
+  const [showRoster, setShowRoster] = useState(false);
+  const [joinAlerts, setJoinAlerts] = useState<{ id: string; name: string }[]>([]);
+  const knownParticipantIds = useRef<Set<string>>(new Set());
+  const phaseRef = useRef<SessionPhase>('lobby');
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [questionCount, setQuestionCount] = useState(0);
+  const [results, setResults] = useState<AggregatedResult | null>(null);
+  const [answeredCount, setAnsweredCount] = useState(0);
+  const [correctAnswer, setCorrectAnswer] = useState<string | undefined>();
+  const [timer, setTimer] = useState<{
     endsAt: number;
     durationSeconds: number;
     startedAt?: number;
     unlocksAt?: number | null;
     readTimeSeconds?: number | null;
-  } | null;
-  leaderboard: LeaderboardEntry[];
-  prevLeaderboard: LeaderboardEntry[];
-  finalData: SessionEndedPayload | null;
-  reactions: Array<{ id: string; emoji: string; left: number; drift: number; duration: number }>;
-  isReviewMode: boolean;
-  resultsAdvance: number;
-  resultsPaused: boolean;
-  setResultsPaused: React.Dispatch<React.SetStateAction<boolean>>;
-  autoAdvanceEnabled: boolean;
-  setAutoAdvanceEnabled: React.Dispatch<React.SetStateAction<boolean>>;
-  autoAdvance: number;
-  autoPaused: boolean;
-  setAutoPaused: React.Dispatch<React.SetStateAction<boolean>>;
-  readSecondsLeft: number;
-  isReadingTime: boolean;
-  lanIp: string;
-  copied: boolean;
-  isFullscreen: boolean;
-  toggleFullscreen: () => void;
-  hostTheme: Theme;
-  setHostTheme: (theme: Theme) => void;
-  muted: boolean;
-  toggleSound: () => void;
-  error: string;
-  start: () => void;
-  lockAnswers: () => void;
-  showLeaderboard: () => void;
-  next: () => void;
-  previous: () => void;
-  extendTime: (seconds: number) => void;
-  endSession: () => void;
-  newSession: () => void;
-  copyJoinLink: () => void;
-  exportResultsCsv: () => void;
-}
+  } | null>(null);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [prevLeaderboard, setPrevLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [finalData, setFinalData] = useState<SessionEndedPayload | null>(null);
 
-export default function LiveSessionRoom(props: LiveSessionRoomProps) {
-  const {
-    code,
-    phase,
-    participants,
-    showRoster,
-    setShowRoster,
-    joinAlerts,
-    currentQuestion,
-    currentIndex,
-    questionCount,
-    results,
-    answeredCount,
-    correctAnswer,
-    timer,
-    leaderboard,
-    prevLeaderboard,
-    finalData,
-    reactions,
-    isReviewMode,
-    resultsAdvance,
-    resultsPaused,
-    setResultsPaused,
-    autoAdvanceEnabled,
-    setAutoAdvanceEnabled,
-    autoAdvance,
-    autoPaused,
-    setAutoPaused,
-    readSecondsLeft,
-    isReadingTime,
-    lanIp,
-    copied,
-    isFullscreen,
-    toggleFullscreen,
-    hostTheme,
-    setHostTheme,
-    muted,
-    toggleSound,
-    error,
-    start,
-    lockAnswers,
-    showLeaderboard,
-    next,
-    previous,
-    extendTime,
-    endSession,
-    newSession,
-    copyJoinLink,
-    exportResultsCsv,
-  } = props;
+  // Dynamic Reading Buffer
+  const [readSecondsLeft, setReadSecondsLeft] = useState(0);
+
+  useEffect(() => {
+    if (!timer?.unlocksAt) {
+      setReadSecondsLeft(0);
+      return;
+    }
+    const update = () => {
+      const left = Math.max(0, Math.ceil((timer.unlocksAt! - Date.now()) / 1000));
+      setReadSecondsLeft(left);
+    };
+    update();
+    const id = setInterval(update, 100);
+    return () => clearInterval(id);
+  }, [timer?.unlocksAt]);
+
+  const isReadingTime = Boolean(phase === 'question' && timer?.unlocksAt && readSecondsLeft > 0);
+
+  const [lanIp, setLanIp] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [reactions, setReactions] = useState<Array<{ id: string; emoji: string; left: number; drift: number; duration: number }>>([]);
+
+  // Auto-advance toggle: defaults to false (manual mode) so mentor has complete control
+  const [autoAdvanceEnabled, setAutoAdvanceEnabled] = useState(() => {
+    return localStorage.getItem('pollmeter_auto_advance') === 'true';
+  });
+  const [autoAdvance, setAutoAdvance] = useState(5);
+  const [autoPaused, setAutoPaused] = useState(false);
+
+  // Auto-advance from results (2s) to leaderboard so room flows automatically.
+  const [resultsAdvance, setResultsAdvance] = useState(2);
+  const [resultsPaused, setResultsPaused] = useState(false);
+
+  // True when the host stepped back to review an already-answered question.
+  // Suppresses the 2-second auto-advance so the mentor can explain at leisure.
+  const [isReviewMode, setIsReviewMode] = useState(false);
+
+  // Projector sound. Host screen only — a hundred phones chiming out of sync
+  // would be noise, not atmosphere.
+  const [muted, setMuted] = useState(isMuted());
+
+  
+
+  useEffect(() => {
+    fetch(apiUrl('/api/network-info'))
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.localIp && d.localIp !== 'localhost') setLanIp(d.localIp);
+      })
+      .catch(() => {});
+  }, []);
+
+
+  // ─── Socket wiring ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!socket.connected) socket.connect();
+
+    function applyHostState(p: HostStatePayload) {
+      // `host_state` only ever arrives in reply to an authenticated `host_join`,
+      // so credentials.current is already set — don't overwrite it here.
+      
+      setCode(p.code);
+      setPhase(p.phase);
+      setQuestions(p.questions);
+      setQuestionCount(p.questions.length);
+      setCurrentIndex(Math.max(0, p.currentIndex));
+      setCurrentQuestion(p.currentIndex >= 0 ? p.questions[p.currentIndex] ?? null : null);
+      setParticipants(p.participants);
+      setResults(p.results);
+      setAnsweredCount(p.responseCount);
+      setLeaderboard(p.leaderboard);
+      setLoading(false);
+
+      const q = p.currentIndex >= 0 ? p.questions[p.currentIndex] : null;
+      if (q && p.timerEndsAt && p.phase === 'question') {
+        setTimer({
+          endsAt: p.timerEndsAt,
+          startedAt: p.timerStartedAt ?? undefined,
+          unlocksAt: p.unlocksAt,
+          readTimeSeconds: p.readTimeSeconds,
+          durationSeconds: q.timeLimitSeconds,
+        });
+      } else {
+        setTimer(null);
+      }
+      // After a refresh mid-reveal, the key is already public to the room.
+      setCorrectAnswer(
+        (p.phase === 'results' || p.phase === 'leaderboard') && q?.correctAnswer
+          ? q.correctAnswer
+          : undefined
+      );
+      if (p.finalResults) {
+        setFinalData({
+          finalResults: p.finalResults,
+          questions: p.questions,
+          leaderboard: p.leaderboard,
+        });
+      }
+    }
+
+    function onConnect() {
+      // Re-attach to the host room; socket.io gives us a new socket id.
+      const stored = credentials.current;
+      if (stored?.code && stored.hostId) {
+        socket.emit('host_join', { code: stored.code, hostId: stored.hostId });
+      }
+    }
+
+    function onHostState(p: HostStatePayload) {
+      applyHostState(p);
+    }
+
+    function onHostQuestionChanged(p: QuestionChangedPayload) {
+      setPhase('question');
+      setIsReviewMode(false);  // fresh live question — re-enable 2s auto-advance
+      setCurrentQuestion(p.question);
+      setCurrentIndex(p.index);
+      if (p.questionCount) setQuestionCount(p.questionCount);
+      setResults(null);
+      setAnsweredCount(0);
+      const readSecs = p.readTimeSeconds ?? 3;
+      const unlocksAt = p.unlocksAt ?? (p.timerStartedAt + readSecs * 1000);
+      const endsAt = unlocksAt + p.question.timeLimitSeconds * 1000;
+      setTimer({
+        endsAt,
+        startedAt: p.timerStartedAt,
+        unlocksAt,
+        readTimeSeconds: readSecs,
+        durationSeconds: p.question.timeLimitSeconds,
+      });
+    }
+
+    function onQuestionReviewed(p: { index: number; questionCount: number }) {
+      // The server stepped back: surface results read-only, suppress auto-advance.
+      setIsReviewMode(true);
+      setCurrentIndex(p.index);
+      setQuestionCount(p.questionCount);
+      setResultsPaused(true); // explicitly halt the countdown for review mode
+    }
+
+    function onPhaseChanged(p: PhaseChangedPayload) {
+      setPhase(p.phase);
+      setCurrentIndex(p.currentIndex);
+      setQuestionCount(p.questionCount);
+    }
+
+    function onTimerUpdated(p: TimerUpdatedPayload) {
+      if (!p.timerEndsAt) return;
+      setTimer((prev) => (prev ? { ...prev, endsAt: p.timerEndsAt! } : prev));
+    }
+
+    function onResponseCount(p: ResponseCountPayload) {
+      setAnsweredCount(p.responseCount);
+      if (p.results) setResults(p.results);
+    }
+
+    function onResultsRevealed(p: ResultsRevealedPayload) {
+      setPhase('results');
+      setResults(p.aggregated);
+      setAnsweredCount(p.responseCount);
+      setCorrectAnswer(p.correctAnswer);
+      setTimer(null);
+    }
+
+    function onLeaderboardUpdated(p: LeaderboardPayload) {
+      setPhase('leaderboard');
+      setLeaderboard((prev) => {
+        setPrevLeaderboard(prev);
+        return p.leaderboard;
+      });
+      setCurrentIndex(p.questionIndex);
+      setQuestionCount(p.questionCount);
+      if (p.correctAnswer) setCorrectAnswer(p.correctAnswer);
+    }
+
+    function onSessionEnded(p: SessionEndedPayload) {
+      setPhase('ended');
+      setFinalData(p);
+      setLeaderboard((prev) => {
+        setPrevLeaderboard(prev);
+        return p.leaderboard;
+      });
+      setQuestions(p.questions);
+      setTimer(null);
+    }
+
+    function onParticipants(p: ParticipantsUpdatedPayload) {
+      setParticipants(p.participants);
+
+      // Anyone whose id we haven't seen before is a real arrival. A student
+      // reconnecting after their phone slept keeps the same id, so wifi churn
+      // correctly stays silent instead of toasting the same name all lesson.
+      const known = knownParticipantIds.current;
+      const arrivals = p.participants.filter((x) => !known.has(x.id));
+      for (const x of p.participants) known.add(x.id);
+
+      // The lobby already lists everyone by name, so announcing there is noise.
+      if (arrivals.length === 0 || phaseRef.current === 'lobby') return;
+
+      // Cap the burst: a coach class filing in at once shouldn't bury the
+      // presenter controls under a column of toasts.
+      const alerts = arrivals.slice(0, 3).map((x) => ({
+        id: `${x.id}-${Date.now()}`,
+        name: x.name,
+      }));
+      setJoinAlerts((prev) => [...prev, ...alerts]);
+      window.setTimeout(() => {
+        const expired = new Set(alerts.map((a) => a.id));
+        setJoinAlerts((prev) => prev.filter((a) => !expired.has(a.id)));
+      }, 4500);
+    }
+
+    function onReaction(p: { emoji: string; id: string }) {
+      const left = 15 + Math.random() * 70;
+      const drift = (Math.random() - 0.5) * 50;
+      const duration = 2.2 + Math.random() * 0.5;
+      setReactions((prev) => [...prev.slice(-15), { id: p.id, emoji: p.emoji, left, drift, duration }]);
+      setTimeout(() => setReactions((prev) => prev.filter((r) => r.id !== p.id)), 2700);
+    }
+
+    function onError(p: SocketErrorPayload) {
+      setError(p.message);
+      setLoading(false);
+      // The session we remembered is gone (server restart, or swept). Drop the
+      // stale credentials so the mentor lands back on the builder, not a
+      // dead screen that silently ignores every click.
+      //
+      // `fatal` is the server's own signal. The message test stays as a fallback
+      // for the window where a cached Cloudflare bundle is talking to a freshly
+      // deployed backend, or the reverse — the two halves ship separately.
+      if (p.fatal || /not found|not the host/i.test(p.message)) {
+        clearStoredHost();
+        credentials.current = null;
+        navigate('/dashboard', { replace: true });
+      }
+    }
+
+    socket.on('connect', onConnect);
+    socket.on('host_state', onHostState);
+    socket.on('host_question_changed', onHostQuestionChanged);
+    socket.on('question_reviewed', onQuestionReviewed);
+    socket.on('phase_changed', onPhaseChanged);
+    socket.on('timer_updated', onTimerUpdated);
+    socket.on('response_count', onResponseCount);
+    socket.on('results_revealed', onResultsRevealed);
+    socket.on('leaderboard_updated', onLeaderboardUpdated);
+    socket.on('session_ended', onSessionEnded);
+    socket.on('participants_updated', onParticipants);
+    socket.on('reaction_received', onReaction);
+    socket.on('error', onError);
+
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('host_state', onHostState);
+      socket.off('host_question_changed', onHostQuestionChanged);
+      socket.off('question_reviewed', onQuestionReviewed);
+      socket.off('phase_changed', onPhaseChanged);
+      socket.off('timer_updated', onTimerUpdated);
+      socket.off('response_count', onResponseCount);
+      socket.off('results_revealed', onResultsRevealed);
+      socket.off('leaderboard_updated', onLeaderboardUpdated);
+      socket.off('session_ended', onSessionEnded);
+      socket.off('participants_updated', onParticipants);
+      socket.off('reaction_received', onReaction);
+      socket.off('error', onError);
+    };
+  }, []);
+
+  // ─── Presenter commands ───────────────────────────────────────────────────
+  const send = useCallback(
+    (event: string, extra: Record<string, unknown> = {}) => {
+      const c = credentials.current;
+      if (!c) return;
+      // Presenter clicks are the user gesture browsers require before they will
+      // let a page make any sound at all.
+      unlockAudio();
+      setError('');
+      socket.emit(event, { code: c.code, hostId: c.hostId, ...extra });
+    },
+    []
+  );
+
+  const start = useCallback(() => send('host_start'), [send]);
+  const lockAnswers = useCallback(() => send('host_lock'), [send]);
+  const showLeaderboard = useCallback(() => send('host_show_leaderboard'), [send]);
+  const next = useCallback(() => send('host_next'), [send]);
+  const previous = useCallback(() => send('host_previous'), [send]);
+  const extendTime = useCallback((seconds: number) => send('host_extend_time', { seconds }), [send]);
+  const endSession = useCallback(() => send('host_end'), [send]);
+
+  // `onParticipants` is registered once at mount, so it can't read `phase` from
+  // state without going stale. Mirror it into a ref instead.
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
+
+  // ─── Auto-advance from results to leaderboard (2s) ────────────────────────
+  useEffect(() => {
+    if (phase !== 'results') return;
+    setResultsAdvance(2);
+    // In review mode the mentor stepped back — never auto-flip to leaderboard;
+    // they'll click "Next" or manually trigger when they're ready.
+    if (isReviewMode) {
+      setResultsPaused(true);
+    } else {
+      setResultsPaused(false);
+    }
+  }, [phase, currentIndex, isReviewMode]);
+
+  useEffect(() => {
+    if (phase !== 'results' || resultsPaused) return;
+    const id = setInterval(() => {
+      setResultsAdvance((prev) => {
+        if (prev <= 1) {
+          clearInterval(id);
+          showLeaderboard();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [phase, resultsPaused, showLeaderboard]);
+
+  // ─── Auto-advance from the leaderboard (manual by default) ────────────────
+  useEffect(() => {
+    if (phase !== 'leaderboard') return;
+    setAutoAdvance(5);
+    setAutoPaused(false);
+  }, [phase, currentIndex]);
+
+  useEffect(() => {
+    if (phase !== 'leaderboard' || !autoAdvanceEnabled || autoPaused) return;
+    const id = setInterval(() => {
+      setAutoAdvance((prev) => {
+        if (prev <= 1) {
+          clearInterval(id);
+          next();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [phase, autoAdvanceEnabled, autoPaused, next]);
+
+  // Keyboard navigation for host: Space or ArrowRight to advance on leaderboard
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === ' ' || e.key === 'ArrowRight') {
+        if (phase === 'leaderboard') {
+          e.preventDefault();
+          next();
+        }
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [phase, next]);
+
+  // ─── Projector audio cues ─────────────────────────────────────────────────
+  // Driven off the server phase, like everything else on this screen, so the
+  // sound can never disagree with what the room is looking at.
+  const prevPhase = useRef<SessionPhase | null>(null);
+  useEffect(() => {
+    
+    if (prevPhase.current === phase) return;
+    const from = prevPhase.current;
+    prevPhase.current = phase;
+    // No cue for the first phase we observe: on a mid-quiz refresh the host
+    // would otherwise be met with a fanfare for something already on screen.
+    if (from === null) return;
+
+    if (phase === 'question') playCue('start');
+    else if (phase === 'results') playCue('reveal');
+    else if (phase === 'leaderboard') playCue('leaderboard');
+    else if (phase === 'ended') {
+      playCue('podium');
+      fire4CornerFireworks();
+    }
+  }, [phase]);
+
+  // Final five seconds. Deliberately derived from the timer's own end time
+  // rather than a counter, and de-duped, so interval drift can't double-beep.
+  const lastTick = useRef(0);
+  useEffect(() => {
+    if (phase !== 'question' || !timer) return;
+    lastTick.current = 0;
+    const id = setInterval(() => {
+      const left = Math.ceil((timer.endsAt - Date.now()) / 1000);
+      if (left >= 1 && left <= 5 && left !== lastTick.current) {
+        lastTick.current = left;
+        playCue('tick');
+      }
+    }, 250);
+    return () => clearInterval(id);
+  }, [phase, timer]);
+
+  const toggleSound = useCallback(() => {
+    unlockAudio();
+    setMuted(toggleMuted());
+  }, []);
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+  function exportResultsCsv() {
+    if (leaderboard.length === 0) return;
+    const headers = [
+      'Rank',
+      'Real Name (College ID)',
+      'Screen Name (Quiz)',
+      'College Email',
+      'Total Score',
+      'Correct Answers',
+      'Questions Answered',
+      'Accuracy %',
+      'Best Streak',
+    ];
+    const rows = leaderboard.map((e) => {
+      const p = participants.find((part) => part.id === e.participantId);
+      const realName = p?.realName || e.realName || e.name;
+      const email = p?.email || e.email || '—';
+      const accuracy = e.questionsAnswered > 0 ? Math.round((e.correctAnswers / e.questionsAnswered) * 100) : 0;
+      return [
+        e.rank,
+        `"${realName.replace(/"/g, '""')}"`,
+        `"${e.name.replace(/"/g, '""')}"`,
+        `"${email.replace(/"/g, '""')}"`,
+        e.totalScore,
+        e.correctAnswers,
+        e.questionsAnswered,
+        `${accuracy}%`,
+        e.bestStreak ?? 0,
+      ];
+    });
+    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `MSU_Quiz_Results_${code || 'session'}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  function newSession() {
+    clearStoredHost();
+    navigate('/dashboard');
+  }
 
   const port = window.location.port ? `:${window.location.port}` : '';
   const joinHost =
@@ -131,6 +553,42 @@ export default function LiveSessionRoom(props: LiveSessionRoomProps) {
       ? `${lanIp}${port}`
       : window.location.host;
   const joinUrl = `${window.location.protocol}//${joinHost}/join?code=${code}`;
+
+  function copyJoinLink() {
+    navigator.clipboard.writeText(joinUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  useEffect(() => {
+    function onFsChange() {
+      const isFs = Boolean(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+      setIsFullscreen(isFs);
+    }
+    document.addEventListener('fullscreenchange', onFsChange);
+    document.addEventListener('webkitfullscreenchange', onFsChange);
+    document.addEventListener('mozfullscreenchange', onFsChange);
+    document.addEventListener('MSFullscreenChange', onFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFsChange);
+      document.removeEventListener('webkitfullscreenchange', onFsChange);
+      document.removeEventListener('mozfullscreenchange', onFsChange);
+      document.removeEventListener('MSFullscreenChange', onFsChange);
+    };
+  }, []);
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+    } else {
+      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+    }
+  }
 
 
   const connectedCount = participants.filter((p) => p.connected).length;

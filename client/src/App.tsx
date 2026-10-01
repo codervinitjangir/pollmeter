@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
-import HostPage from './pages/HostPage';
+import QuizSetupScreen from './pages/mentor/QuizSetupScreen';
+import LiveSessionRoom from './pages/mentor/LiveSessionRoom';
 import JoinPage from './pages/JoinPage';
 import LegalPage from './pages/LegalPage';
 import AdminLayout from './pages/admin/AdminLayout';
@@ -31,8 +32,9 @@ export default function App() {
           <Route path="reports" element={<AdminReports />} />
         </Route>
 
-        {/* Teacher dashboard */}
-        <Route path="/dashboard" element={<HostPage />} />
+        {/* Mentor studio & live session room */}
+        <Route path="/dashboard" element={<QuizSetupScreen />} />
+        <Route path="/dashboard/live/:code" element={<LiveSessionRoom />} />
 
         {/* Student portal & analytics dashboard */}
         <Route path="/student" element={<StudentDashboard />} />
