@@ -61,7 +61,13 @@ export default function HostPage() {
   const [aiInitialTopic, setAiInitialTopic] = useState('');
   const [quizSubject, setQuizSubject] = useState(() => getAuthUser()?.subject || '');
   const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
-  const [showProfileSubjectPrompt, setShowProfileSubjectPrompt] = useState(true);
+  const [showProfileSubjectPrompt, setShowProfileSubjectPrompt] = useState(() => {
+    try {
+      return sessionStorage.getItem('pollmeter_dismissed_subject_prompt') !== 'true';
+    } catch {
+      return true;
+    }
+  });
   const [savingProfileSubject, setSavingProfileSubject] = useState(false);
   const [profileSubjectError, setProfileSubjectError] = useState('');
   const [showProfileNewSubjectInput, setShowProfileNewSubjectInput] = useState(false);
@@ -157,6 +163,7 @@ export default function HostPage() {
       setShowProfileSubjectPrompt(false);
       setShowProfileNewSubjectInput(false);
       setProfileNewSubjectText('');
+      try { sessionStorage.removeItem('pollmeter_dismissed_subject_prompt'); } catch {}
     } catch (err: any) {
       setProfileSubjectError(err.message || 'Failed to update mentor profile subject.');
     } finally {
@@ -1560,7 +1567,10 @@ export default function HostPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setShowProfileSubjectPrompt(false)}
+                  onClick={() => {
+                    setShowProfileSubjectPrompt(false);
+                    try { sessionStorage.setItem('pollmeter_dismissed_subject_prompt', 'true'); } catch {}
+                  }}
                   style={{
                     background: 'none',
                     border: 'none',

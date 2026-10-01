@@ -23,12 +23,15 @@ export const FACULTY_DOMAIN = 'polariscampus.com';
 
 const AUTH_KEY = 'pollmeter_auth_session';
 
+// In-memory fallback prevents loss of session in Safari Private Browsing or restricted environments
+let memoryAuth: { token: string; user: AuthUser } | null = null;
+
 export function getStoredAuth(): { token: string; user: AuthUser } | null {
   try {
     const raw = localStorage.getItem(AUTH_KEY);
-    if (!raw) return null;
+    if (!raw) return memoryAuth;
     const parsed = JSON.parse(raw);
-    if (!parsed.token || !parsed.user?.email) return null;
+    if (!parsed.token || !parsed.user?.email) return memoryAuth;
 
     // Accounts on the faculty domain receive mentor access by default, unless explicitly revoked (approved === false)
     if (isFacultyEmail(parsed.user.email)) {
@@ -43,10 +46,10 @@ export function getStoredAuth(): { token: string; user: AuthUser } | null {
       parsed.user.facultyPending = false;
     }
 
+    memoryAuth = parsed;
     return parsed;
   } catch {
-    localStorage.removeItem(AUTH_KEY);
-    return null;
+    return memoryAuth;
   }
 }
 
@@ -67,21 +70,22 @@ export function getAuthUser(): AuthUser | null {
 }
 
 export function setStoredAuth(token: string, user: AuthUser): void {
-  try {
-    if (isFacultyEmail(user.email)) {
-      if (user.approved === false) {
-        user.role = 'student';
-      } else {
-        if (user.role !== 'admin') {
-          user.role = 'mentor';
-        }
-        user.approved = true;
+  if (isFacultyEmail(user.email)) {
+    if (user.approved === false) {
+      user.role = 'student';
+    } else {
+      if (user.role !== 'admin') {
+        user.role = 'mentor';
       }
-      user.facultyPending = false;
+      user.approved = true;
     }
+    user.facultyPending = false;
+  }
+  memoryAuth = { token, user };
+  try {
     localStorage.setItem(AUTH_KEY, JSON.stringify({ token, user }));
   } catch (err) {
-    console.error('[auth] Failed to persist auth session:', err);
+    console.warn('[auth] Local storage not accessible, using memory session:', err);
   }
 }
 
@@ -116,6 +120,7 @@ export async function refreshAuthUser(): Promise<AuthUser | null> {
 }
 
 export function clearStoredAuth(): void {
+  memoryAuth = null;
   try {
     localStorage.removeItem(AUTH_KEY);
   } catch (err) {

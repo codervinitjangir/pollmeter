@@ -98,6 +98,7 @@ const corsOptions: cors.CorsOptions = {
   // DELETE is needed for revoking a faculty member; without it the browser's
   // preflight for that route fails cross-origin.
   methods: ['GET', 'POST', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
 // ─── Express app ──────────────────────────────────────────────────────────────
@@ -504,6 +505,9 @@ app.get('/api/auth/me', requireAuth, async (req: AuthenticatedRequest, res: Resp
       role,
       picture: record?.picture ?? req.user.picture,
       approved,
+      subject: record?.subject,
+      department: record?.department,
+      batches: record?.batches ?? [],
       /** True for an unapproved campus account: faculty access is pending. */
       facultyPending: isFacultyDomain(req.user.email) && !approved,
     };

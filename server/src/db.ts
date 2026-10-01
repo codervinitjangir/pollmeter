@@ -402,7 +402,7 @@ export async function upsertUser(user: User): Promise<User> {
            subject = COALESCE(EXCLUDED.subject, users.subject),
            approved = EXCLUDED.approved,
            role = CASE WHEN users.role = 'admin' THEN 'admin' ELSE EXCLUDED.role END
-       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, COALESCE(approved, false) as approved, created_at as "createdAt"`,
+       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, batches, picture, COALESCE(approved, false) as approved, created_at as "createdAt"`,
       [
         user.id,
         user.email.toLowerCase(),

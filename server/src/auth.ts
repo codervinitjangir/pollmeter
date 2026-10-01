@@ -223,6 +223,9 @@ export async function authenticateGoogleUser(credential: string): Promise<{
     collegeDomain: info.email.split('@')[1],
     picture: info.picture || existing?.picture,
     approved,
+    subject: existing?.subject,
+    department: existing?.department,
+    batches: existing?.batches ?? [],
     createdAt: existing?.createdAt || new Date().toISOString(),
   };
 
@@ -259,6 +262,9 @@ export async function authenticateDevDemoUser(email: string, realName?: string):
     collegeDomain: cleanEmail.split('@')[1],
     picture: existing?.picture,
     approved,
+    subject: existing?.subject,
+    department: existing?.department,
+    batches: existing?.batches ?? [],
     createdAt: existing?.createdAt || new Date().toISOString(),
   };
 
