@@ -5,6 +5,7 @@ import LiveSessionRoom from './pages/mentor/LiveSessionRoom';
 import JoinPage from './pages/JoinPage';
 import LegalPage from './pages/LegalPage';
 import AdminLayout from './pages/admin/AdminLayout';
+import AdminOverview from './pages/admin/AdminOverview';
 import AdminFaculty from './pages/admin/AdminFaculty';
 import AdminStudents from './pages/admin/AdminStudents';
 import AdminQuizzes from './pages/admin/AdminQuizzes';
@@ -23,7 +24,7 @@ export default function App() {
 
         {/* University Admin Console */}
         <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Navigate to="faculty" replace />} />
+          <Route index element={<AdminOverview />} />
           <Route path="faculty" element={<AdminFaculty />} />
           <Route path="students" element={<AdminStudents />} />
           <Route path="quizzes" element={<AdminQuizzes />} />

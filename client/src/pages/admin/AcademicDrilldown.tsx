@@ -216,10 +216,9 @@ export default function AcademicDrilldown({
         )}
       </nav>
 
-      {/* ── Step 1: Year ─────────────────────────────────────────────────── */}
+      {/* ── Academic Year Filter ─────────────────────────────────────────── */}
       <div className="pm-drill-step">
         <div className="pm-drill-step-head">
-          <span className="pm-drill-step-num">1</span>
           <span className="pm-drill-step-title">Academic Year</span>
         </div>
         <div className="pm-drill-tiles" role="group" aria-label="Academic year">
@@ -253,26 +252,18 @@ export default function AcademicDrilldown({
         </div>
       </div>
 
-      {/* ── Step 2: Batch — only once a specific year is in view ─────────── */}
+      {/* ── Batch in Selected Year ────────────────────────────────────────── */}
       {value.year !== DRILL_ALL && (
         <div className="pm-drill-step">
           <div className="pm-drill-step-head">
-            <span className="pm-drill-step-num">2</span>
             <span className="pm-drill-step-title">Batch in {yearLabel(value.year)}</span>
-            {/*
-              'other' holds batches whose year field is blank or not a year at
-              all (drafts, "CS 2026 Section A"). There is no year string for the
-              API to match, so the table stays empty until a specific batch is
-              picked — say so instead of letting it read as "no data".
-            */}
             {value.year === 'other' && (
-              <span className="pm-drill-step-hint">no academic year recorded — pick a batch to see its data</span>
+              <span className="pm-drill-step-hint">pick a batch to filter</span>
             )}
           </div>
           {batchesInYear.length === 0 ? (
             <p className="pm-drill-empty">
-              No batches are registered under {yearLabel(value.year)}. Sessions tagged with this
-              year by name are still shown below.
+              No batches registered under {yearLabel(value.year)}.
             </p>
           ) : (
             <div className="pm-drill-tiles" role="group" aria-label="Batch">
@@ -303,12 +294,10 @@ export default function AcademicDrilldown({
         </div>
       )}
 
-      {/* ── Facets: Subject and Mentor, side by side and independent ─────── */}
+      {/* ── Facets: Subject & Mentor Filters ──────────────────────────────── */}
       <div className="pm-drill-step">
         <div className="pm-drill-step-head">
-          <span className="pm-drill-step-num">{value.year !== DRILL_ALL ? 3 : 2}</span>
-          <span className="pm-drill-step-title">Narrow further</span>
-          <span className="pm-drill-step-hint">applied together, in any combination</span>
+          <span className="pm-drill-step-title">Subject &amp; Mentor Filter</span>
         </div>
         <div className="pm-drill-facets">
           <div>

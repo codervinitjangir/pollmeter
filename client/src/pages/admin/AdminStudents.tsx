@@ -102,8 +102,7 @@ export default function AdminStudents() {
         </div>
 
         <span className="pm-table-count">
-          Showing <strong>{studentAudit.length}</strong> participating student
-          {studentAudit.length === 1 ? '' : 's'}
+          Showing <strong>{studentAudit.length}</strong> student{studentAudit.length === 1 ? '' : 's'}
         </span>
       </div>
 
@@ -190,7 +189,7 @@ export default function AdminStudents() {
                     </td>
                     <td>
                       <span className="pm-badge-standing">
-                        {s.quizCount >= 3 ? '🌟 Regular Participant' : '🌱 Active Student'}
+                        {s.quizCount >= 3 ? '🌟 Regular' : '🌱 Active'}
                       </span>
                     </td>
                   </tr>

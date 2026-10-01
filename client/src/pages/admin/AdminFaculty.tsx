@@ -329,11 +329,21 @@ export default function AdminFaculty() {
                     <td>
                       <div className="pm-mentor-batches-cell">
                         {fac.batches && fac.batches.length > 0 ? (
-                          fac.batches.map((b) => (
-                            <span key={b} className="pm-batch-badge">
-                              {b}
-                            </span>
-                          ))
+                          <>
+                            {fac.batches.slice(0, 2).map((b) => (
+                              <span key={b} className="pm-batch-badge">
+                                {b}
+                              </span>
+                            ))}
+                            {fac.batches.length > 2 && (
+                              <span
+                                className="pm-batch-badge pm-batch-more"
+                                title={fac.batches.slice(2).join(', ')}
+                              >
+                                +{fac.batches.length - 2} more
+                              </span>
+                            )}
+                          </>
                         ) : (
                           <span style={{ color: '#94A3B8', fontSize: '0.8rem', fontStyle: 'italic' }}>
                             All Batches

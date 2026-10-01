@@ -8,20 +8,50 @@ export default function AdminAuditLog() {
     refreshAuditLogs();
   }, [refreshAuditLogs]);
 
+  const renderMetadata = (meta: any) => {
+    if (!meta) return <span style={{ color: 'var(--text-secondary)' }}>—</span>;
+    if (typeof meta === 'string') {
+      try {
+        meta = JSON.parse(meta);
+      } catch {
+        return <span style={{ fontSize: '0.8rem' }}>{meta}</span>;
+      }
+    }
+    const entries = Object.entries(meta);
+    if (entries.length === 0) return <span style={{ color: 'var(--text-secondary)' }}>—</span>;
+
+    return (
+      <div className="pm-audit-meta-chips">
+        {entries.slice(0, 3).map(([k, v]) => (
+          <span key={k} className="pm-audit-meta-chip" title={`${k}: ${String(v)}`}>
+            <strong>{k}:</strong> {String(v)}
+          </span>
+        ))}
+        {entries.length > 3 && (
+          <span className="pm-audit-meta-chip pm-audit-meta-more" title={JSON.stringify(meta)}>
+            +{entries.length - 3} more
+          </span>
+        )}
+      </div>
+    );
+  };
+
   return (
     <section className="pm-admin-panel-card">
       <div className="pm-panel-header-row">
         <div>
-          <h3>Institutional Compliance &amp; Security Audit Trail</h3>
-          <p style={{ fontSize: '0.82rem', color: '#64748B', marginTop: '0.2rem' }}>
-            Permanent log of gradebook exports, live session creations, faculty promotions, and revocations
+          <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800 }}>Security Audit Trail</h3>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0.15rem 0 0' }}>
+            Permanent institutional compliance log
           </p>
         </div>
         <button
           className="btn btn-secondary btn-sm"
           onClick={() => refreshAuditLogs()}
+          disabled={loadingAudit}
+          style={{ borderRadius: '8px', fontSize: '0.8rem', padding: '0.35rem 0.8rem' }}
         >
-          🔄 Refresh Logs
+          {loadingAudit ? 'Refreshing...' : '🔄 Refresh Logs'}
         </button>
       </div>
 
@@ -32,9 +62,9 @@ export default function AdminAuditLog() {
         </div>
       ) : auditLogs.length === 0 ? (
         <div className="pm-history-empty">
-          <span style={{ fontSize: '3rem' }}>🛡️</span>
+          <span style={{ fontSize: '2.5rem' }}>🛡️</span>
           <h3>No audit events logged yet</h3>
-          <p>When mentors launch sessions, export gradebooks, or admin modifies faculty, events appear here.</p>
+          <p>When mentors launch sessions or modify settings, records populate here.</p>
         </div>
       ) : (
         <div className="pm-table-responsive">
@@ -42,9 +72,9 @@ export default function AdminAuditLog() {
             <thead>
               <tr>
                 <th>Event Action</th>
-                <th>Actor Identity</th>
-                <th>Target Entity</th>
-                <th>Event Metadata</th>
+                <th>Actor</th>
+                <th>Target ID</th>
+                <th>Details</th>
                 <th>Timestamp</th>
               </tr>
             </thead>
@@ -60,24 +90,42 @@ export default function AdminAuditLog() {
                           ? 'pm-role-admin'
                           : 'pm-badge-role'
                       }`}
+                      style={{ fontSize: '0.74rem' }}
                     >
                       {log.action}
                     </span>
                   </td>
                   <td>
-                    <strong>{log.actorId}</strong>
-                  </td>
-                  <td>
-                    <code>{log.targetId || '-'}</code>
-                  </td>
-                  <td>
-                    <span style={{ fontSize: '0.78rem', color: '#475569' }}>
-                      {log.metadata ? JSON.stringify(log.metadata) : '-'}
+                    <span
+                      className="pm-audit-actor"
+                      title={log.actorId}
+                      style={{
+                        display: 'inline-block',
+                        maxWidth: '220px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        fontWeight: 600,
+                        fontSize: '0.84rem',
+                      }}
+                    >
+                      {log.actorId}
                     </span>
                   </td>
                   <td>
-                    <span className="pm-date-text">
-                      {new Date(log.createdAt).toLocaleString()}
+                    <code style={{ whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
+                      {log.targetId || '—'}
+                    </code>
+                  </td>
+                  <td>{renderMetadata(log.metadata)}</td>
+                  <td>
+                    <span className="pm-date-text" style={{ fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
+                      {new Date(log.createdAt).toLocaleString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
                     </span>
                   </td>
                 </tr>

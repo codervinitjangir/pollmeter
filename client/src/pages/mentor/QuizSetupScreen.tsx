@@ -622,9 +622,9 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
             )}
           </div>
 
-          <div className="menti-nav-group">
-            <div className="menti-nav-title">CAMPUS SHORTCUTS</div>
-            {authUser?.role === 'admin' && (
+          {authUser?.role === 'admin' && (
+            <div className="menti-nav-group">
+              <div className="menti-nav-title">CAMPUS SHORTCUTS</div>
               <a
                 href="/admin"
                 className="menti-nav-link"
@@ -634,17 +634,8 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
                 <span>🏛️</span>
                 <span>Admin Console</span>
               </a>
-            )}
-            <a
-              href="/"
-              className="menti-nav-link"
-              style={{ textDecoration: 'none' }}
-              title="University Landing Page"
-            >
-              <span>🏠</span>
-              <span>Campus Home</span>
-            </a>
-          </div>
+            </div>
+          )}
         </div>
 
         <div className="menti-sidebar-footer" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>

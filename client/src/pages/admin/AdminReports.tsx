@@ -125,7 +125,7 @@ export default function AdminReports() {
             <span>📈</span> Campus-Wide Quiz Reports &amp; All Sessions
           </h3>
           <p style={{ fontSize: '0.85rem', color: '#64748B', marginTop: '0.25rem' }}>
-            Live cross-mentor aggregated performance across all batches, academic years, and subjects.
+            Campus aggregated performance and session metrics.
           </p>
         </div>
         <button

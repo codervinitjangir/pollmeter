@@ -168,13 +168,14 @@ export default function AdminLayout() {
   // Dynamic breadcrumb label from route
   const breadcrumbLabel = useMemo(() => {
     const path = location.pathname.toLowerCase();
-    if (path.includes('/admin/faculty')) return 'Faculty & Mentor Directory';
-    if (path.includes('/admin/students')) return 'University Student Audit';
-    if (path.includes('/admin/quizzes')) return 'Classroom Quiz Logs';
-    if (path.includes('/admin/audit')) return 'Security & Compliance Trail';
-    if (path.includes('/admin/batches')) return 'Academic Batch Management';
-    if (path.includes('/admin/reports')) return 'Campus-Wide Reports & All Sessions';
-    return 'Faculty & Mentor Directory';
+    if (path === '/admin' || path === '/admin/') return 'Executive Overview';
+    if (path.includes('/admin/faculty')) return 'Faculty & Mentors';
+    if (path.includes('/admin/students')) return 'Student Audit';
+    if (path.includes('/admin/quizzes')) return 'Quiz Logs & Analytics';
+    if (path.includes('/admin/audit')) return 'Security Audit Trail';
+    if (path.includes('/admin/batches')) return 'Batch Management';
+    if (path.includes('/admin/reports')) return 'Campus Reports';
+    return 'Admin Console';
   }, [location.pathname]);
 
   // ─── Guard: Not signed in ──────────────────────────────────────────────────
@@ -201,7 +202,7 @@ export default function AdminLayout() {
               {adminTheme === 'dark' ? '☀️ Light' : '🌙 Dark'}
             </button>
             <button className="pm-gateway-nav-btn" onClick={() => navigate('/')}>
-              ← Campus Home
+              ← Back
             </button>
           </div>
         </header>
@@ -536,6 +537,16 @@ export default function AdminLayout() {
               <div className="menti-nav-title">ACADEMIC GOVERNANCE</div>
 
               <NavLink
+                to="/admin"
+                end
+                className={({ isActive }) => `menti-nav-link ${isActive ? 'active' : ''}`}
+                onClick={() => setMobileSidebarOpen(false)}
+              >
+                <span>📊</span>
+                <span style={{ flex: 1 }}>Overview</span>
+              </NavLink>
+
+              <NavLink
                 to="/admin/faculty"
                 className={({ isActive }) => `menti-nav-link ${isActive ? 'active' : ''}`}
                 onClick={() => setMobileSidebarOpen(false)}
@@ -609,18 +620,6 @@ export default function AdminLayout() {
               </NavLink>
             </nav>
 
-            {/* Shortcuts */}
-            <div className="menti-nav-group">
-              <div className="menti-nav-title">SHORTCUTS</div>
-              <button
-                className="menti-nav-link"
-                onClick={() => navigate('/')}
-                title="Go to Pollmeter Campus Home"
-              >
-                <span>🏛️</span>
-                <span>Campus Home</span>
-              </button>
-            </div>
           </div>
 
           {/* Sidebar Footer */}
@@ -706,58 +705,6 @@ export default function AdminLayout() {
                 </button>
               </div>
             )}
-
-            {/* ─── Metric KPI Cards ──────────────────────────────────────────────── */}
-            <section className="pm-admin-kpi-grid">
-              <div className="pm-kpi-card pm-kpi-card-amber">
-                <div className="pm-kpi-icon-wrap">
-                  <span>👨‍🏫</span>
-                </div>
-                <div className="pm-kpi-body">
-                  <span className="pm-kpi-label">Faculty Mentors</span>
-                  <div className="pm-kpi-val-row">
-                    <span className="pm-kpi-number">{overview?.totalMentors ?? facultyList.length}</span>
-                    <button className="pm-kpi-quick-action" onClick={() => navigate('/admin/faculty?add=true')}>
-                      + Add Mentor
-                    </button>
-                  </div>
-                  <span className="pm-kpi-caption">Verified subject specialists</span>
-                </div>
-              </div>
-
-              <div className="pm-kpi-card pm-kpi-card-emerald">
-                <div className="pm-kpi-icon-wrap">
-                  <span>🎓</span>
-                </div>
-                <div className="pm-kpi-body">
-                  <span className="pm-kpi-label">Active Students</span>
-                  <span className="pm-kpi-number">{overview?.totalStudents ?? studentAudit.length}</span>
-                  <span className="pm-kpi-caption">Unified across all departments</span>
-                </div>
-              </div>
-
-              <div className="pm-kpi-card pm-kpi-card-blue">
-                <div className="pm-kpi-icon-wrap">
-                  <span>📝</span>
-                </div>
-                <div className="pm-kpi-body">
-                  <span className="pm-kpi-label">Quizzes Hosted</span>
-                  <span className="pm-kpi-number">{overview?.totalQuizzes ?? 0}</span>
-                  <span className="pm-kpi-caption">Classroom sessions conducted</span>
-                </div>
-              </div>
-
-              <div className="pm-kpi-card pm-kpi-card-purple">
-                <div className="pm-kpi-icon-wrap">
-                  <span>⚡</span>
-                </div>
-                <div className="pm-kpi-body">
-                  <span className="pm-kpi-label">Student Responses</span>
-                  <span className="pm-kpi-number">{overview?.totalResponses ?? 0}</span>
-                  <span className="pm-kpi-caption">Live interactions evaluated</span>
-                </div>
-              </div>
-            </section>
 
             {/* Render Child Route Content */}
             <Outlet />

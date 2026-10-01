@@ -79,7 +79,7 @@ export default function AdminBatches() {
         <div>
           <h3>🗂️ Batch Management</h3>
           <p style={{ fontSize: '0.82rem', color: '#64748B', marginTop: '0.2rem' }}>
-            Create, review and deactivate academic batches. Mentors can also create batches inline from the quiz builder.
+            Configure and organize academic cohorts and class groups.
           </p>
         </div>
       </div>
