@@ -528,8 +528,8 @@ export default function AdminLayout() {
               }}
               id="admin-sidebar-add-btn"
             >
-              <span style={{ fontSize: '1.25rem', lineHeight: 1 }}>+</span>
-              <span>Add Faculty Mentor</span>
+              <span style={{ fontSize: '1.1rem', lineHeight: 1, marginRight: '4px' }}>+</span>
+              <span>Add Mentor</span>
             </button>
 
             {/* Navigation Links */}
@@ -679,10 +679,7 @@ export default function AdminLayout() {
             </div>
 
             <div className="pm-admin-topbar-actions">
-              <div className="pm-clearance-pill">
-                <span className="pm-clearance-dot" />
-                <span>Tier-4 Clearance Active</span>
-              </div>
+
 
               <button
                 className="pm-theme-toggle-btn"

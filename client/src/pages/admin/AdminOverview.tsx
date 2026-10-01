@@ -12,7 +12,6 @@ export default function AdminOverview() {
     allBatchObjects,
     pendingCount,
     loading,
-    loadAllData,
   } = useAdminData();
 
   const totalMentors = overview?.totalMentors ?? facultyList.length;
@@ -21,77 +20,61 @@ export default function AdminOverview() {
   const totalResponses = overview?.totalResponses ?? 0;
   const recentQuizzes = overview?.recentQuizzes || [];
   const topSubjects = (overview?.subjects || []).slice(0, 5);
-  const topBatches = (overview?.batches || []).slice(0, 6);
+  const topBatches = (overview?.batches || []).slice(0, 8);
 
   return (
-    <div className="pm-admin-overview-page">
-      {/* ─── Metric KPI Cards (Only on Main Dashboard) ────────────────────── */}
-      <section className="pm-admin-kpi-grid">
-        <div className="pm-kpi-card pm-kpi-card-amber">
-          <div className="pm-kpi-icon-wrap">
-            <span>👨‍🏫</span>
+    <div className="pm-overview-container">
+      {/* ─── Metric KPI Cards ─────────────────────────────────────────────── */}
+      <section className="pm-stats-grid">
+        <div className="pm-stat-box pm-stat-amber">
+          <div className="pm-stat-header">
+            <span className="pm-stat-label">Faculty Mentors</span>
+            <div className="pm-stat-icon">👨‍🏫</div>
           </div>
-          <div className="pm-kpi-body">
-            <span className="pm-kpi-label">Faculty Mentors</span>
-            <div className="pm-kpi-val-row">
-              <span className="pm-kpi-number">{totalMentors}</span>
-              <button
-                className="pm-kpi-quick-action"
-                onClick={() => navigate('/admin/faculty?add=true')}
-                id="overview-add-mentor-btn"
-              >
-                + Add Mentor
-              </button>
-            </div>
-            <span className="pm-kpi-caption">Verified subject specialists</span>
-          </div>
+          <div className="pm-stat-value">{totalMentors}</div>
+          <div className="pm-stat-meta">Verified educators</div>
         </div>
 
-        <div className="pm-kpi-card pm-kpi-card-emerald">
-          <div className="pm-kpi-icon-wrap">
-            <span>🎓</span>
+        <div className="pm-stat-box pm-stat-emerald">
+          <div className="pm-stat-header">
+            <span className="pm-stat-label">Active Students</span>
+            <div className="pm-stat-icon">🎓</div>
           </div>
-          <div className="pm-kpi-body">
-            <span className="pm-kpi-label">Active Students</span>
-            <span className="pm-kpi-number">{totalStudents}</span>
-            <span className="pm-kpi-caption">Unified across all departments</span>
-          </div>
+          <div className="pm-stat-value">{totalStudents}</div>
+          <div className="pm-stat-meta">Across all departments</div>
         </div>
 
-        <div className="pm-kpi-card pm-kpi-card-blue">
-          <div className="pm-kpi-icon-wrap">
-            <span>📝</span>
+        <div className="pm-stat-box pm-stat-blue">
+          <div className="pm-stat-header">
+            <span className="pm-stat-label">Quizzes Hosted</span>
+            <div className="pm-stat-icon">📝</div>
           </div>
-          <div className="pm-kpi-body">
-            <span className="pm-kpi-label">Quizzes Hosted</span>
-            <span className="pm-kpi-number">{totalQuizzes}</span>
-            <span className="pm-kpi-caption">Classroom sessions conducted</span>
-          </div>
+          <div className="pm-stat-value">{totalQuizzes}</div>
+          <div className="pm-stat-meta">Interactive sessions</div>
         </div>
 
-        <div className="pm-kpi-card pm-kpi-card-purple">
-          <div className="pm-kpi-icon-wrap">
-            <span>⚡</span>
+        <div className="pm-stat-box pm-stat-purple">
+          <div className="pm-stat-header">
+            <span className="pm-stat-label">Student Responses</span>
+            <div className="pm-stat-icon">⚡</div>
           </div>
-          <div className="pm-kpi-body">
-            <span className="pm-kpi-label">Student Responses</span>
-            <span className="pm-kpi-number">{totalResponses}</span>
-            <span className="pm-kpi-caption">Live interactions evaluated</span>
-          </div>
+          <div className="pm-stat-value">{totalResponses}</div>
+          <div className="pm-stat-meta">Live evaluations</div>
         </div>
       </section>
 
       {/* Pending Account Alert */}
       {pendingCount > 0 && (
-        <div className="pm-pending-banner" style={{ marginBottom: '1.25rem' }}>
-          <span className="pm-pending-banner-icon">⚠️</span>
-          <div style={{ flex: 1 }}>
-            <strong>{pendingCount} faculty account{pendingCount === 1 ? '' : 's'} awaiting administrative approval</strong>
-            <span>Review credentials and grant quiz-hosting clearance in the Faculty Directory.</span>
+        <div className="pm-pending-alert">
+          <div className="pm-pending-alert-content">
+            <span className="pm-pending-icon">⚠️</span>
+            <div>
+              <strong>{pendingCount} faculty account{pendingCount === 1 ? '' : 's'} awaiting approval</strong>
+              <p>Review credentials and activate quiz hosting clearance.</p>
+            </div>
           </div>
           <button
-            className="pm-admin-add-btn"
-            style={{ padding: '0.4rem 0.85rem', fontSize: '0.8rem' }}
+            className="pm-btn-alert-action"
             onClick={() => navigate('/admin/faculty')}
           >
             Review Faculty →
@@ -99,87 +82,82 @@ export default function AdminOverview() {
         </div>
       )}
 
-      {/* ─── Two-Column Overview Dashboard ────────────────────────────────── */}
-      <div className="pm-overview-grid">
-        {/* Left Column: Recent Activity & Quick Navigation */}
-        <div className="pm-overview-main-col">
-          <section className="pm-admin-panel-card" style={{ marginBottom: '1.5rem' }}>
-            <div className="pm-panel-header-row">
+      {/* ─── Main Content Grid ────────────────────────────────────────────── */}
+      <div className="pm-dashboard-layout">
+        {/* Left Column: Recent Quizzes */}
+        <div className="pm-dashboard-main">
+          <div className="pm-card pm-table-card">
+            <div className="pm-card-header">
               <div>
-                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800 }}>Recent Classroom Quizzes</h3>
-                <p style={{ margin: '0.15rem 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                  Latest interactive quiz sessions conducted by faculty
-                </p>
+                <h3 className="pm-card-title">Recent Classroom Quizzes</h3>
+                <p className="pm-card-sub">Latest interactive quiz sessions conducted by faculty</p>
               </div>
               <button
-                className="pm-btn-secondary"
-                style={{ fontSize: '0.8rem', padding: '0.35rem 0.8rem', borderRadius: '8px' }}
+                className="pm-card-action-btn"
                 onClick={() => navigate('/admin/quizzes')}
               >
-                View All Quizzes →
+                View all quizzes →
               </button>
             </div>
 
             {loading ? (
-              <div className="pm-history-loading" style={{ padding: '2rem 1rem' }}>
+              <div className="pm-card-loading">
                 <div className="spinner" />
-                <p style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>Loading recent sessions...</p>
+                <span>Loading sessions...</span>
               </div>
             ) : recentQuizzes.length === 0 ? (
-              <div className="pm-history-empty" style={{ padding: '2.5rem 1rem' }}>
-                <span style={{ fontSize: '2.2rem' }}>📋</span>
-                <h4 style={{ margin: '0.4rem 0 0.2rem', fontSize: '0.95rem' }}>No quizzes hosted yet</h4>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                  Quizzes hosted by faculty mentors will populate here automatically.
-                </p>
+              <div className="pm-card-empty">
+                <span className="pm-empty-icon">📋</span>
+                <h4>No quizzes hosted yet</h4>
+                <p>Quizzes hosted by faculty mentors will appear here automatically.</p>
               </div>
             ) : (
-              <div className="pm-table-responsive">
-                <table className="pm-admin-table">
+              <div className="pm-table-wrapper">
+                <table className="pm-modern-table">
                   <thead>
                     <tr>
-                      <th>PIN</th>
+                      <th style={{ width: '80px' }}>PIN</th>
                       <th>Topic &amp; Title</th>
                       <th>Subject</th>
                       <th>Batch</th>
                       <th>Mentor</th>
-                      <th>Students</th>
-                      <th>Date</th>
+                      <th style={{ width: '70px', textAlign: 'center' }}>Students</th>
+                      <th style={{ width: '90px', textAlign: 'right' }}>Date</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {recentQuizzes.slice(0, 6).map((q: any) => (
+                    {recentQuizzes.slice(0, 7).map((q: any) => (
                       <tr key={q.id}>
                         <td>
-                          <span className="pm-session-code-pill">#{q.code}</span>
+                          <span className="pm-pin-badge">#{q.code}</span>
                         </td>
                         <td>
-                          <strong className="pm-quiz-topic" style={{ fontSize: '0.85rem' }}>
+                          <span className="pm-quiz-title-text" title={q.topic || 'Classroom Quiz'}>
                             {q.topic || 'Classroom Quiz'}
-                          </strong>
+                          </span>
                         </td>
                         <td>
-                          <span className="pm-subject-badge" style={{ fontSize: '0.75rem' }}>
+                          <span className="pm-tag pm-tag-subject" title={q.subject || 'General'}>
                             {q.subject || 'General'}
                           </span>
                         </td>
                         <td>
-                          <span className="pm-batch-badge" style={{ fontSize: '0.72rem' }}>
-                            {q.batch || 'General'}
+                          <span className="pm-tag pm-tag-batch" title={q.batch || 'All'}>
+                            {q.batch || 'All'}
                           </span>
                         </td>
                         <td>
-                          <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>
+                          <span className="pm-mentor-name">
                             {q.hostName || q.hostEmail?.split('@')[0] || 'Faculty'}
                           </span>
                         </td>
-                        <td>
-                          <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                        <td style={{ textAlign: 'center' }}>
+                          <span className="pm-student-count-pill">
                             {q.studentsAttended ?? q.participantsCount ?? 0}
                           </span>
                         </td>
-                        <td>
-                          <span className="pm-date-text" style={{ fontSize: '0.75rem' }}>
+                        <td style={{ textAlign: 'right' }}>
+                          <span className="pm-date-cell">
                             {q.createdAt ? new Date(q.createdAt).toLocaleDateString() : 'Today'}
                           </span>
                         </td>
@@ -189,69 +167,17 @@ export default function AdminOverview() {
                 </table>
               </div>
             )}
-          </section>
-
-          {/* Quick Launch Cards */}
-          <div className="pm-quick-actions-row">
-            <div
-              className="pm-action-tile"
-              onClick={() => navigate('/admin/faculty')}
-              role="button"
-              tabIndex={0}
-            >
-              <div className="pm-action-tile-icon" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#F59E0B' }}>
-                👨‍🏫
-              </div>
-              <div className="pm-action-tile-body">
-                <strong>Manage Faculty</strong>
-                <span>Assign subjects, edit batches &amp; permissions</span>
-              </div>
-              <span className="pm-action-tile-arrow">→</span>
-            </div>
-
-            <div
-              className="pm-action-tile"
-              onClick={() => navigate('/admin/students')}
-              role="button"
-              tabIndex={0}
-            >
-              <div className="pm-action-tile-icon" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10B981' }}>
-                🎓
-              </div>
-              <div className="pm-action-tile-body">
-                <strong>Student Audit</strong>
-                <span>Inspect student scores, attendance &amp; batch tags</span>
-              </div>
-              <span className="pm-action-tile-arrow">→</span>
-            </div>
-
-            <div
-              className="pm-action-tile"
-              onClick={() => navigate('/admin/batches')}
-              role="button"
-              tabIndex={0}
-            >
-              <div className="pm-action-tile-icon" style={{ background: 'rgba(99, 102, 241, 0.12)', color: '#6366F1' }}>
-                🗂️
-              </div>
-              <div className="pm-action-tile-body">
-                <strong>Cohorts &amp; Batches</strong>
-                <span>Configure academic years &amp; sections</span>
-              </div>
-              <span className="pm-action-tile-arrow">→</span>
-            </div>
           </div>
         </div>
 
-        {/* Right Column: Breakdown & Quick Analytics */}
-        <div className="pm-overview-side-col">
-          {/* Active Academic Subjects */}
-          <section className="pm-admin-panel-card" style={{ marginBottom: '1.25rem' }}>
-            <div className="pm-panel-header-row" style={{ marginBottom: '0.75rem' }}>
-              <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800 }}>Top Subjects</h4>
+        {/* Right Column: Analytics & Cohorts */}
+        <div className="pm-dashboard-aside">
+          {/* Top Subjects */}
+          <div className="pm-card">
+            <div className="pm-card-header">
+              <h3 className="pm-card-title">Top Subjects</h3>
               <button
-                className="pm-drill-crumb-clear"
-                style={{ fontSize: '0.75rem' }}
+                className="pm-card-link-btn"
                 onClick={() => navigate('/admin/quizzes')}
               >
                 All →
@@ -259,63 +185,50 @@ export default function AdminOverview() {
             </div>
 
             {topSubjects.length === 0 ? (
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
-                No subject statistics logged yet.
-              </p>
+              <p className="pm-card-empty-text">No subject metrics recorded yet.</p>
             ) : (
-              <div className="pm-subject-bars-list">
+              <div className="pm-progress-list">
                 {topSubjects.map((sub, i) => {
                   const maxCount = Math.max(...topSubjects.map((s) => s.count), 1);
                   const pct = Math.round((sub.count / maxCount) * 100);
                   return (
-                    <div key={i} className="pm-subject-bar-item">
-                      <div className="pm-subject-bar-header">
-                        <span className="pm-subject-bar-title">{sub.subject}</span>
-                        <span className="pm-subject-bar-val">{sub.count} quizzes</span>
+                    <div key={i} className="pm-progress-item">
+                      <div className="pm-progress-labels">
+                        <span className="pm-progress-name" title={sub.subject}>{sub.subject}</span>
+                        <span className="pm-progress-value">{sub.count} {sub.count === 1 ? 'quiz' : 'quizzes'}</span>
                       </div>
-                      <div className="pm-subject-bar-track">
-                        <div className="pm-subject-bar-fill" style={{ width: `${Math.max(pct, 8)}%` }} />
+                      <div className="pm-progress-track">
+                        <div
+                          className="pm-progress-bar"
+                          style={{ width: `${Math.max(pct, 6)}%` }}
+                        />
                       </div>
                     </div>
                   );
                 })}
               </div>
             )}
-          </section>
+          </div>
 
-          {/* Active Cohorts & Batches */}
-          <section className="pm-admin-panel-card" style={{ marginBottom: '1.25rem' }}>
-            <div className="pm-panel-header-row" style={{ marginBottom: '0.75rem' }}>
-              <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800 }}>Active Cohorts</h4>
+          {/* Active Cohorts */}
+          <div className="pm-card">
+            <div className="pm-card-header">
+              <h3 className="pm-card-title">Active Cohorts</h3>
               <button
-                className="pm-drill-crumb-clear"
-                style={{ fontSize: '0.75rem' }}
+                className="pm-card-link-btn"
                 onClick={() => navigate('/admin/batches')}
               >
-                Manage ({allBatchObjects.length || standardBatches.length}) →
+                Manage →
               </button>
             </div>
 
-            <div className="pm-cohorts-chip-grid">
-              {(topBatches.length > 0 ? topBatches.map((b) => b.batch) : standardBatches.slice(0, 6)).map((batchName, idx) => (
-                <div key={idx} className="pm-cohort-chip">
-                  <span className="pm-cohort-dot" />
-                  <span>{batchName}</span>
-                </div>
+            <div className="pm-cohort-tags-wrap">
+              {(topBatches.length > 0 ? topBatches.map((b) => b.batch) : standardBatches.slice(0, 8)).map((batchName, idx) => (
+                <span key={idx} className="pm-cohort-pill" title={batchName}>
+                  <span className="pm-cohort-bullet" />
+                  <span className="pm-cohort-name">{batchName}</span>
+                </span>
               ))}
-            </div>
-          </section>
-
-          {/* Institutional Compliance Seal */}
-          <div className="pm-compliance-summary-card">
-            <div className="pm-compliance-icon">🛡️</div>
-            <div>
-              <strong style={{ fontSize: '0.85rem', display: 'block', color: 'var(--text-primary)' }}>
-                MSU Domain Cryptography
-              </strong>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4, display: 'block', marginTop: '2px' }}>
-                Strict SSO active for <code>@polariscampus.com</code> &amp; <code>@medhaviskillsuniversity.edu.in</code>
-              </span>
             </div>
           </div>
         </div>
