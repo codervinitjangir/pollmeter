@@ -1378,6 +1378,31 @@ export async function addBatchToUser(email: string, batchIdentifier: string): Pr
 }
 
 /**
+ * Replaces a user's assigned batches list (e.g. for administration or test resets).
+ */
+export async function setUserBatches(email: string, batches: string[]): Promise<User | null> {
+  const cleanEmail = email.toLowerCase().trim();
+  if (usePostgres && pool) {
+    const res = await pool.query(
+      `UPDATE users
+       SET batches = $1
+       WHERE LOWER(email) = $2
+       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain",
+                 department, subject, batches, picture, COALESCE(approved, false) as approved,
+                 created_at as "createdAt"`,
+      [JSON.stringify(batches), cleanEmail]
+    );
+    return res.rows[0] ?? null;
+  }
+
+  const user = Object.values(localDb.users).find((u) => u.email.toLowerCase() === cleanEmail);
+  if (!user) return null;
+  user.batches = [...batches];
+  saveLocalDb();
+  return user;
+}
+
+/**
  * Inserts a new batch, or re-activates it if a case-insensitive matching display_name
  * already exists on both Postgres and JSON fallback backends (Gap 6 fix).
  */

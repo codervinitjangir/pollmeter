@@ -104,8 +104,11 @@ export default function HostPage() {
   const [showPastQuizzes, setShowPastQuizzes] = useState(false);
   const [hostView, setHostView] = useState<'builder' | 'reports'>('builder');
 
+  const [batchesLoading, setBatchesLoading] = useState(false);
+
   // Fetch college batches dynamically with role & assignment awareness (Gap 4)
   const loadBatches = useCallback(() => {
+    setBatchesLoading(true);
     fetchBatchObjects()
       .then((objs) => {
         setAvailableBatchObjects(objs || []);
@@ -124,6 +127,9 @@ export default function HostPage() {
         setAvailableBatchObjects([]);
         setAvailableBatches([]);
         setShowNewBatchInput(false);
+      })
+      .finally(() => {
+        setBatchesLoading(false);
       });
   }, []);
 
@@ -605,35 +611,12 @@ export default function HostPage() {
       return;
     }
 
-    setLoading(true);
-
-    let activeBatchId = quizBatchId;
-    if (!activeBatchId) {
-      if (availableBatchObjects.length > 0) {
-        activeBatchId = availableBatchObjects[0].id;
-        setQuizBatchId(activeBatchId);
-        setQuizBatch(availableBatchObjects[0].displayName);
-      } else {
-        try {
-          const objs = await fetchBatchObjects();
-          if (objs && objs.length > 0) {
-            setAvailableBatchObjects(objs);
-            setAvailableBatches(objs.map((o) => o.displayName));
-            activeBatchId = objs[0].id;
-            setQuizBatchId(activeBatchId);
-            setQuizBatch(objs[0].displayName);
-          }
-        } catch {
-          // ignore
-        }
-      }
-    }
-
-    if (!activeBatchId) {
-      setLoading(false);
+    if (!quizBatchId) {
       setError('Please select or create a batch before starting the session.');
       return;
     }
+
+    setLoading(true);
 
     try {
       const token = getAuthToken();
@@ -658,7 +641,7 @@ export default function HostPage() {
           questions,
           topic,
           subject: quizSubject || 'General',
-          batchId: activeBatchId,
+          batchId: quizBatchId,
         }),
       });
       const d = await res.json();
@@ -679,7 +662,7 @@ export default function HostPage() {
                   questions,
                   topic,
                   subject: quizSubject || 'General',
-                  batchId: activeBatchId,
+                  batchId: quizBatchId,
                 }),
               });
               if (retryRes.ok) {
@@ -1910,19 +1893,15 @@ export default function HostPage() {
                         <label className="pm-host-field-label">
                           Target Batch / Class
                         </label>
-                        {availableBatchObjects.length === 0 ? (
+                        {batchesLoading ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.4rem 0' }}>
                             <span style={{ color: 'var(--text-secondary, #9CA3AF)', fontSize: '0.85rem' }}>
                               Loading batches…
                             </span>
-                            <button
-                              type="button"
-                              className="btn btn-ghost btn-sm"
-                              onClick={loadBatches}
-                              style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
-                            >
-                              ↻ Reload
-                            </button>
+                          </div>
+                        ) : availableBatchObjects.length === 0 ? (
+                          <div style={{ padding: '0.4rem 0', color: 'var(--text-secondary, #9CA3AF)', fontSize: '0.85rem' }}>
+                            No assigned batches found. Create one below to get started.
                           </div>
                         ) : (
                           <select
@@ -2014,7 +1993,7 @@ export default function HostPage() {
                   <button
                     className="btn btn-primary btn--lg btn--full"
                     onClick={createSession}
-                    disabled={loading || questions.length === 0}
+                    disabled={loading || questions.length === 0 || !quizBatchId}
                     id="create-session-btn"
                   >
                     {loading ? (

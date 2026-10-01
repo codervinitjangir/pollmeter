@@ -1,6 +1,6 @@
 import http from 'http';
 import { app } from './src/index';
-import { initDb, getUserByEmail, upsertUser, getBatchById, getQuizDetails, addBatchToUser } from './src/db';
+import { initDb, getUserByEmail, upsertUser, getBatchById, getQuizDetails, addBatchToUser, setUserBatches } from './src/db';
 import { generateToken } from './src/auth';
 
 function request(
@@ -89,6 +89,9 @@ async function run() {
       approved: true,
       createdAt: new Date().toISOString(),
     });
+
+    await setUserBatches(mentorAEmail, []);
+    await setUserBatches(mentorBEmail, []);
 
     const adminToken = generateToken({ id: 'admin-test-id', email: adminEmail, realName: 'Super Admin', role: 'admin' });
     const mentorAToken = generateToken({ id: 'mentor-a-id', email: mentorAEmail, realName: 'Mentor A', role: 'mentor' });
