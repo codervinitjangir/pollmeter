@@ -48,6 +48,9 @@ export default function QuizLibrary({
   const [startingSession, setStartingSession] = useState(false);
   const [goLiveError, setGoLiveError] = useState('');
 
+  // In-UI Delete confirmation modal state
+  const [deleteConfirmDraft, setDeleteConfirmDraft] = useState<QuizDraftSummary | null>(null);
+
   // Loading draft details for edit or duplicate
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
@@ -139,10 +142,13 @@ export default function QuizLibrary({
     }
   };
 
-  const handleDelete = async (draft: QuizDraftSummary) => {
-    if (!window.confirm(`Are you sure you want to delete "${draft.title}"?\n\nNote: Any past classroom sessions that used this quiz will keep their question history intact.`)) {
-      return;
-    }
+  const handleDelete = (draft: QuizDraftSummary) => {
+    setDeleteConfirmDraft(draft);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirmDraft) return;
+    const draft = deleteConfirmDraft;
     setActionLoadingId(draft.id);
     setError('');
     setSuccessMsg('');
@@ -150,6 +156,7 @@ export default function QuizLibrary({
       await deleteQuizDraft(draft.id);
       setSuccessMsg(`Draft "${draft.title}" deleted.`);
       setDrafts((prev) => prev.filter((d) => d.id !== draft.id));
+      setDeleteConfirmDraft(null);
     } catch (err: any) {
       setError(err.message || 'Failed to delete quiz draft.');
     } finally {
@@ -565,6 +572,72 @@ export default function QuizLibrary({
                   <><span className="spinner spinner--sm" style={{ borderTopColor: '#fff' }} /> Starting…</>
                 ) : (
                   '🚀 Start Live Session'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Draft In-UI Confirmation Modal */}
+      {deleteConfirmDraft && (
+        <div
+          className="modal-backdrop"
+          style={{ zIndex: 1100 }}
+          onClick={() => !actionLoadingId && setDeleteConfirmDraft(null)}
+        >
+          <div
+            className="modal-content"
+            style={{ maxWidth: '440px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div
+                style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '12px',
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  color: '#EF4444',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.25rem',
+                }}
+              >
+                🗑️
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Delete Quiz Draft</h3>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>This action cannot be undone.</div>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 1.25rem' }}>
+              Are you sure you want to delete <strong>&ldquo;{deleteConfirmDraft.title}&rdquo;</strong>? Past classroom sessions that used this quiz will keep their question history intact.
+            </p>
+
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setDeleteConfirmDraft(null)}
+                disabled={Boolean(actionLoadingId)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ background: '#EF4444', borderColor: '#DC2626', color: '#fff' }}
+                onClick={handleConfirmDelete}
+                disabled={Boolean(actionLoadingId)}
+                id="confirm-delete-draft-btn"
+              >
+                {actionLoadingId === deleteConfirmDraft.id ? (
+                  <><span className="spinner spinner--sm" style={{ borderTopColor: '#fff' }} /> Deleting…</>
+                ) : (
+                  'Delete Draft'
                 )}
               </button>
             </div>

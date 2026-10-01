@@ -10,6 +10,7 @@ export default function AdminBatches() {
     setAllBatchObjects,
     setStandardBatches,
     showToast,
+    showConfirmDialog,
   } = useAdminData();
 
   const [newBatchName, setNewBatchName] = useState('');
@@ -54,23 +55,25 @@ export default function AdminBatches() {
     }
   };
 
-  const handleDeactivateBatch = async (id: string, displayName: string) => {
-    if (
-      !window.confirm(
-        `Deactivate batch '${displayName}'? Historical sessions will keep the name, but it won't appear in new quiz dropdowns.`
-      )
-    )
-      return;
-    try {
-      await adminDeactivateBatch(id);
-      setAllBatchObjects((prev) =>
-        prev.map((b) => (b.id === id ? { ...b, status: 'inactive' as const } : b))
-      );
-      setStandardBatches((prev) => prev.filter((b) => b !== displayName));
-      showToast(`Batch '${displayName}' deactivated.`);
-    } catch (err: any) {
-      showToast(err.message || 'Failed to deactivate batch.', 'error');
-    }
+  const handleDeactivateBatch = (id: string, displayName: string) => {
+    showConfirmDialog({
+      title: 'Deactivate Batch?',
+      message: `Deactivate batch '${displayName}'? Historical sessions will keep the name, but it won't appear in new quiz dropdowns.`,
+      confirmLabel: 'Deactivate Batch',
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          await adminDeactivateBatch(id);
+          setAllBatchObjects((prev) =>
+            prev.map((b) => (b.id === id ? { ...b, status: 'inactive' as const } : b))
+          );
+          setStandardBatches((prev) => prev.filter((b) => b !== displayName));
+          showToast(`Batch '${displayName}' deactivated.`);
+        } catch (err: any) {
+          showToast(err.message || 'Failed to deactivate batch.', 'error');
+        }
+      },
+    });
   };
 
   return (
