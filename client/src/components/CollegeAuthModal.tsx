@@ -43,7 +43,6 @@ export default function CollegeAuthModal({
   const [allowedDomains, setAllowedDomains] = useState<string[]>([
     'polariscampus.com',
     'medhaviskillsuniversity.edu.in',
-    'medhaviskillsunivercity.edu.in',
   ]);
   const [googleClientId, setGoogleClientId] = useState<string | null>(null);
   const [currentTheme, setCurrentTheme] = useState<'light' | 'dark'>(() => {
@@ -151,7 +150,7 @@ export default function CollegeAuthModal({
               setError(`Access Restricted: Signed in as ${userEmail}. Please use your @polariscampus.com faculty account.`);
               return;
             }
-            if (!isFacultyRole && !userEmail.endsWith('@medhaviskillsuniversity.edu.in') && !userEmail.endsWith('@medhaviskillsunivercity.edu.in')) {
+            if (!isFacultyRole && !userEmail.endsWith('@medhaviskillsuniversity.edu.in')) {
               try {
                 window.google?.accounts?.id?.disableAutoSelect?.();
                 document.cookie = 'g_state=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
@@ -205,7 +204,7 @@ export default function CollegeAuthModal({
         return;
       }
     } else {
-      const isMedhavi = cleanEmail.endsWith('@medhaviskillsuniversity.edu.in') || cleanEmail.endsWith('@medhaviskillsunivercity.edu.in');
+      const isMedhavi = cleanEmail.endsWith('@medhaviskillsuniversity.edu.in');
       if (!isMedhavi) {
         setError('Access Restricted: Student login is strictly restricted to official Medhavi email addresses (@medhaviskillsuniversity.edu.in).');
         return;

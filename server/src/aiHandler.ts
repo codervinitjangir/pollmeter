@@ -436,7 +436,7 @@ function normalizeQuestions(
     // The prompt asks "under 140 chars" but the model sometimes disobeys.
     // Truncating mid-sentence produces a garbled question; dropping is safer.
     if (text.length > 140) {
-      console.warn(`[ai] Question skipped - text exceeds 140 chars: ${text.length}`);
+      console.warn('[ai] Question skipped - text exceeds 140 chars:', text.length);
       continue;
     }
 
@@ -462,7 +462,7 @@ function normalizeQuestions(
     // missing one option is not a valid question.
     const longOption = unique.find((o) => o.length > 65);
     if (longOption) {
-      console.warn(`[ai] Question skipped - option exceeds 65 chars (${longOption.length}): "${longOption.slice(0, 80)}"`);
+      console.warn('[ai] Question skipped - option exceeds 65 chars:', longOption.length, longOption.slice(0, 80));
       continue;
     }
 

@@ -70,7 +70,14 @@ export default function BatchPicker({
 
       {batches.length === 0 ? (
         <div style={{ padding: '0.4rem 0', color: 'var(--text-secondary, #9CA3AF)', fontSize: '0.85rem' }}>
-          No assigned batches found. Please create one below.
+          {/*
+            Without allowCreate there is no create form underneath, so pointing
+            at one reads as a broken screen to a student who cannot make
+            batches in the first place. Point them at who can instead.
+          */}
+          {allowCreate
+            ? 'No assigned batches found. Please create one below.'
+            : 'No batches are available yet — ask your mentor or an administrator to add yours.'}
         </div>
       ) : (
         <select

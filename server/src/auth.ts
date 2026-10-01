@@ -69,7 +69,6 @@ export const FACULTY_DOMAIN = (process.env.FACULTY_DOMAIN || 'polariscampus.com'
 const DEFAULT_DOMAINS = [
   FACULTY_DOMAIN,
   'medhaviskillsuniversity.edu.in',
-  'medhaviskillsunivercity.edu.in',
 ];
 
 export interface JwtPayload {

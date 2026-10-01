@@ -1,40 +1,81 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   fetchMentorReports,
   MentorReports,
   exportCampusReportsCsv,
   downloadQuizCsv,
-  BatchObject,
 } from '../../auth';
 import { useAdminData } from './AdminContext';
+import AcademicDrilldown, { DRILL_ALL } from './AcademicDrilldown';
 
 export default function AdminReports() {
   const {
     allBatchObjects,
-    standardBatches,
     activeSubjects,
     showToast,
   } = useAdminData();
+
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Cross-mentor campus reports state
   const [reportData, setReportData] = useState<MentorReports | null>(null);
   const [loadingReports, setLoadingReports] = useState(false);
   const [reportError, setReportError] = useState('');
-  const [reportBatch, setReportBatch] = useState('all');
-  const [reportYear, setReportYear] = useState('all');
-  const [reportSubject, setReportSubject] = useState('all');
-  const [reportMentorQuery, setReportMentorQuery] = useState('');
+  // `reportBatch` holds the batch *id* while the drilldown is driving it; the
+  // id is resolved to a display name before the API call (see reportBatchParam).
+  const [reportBatch, setReportBatch] = useState(() => searchParams.get('batchId') || DRILL_ALL);
+  const [reportYear, setReportYear] = useState(() => searchParams.get('year') || DRILL_ALL);
+  const [reportSubject, setReportSubject] = useState(() => searchParams.get('subject') || DRILL_ALL);
+  const [reportMentorQuery, setReportMentorQuery] = useState(() => searchParams.get('mentor') || '');
   const [reportTimeRange, setReportTimeRange] = useState('all');
   const [reportStartDate, setReportStartDate] = useState('');
   const [reportEndDate, setReportEndDate] = useState('');
   const [exportingReportCsv, setExportingReportCsv] = useState(false);
+
+  /**
+   * The drilldown tracks batches by id, but the reports API matches a single
+   * value against either `batch_id` or the free-text `batch` column. Every
+   * stored session carries the display name, while `batch_id` was added later
+   * and is null on older rows, so the display name is the more complete key —
+   * and it is exactly what the dropdown this replaced used to send, which
+   * keeps the endpoint's behaviour unchanged.
+   */
+  const reportBatchParam = useMemo(() => {
+    if (reportBatch === DRILL_ALL) return undefined;
+    return allBatchObjects.find((b) => b.id === reportBatch)?.displayName ?? reportBatch;
+  }, [reportBatch, allBatchObjects]);
+
+  const drilldownValue = useMemo(
+    () => ({
+      year: reportYear,
+      batchId: reportBatch,
+      subject: reportSubject,
+      mentorQuery: reportMentorQuery,
+    }),
+    [reportYear, reportBatch, reportSubject, reportMentorQuery]
+  );
+
+  // Keep a drilled-down view bookmarkable. Defaults are omitted so an
+  // untouched screen keeps a clean URL. Date range stays out of this on
+  // purpose — it is an orthogonal axis with its own controls.
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (reportYear !== DRILL_ALL) next.set('year', reportYear);
+    if (reportBatch !== DRILL_ALL) next.set('batchId', reportBatch);
+    if (reportSubject !== DRILL_ALL) next.set('subject', reportSubject);
+    if (reportMentorQuery.trim()) next.set('mentor', reportMentorQuery.trim());
+    setSearchParams(next, { replace: true });
+    // `setSearchParams` is intentionally the only extra dependency — reading
+    // `searchParams` here would make this effect retrigger on its own write.
+  }, [reportYear, reportBatch, reportSubject, reportMentorQuery, setSearchParams]);
 
   // Cross-mentor reports loader
   useEffect(() => {
     setLoadingReports(true);
     setReportError('');
     fetchMentorReports({
-      batch: reportBatch !== 'all' ? reportBatch : undefined,
+      batch: reportBatchParam,
       year: reportYear !== 'all' ? reportYear : undefined,
       subject: reportSubject !== 'all' ? reportSubject : undefined,
       mentorQuery: reportMentorQuery.trim() || undefined,
@@ -46,7 +87,7 @@ export default function AdminReports() {
       .catch((err: any) => setReportError(err.message || 'Failed to load cross-mentor reports.'))
       .finally(() => setLoadingReports(false));
   }, [
-    reportBatch,
+    reportBatchParam,
     reportYear,
     reportSubject,
     reportMentorQuery,
@@ -55,23 +96,12 @@ export default function AdminReports() {
     reportEndDate,
   ]);
 
-  // Grouped batches for optgroup dropdown
-  const groupedBatches = useMemo(() => {
-    const map = new Map<string, BatchObject[]>();
-    for (const b of allBatchObjects) {
-      const yr = b.year?.trim() || 'Other Batches';
-      if (!map.has(yr)) map.set(yr, []);
-      map.get(yr)!.push(b);
-    }
-    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [allBatchObjects]);
-
   // Handler: Export filtered campus report CSV
   const handleExportCampusReportCsv = async () => {
     setExportingReportCsv(true);
     try {
       await exportCampusReportsCsv({
-        batch: reportBatch !== 'all' ? reportBatch : undefined,
+        batch: reportBatchParam,
         year: reportYear !== 'all' ? reportYear : undefined,
         subject: reportSubject !== 'all' ? reportSubject : undefined,
         mentorQuery: reportMentorQuery.trim() || undefined,
@@ -153,7 +183,20 @@ export default function AdminReports() {
         </div>
       </div>
 
-      {/* Filter Toolbar */}
+      {/* Guided academic drill-down: Year → Batch, then Subject/Mentor facets */}
+      <AcademicDrilldown
+        value={drilldownValue}
+        onChange={(next) => {
+          setReportYear(next.year);
+          setReportBatch(next.batchId);
+          setReportSubject(next.subject);
+          setReportMentorQuery(next.mentorQuery);
+        }}
+        subjects={activeSubjects}
+        batches={allBatchObjects}
+      />
+
+      {/* Date range — an orthogonal axis, kept separate from the drill-down */}
       <div
         style={{
           background: 'var(--surface-mid, #1E2024)',
@@ -207,107 +250,6 @@ export default function AdminReports() {
               />
             </div>
           )}
-        </div>
-
-        {/* Dropdowns Row: Batch, Year, Subject, Mentor Query */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
-            gap: '0.75rem',
-          }}
-        >
-          {/* Batch Dropdown (grouped by year) */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: '#94A3B8', marginBottom: '0.25rem' }}>
-              Target Batch
-            </label>
-            <select
-              className="pm-filter-select"
-              style={{ width: '100%' }}
-              value={reportBatch}
-              onChange={(e) => setReportBatch(e.target.value)}
-            >
-              <option value="all">🎓 All Batches</option>
-              {groupedBatches.map(([yr, batches]) => (
-                <optgroup key={yr} label={yr}>
-                  {batches.map((b) => (
-                    <option key={b.id} value={b.displayName}>
-                      {b.displayName}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-              {groupedBatches.length === 0 &&
-                standardBatches.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
-            </select>
-          </div>
-
-          {/* Academic Year Dropdown */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: '#94A3B8', marginBottom: '0.25rem' }}>
-              Academic Year
-            </label>
-            <select
-              className="pm-filter-select"
-              style={{ width: '100%' }}
-              value={reportYear}
-              onChange={(e) => setReportYear(e.target.value)}
-            >
-              <option value="all">📅 All Years</option>
-              <option value="1">1st Year</option>
-              <option value="2">2nd Year</option>
-              <option value="3">3rd Year</option>
-              <option value="4">4th Year</option>
-            </select>
-          </div>
-
-          {/* Subject Dropdown */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: '#94A3B8', marginBottom: '0.25rem' }}>
-              Academic Subject
-            </label>
-            <select
-              className="pm-filter-select"
-              style={{ width: '100%' }}
-              value={reportSubject}
-              onChange={(e) => setReportSubject(e.target.value)}
-            >
-              <option value="all">📚 All Subjects</option>
-              {activeSubjects.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Mentor Search Input */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: '#94A3B8', marginBottom: '0.25rem' }}>
-              Filter by Mentor
-            </label>
-            <input
-              type="text"
-              className="input"
-              placeholder="🔍 Name or email..."
-              value={reportMentorQuery}
-              onChange={(e) => setReportMentorQuery(e.target.value)}
-              style={{
-                width: '100%',
-                fontSize: '0.85rem',
-                padding: '0.45rem 0.75rem',
-                borderRadius: '8px',
-                background: 'var(--surface, #1B1B1F)',
-                border: '1px solid var(--border, #2A2A2F)',
-                color: 'var(--text-primary, #F2F2F2)',
-              }}
-            />
-          </div>
         </div>
       </div>
 

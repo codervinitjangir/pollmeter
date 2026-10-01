@@ -148,7 +148,7 @@ export async function fetchCollegeConfig(): Promise<{
     return await res.json();
   } catch {
     return {
-      allowedDomains: [FACULTY_DOMAIN, 'medhaviskillsuniversity.edu.in', 'medhaviskillsunivercity.edu.in'],
+      allowedDomains: [FACULTY_DOMAIN, 'medhaviskillsuniversity.edu.in'],
       googleClientId: null,
     };
   }
@@ -844,11 +844,29 @@ export async function setFacultyApproval(
   return data.faculty;
 }
 
-export async function searchStudentAudit(q?: string): Promise<StudentAuditItem[]> {
+export interface StudentAuditFilters {
+  /** Batch id — matched against the student's own enrolment. */
+  batchId?: string;
+  year?: string;
+  /** Inferred from the sessions the student actually joined. */
+  subject?: string;
+}
+
+export async function searchStudentAudit(
+  q?: string,
+  filters?: StudentAuditFilters
+): Promise<StudentAuditItem[]> {
   const token = getAuthToken();
   if (!token) throw new Error('Administrator authentication required');
 
-  const url = q ? apiUrl(`/api/admin/students?q=${encodeURIComponent(q)}`) : apiUrl('/api/admin/students');
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (filters?.batchId && filters.batchId !== 'all') params.set('batchId', filters.batchId);
+  if (filters?.year && filters.year !== 'all') params.set('year', filters.year);
+  if (filters?.subject && filters.subject !== 'all') params.set('subject', filters.subject);
+
+  const query = params.toString();
+  const url = apiUrl(`/api/admin/students${query ? `?${query}` : ''}`);
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   });

@@ -2,6 +2,10 @@ import React from 'react';
 import { useAdminData } from './AdminContext';
 
 export default function AdminQuizzes() {
+  // TODO: this screen substantially overlaps AdminReports, which now covers the
+  // same sessions with a guided Year → Batch → Subject/Mentor drill-down and a
+  // CSV export. Worth merging into that screen, or demoting this one to a
+  // glanceable summary widget, in a future pass.
   const { overview } = useAdminData();
 
   return (

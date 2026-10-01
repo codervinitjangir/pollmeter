@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { searchStudentAudit, adminUpdateStudentBatch, adminFetchBatches, BatchObject } from '../../auth';
 import { useAdminData } from './AdminContext';
+import AcademicDrilldown, { AcademicDrilldownValue, EMPTY_DRILL } from './AcademicDrilldown';
 
 export default function AdminStudents() {
   const {
@@ -8,9 +9,16 @@ export default function AdminStudents() {
     studentAudit,
     setStudentAudit,
     loading,
+    allBatchObjects,
+    activeSubjects,
   } = useAdminData();
 
   const [studentSearch, setStudentSearch] = useState('');
+  /**
+   * Browsing axis, independent of the text box below it: the drill-down answers
+   * "show me this cohort", the search answers "find this one person".
+   */
+  const [drill, setDrill] = useState<AcademicDrilldownValue>({ ...EMPTY_DRILL });
 
   // Batch edit modal state
   const [editingEmail, setEditingEmail] = useState<string | null>(null);
@@ -23,12 +31,16 @@ export default function AdminStudents() {
   useEffect(() => {
     if (!authUser || authUser.role !== 'admin') return;
     const timer = setTimeout(() => {
-      searchStudentAudit(studentSearch)
+      searchStudentAudit(studentSearch, {
+        batchId: drill.batchId,
+        year: drill.year,
+        subject: drill.subject,
+      })
         .then((data) => setStudentAudit(data))
         .catch(() => {});
     }, 300);
     return () => clearTimeout(timer);
-  }, [studentSearch, authUser, setStudentAudit]);
+  }, [studentSearch, drill.batchId, drill.year, drill.subject, authUser, setStudentAudit]);
 
   function openBatchModal(email: string, currentBatchId?: string) {
     setEditingEmail(email);
@@ -47,7 +59,11 @@ export default function AdminStudents() {
       await adminUpdateStudentBatch(editingEmail, batchModalValue || null);
       setEditingEmail(null);
       // Refresh the list
-      const data = await searchStudentAudit(studentSearch);
+      const data = await searchStudentAudit(studentSearch, {
+        batchId: drill.batchId,
+        year: drill.year,
+        subject: drill.subject,
+      });
       setStudentAudit(data);
     } catch (err: any) {
       setBatchModalError(err.message || 'Failed to update batch.');
@@ -58,6 +74,17 @@ export default function AdminStudents() {
 
   return (
     <section className="pm-admin-panel-card">
+      {/*
+        Mentor is not forwarded to the student endpoint — a student belongs to a
+        batch, not to a mentor, so the facet would have nothing to match.
+      */}
+      <AcademicDrilldown
+        value={drill}
+        onChange={setDrill}
+        subjects={activeSubjects}
+        batches={allBatchObjects}
+      />
+
       <div className="pm-panel-header-row">
         <div className="pm-search-input-wrap">
           <span>🔍</span>

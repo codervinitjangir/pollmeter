@@ -482,6 +482,14 @@ export default function StudentDashboard() {
             </div>
           )}
 
+          {/*
+            Everything below is gated on the batch being set. The prompt above
+            used to sit as a banner over a fully usable dashboard, so a student
+            could scroll past it, go straight to a quiz, and only discover the
+            requirement as a join error with no picker in front of them.
+          */}
+          {!needsBatchSetup && (
+            <>
           {/* Mentor Switch Notice if Faculty logs in */}
           {isFaculty && (
             <div
@@ -928,6 +936,8 @@ export default function StudentDashboard() {
             )}
           </div>
         </section>
+            </>
+          )}
       </main>
       </div>
     </div>

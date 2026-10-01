@@ -1367,7 +1367,19 @@ app.get('/api/batches', requireAuth, async (req: AuthenticatedRequest, res: Resp
       return;
     }
 
-    // Default for students or other roles: return all active batches
+    // Students pick their own batch once, from the whole active list — they
+    // have no assignment to filter by yet, which is the point of the screen
+    // this feeds. Spelled out rather than left to the fall-through so that
+    // narrowing the default later cannot silently empty their picker.
+    if (req.user?.role === 'student') {
+      res.json({
+        batches: allBatches.map((b) => b.displayName),
+        batchObjects: allBatches,
+      });
+      return;
+    }
+
+    // Any other role: all active batches.
     res.json({
       batches: allBatches.map((b) => b.displayName),
       batchObjects: allBatches,
@@ -1708,7 +1720,11 @@ app.delete('/api/admin/faculty/:email', requireAdmin, async (req: AuthenticatedR
 app.get('/api/admin/students', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const q = (req.query.q as string) || '';
-    const students = await searchStudents(q);
+    const students = await searchStudents(q, {
+      batchId: (req.query.batchId as string) || undefined,
+      year: (req.query.year as string) || undefined,
+      subject: (req.query.subject as string) || undefined,
+    });
     res.json({ students });
   } catch (err) {
     console.error('[admin] Failed to search students:', err);

@@ -639,7 +639,9 @@ export function registerSocketHandlers(io: Server, socket: Socket): void {
       return;
     }
 
-    let authUser: { realName?: string; email?: string; userId?: string } | undefined;
+    let authUser:
+      | { realName?: string; email?: string; userId?: string; role?: string }
+      | undefined;
     if (payload?.authToken) {
       const decoded = verifyToken(payload.authToken);
       if (decoded) {
@@ -647,6 +649,7 @@ export function registerSocketHandlers(io: Server, socket: Socket): void {
           realName: decoded.realName,
           email: decoded.email,
           userId: decoded.id,
+          role: decoded.role,
         };
       }
     } else if (payload?.realName && payload?.email) {
@@ -656,24 +659,48 @@ export function registerSocketHandlers(io: Server, socket: Socket): void {
       };
     }
 
-    // ── Batch enforcement for authenticated students ────────────────────────
-    if (authUser?.userId) {
-      // Only enforce for accounts that provided a real auth token.
-      const liveUser = authUser.email ? await getUserByEmail(authUser.email) : null;
-      if (!liveUser?.batchId) {
+    // ── Batch enforcement ───────────────────────────────────────────────────
+    // Gated on the *session* carrying a batch, not on the caller carrying a
+    // token. The realName+email branch above is self-asserted, so a client
+    // that simply omitted its authToken used to arrive here with no `userId`,
+    // skip every check below, and join another batch's quiz under any address
+    // it cared to claim — scoring as that person. Keying on the session means
+    // dropping the token now fails the join instead of exempting it.
+    //
+    // The anonymous branch is left in place for sessions with no batch, so
+    // reverting to an open join is still a one-line change.
+    if (session.batchId) {
+      if (!authUser?.userId) {
         socket.emit('error', {
-          message: 'Please select your batch before joining a quiz.',
+          message: 'Please sign in with your college account to join this quiz.',
           fatal: true,
         });
         return;
       }
-      // Only enforce the batch check when the session is targeted at a specific batch.
-      if (session.batchId && liveUser.batchId !== session.batchId) {
-        socket.emit('error', {
-          message: 'This quiz is for a different batch.',
-          fatal: true,
-        });
-        return;
+
+      // Faculty hold no batch of their own, and a mentor joining their own
+      // session from a phone to sanity-check it before class is normal.
+      if (authUser.role !== 'mentor' && authUser.role !== 'admin') {
+        // Read the batch live rather than from the token: an admin may have
+        // moved this student since their 30-day JWT was minted.
+        const liveUser = authUser.email ? await getUserByEmail(authUser.email) : null;
+        if (!liveUser?.batchId) {
+          socket.emit('error', {
+            message: 'Please select your batch before joining a quiz.',
+            fatal: true,
+          });
+          return;
+        }
+        // Deliberately does not name the session's batch — a student who picked
+        // the wrong one should ask their mentor, not read the timetable off an
+        // error message.
+        if (liveUser.batchId !== session.batchId) {
+          socket.emit('error', {
+            message: 'This quiz is for a different batch.',
+            fatal: true,
+          });
+          return;
+        }
       }
     }
     // ── End batch enforcement ──────────────────────────────────────────────

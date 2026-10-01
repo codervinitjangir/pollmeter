@@ -14124,3 +14124,291 @@ html[data-theme="dark"] body {
   flex-direction: column;
 }
 
+
+/* ─── Academic Drill-down (Year → Batch → Subject/Mentor facets) ─────────── */
+/* Shared by AdminReports and AdminStudents via AcademicDrilldown.tsx.       */
+
+.pm-drill {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 14px;
+  padding: 0.9rem 1.1rem 1.05rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+/* Breadcrumb */
+.pm-drill-crumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.pm-drill-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #64748B;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.pm-drill-crumb:hover {
+  background: #EEF2FF;
+  border-color: #C7D2FE;
+  color: #4338CA;
+}
+
+.pm-drill-crumb.is-set {
+  color: #1E293B;
+}
+
+.pm-drill-crumb--root {
+  font-weight: 700;
+  color: #4F46E5;
+}
+
+.pm-drill-crumb-key {
+  color: #94A3B8;
+  font-weight: 600;
+}
+
+.pm-drill-crumb.is-set .pm-drill-crumb-val {
+  color: #4F46E5;
+  font-weight: 700;
+}
+
+.pm-drill-crumb-sep {
+  color: #CBD5E1;
+  font-size: 0.72rem;
+  user-select: none;
+}
+
+.pm-drill-crumb-clear {
+  margin-left: auto;
+  padding: 0.22rem 0.6rem;
+  border: 1px solid #FECACA;
+  border-radius: 7px;
+  background: #FEF2F2;
+  color: #DC2626;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pm-drill-crumb-clear:hover {
+  background: #FEE2E2;
+}
+
+/* Step header */
+.pm-drill-step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pm-drill-step-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.pm-drill-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #4F46E5;
+  color: #FFFFFF;
+  font-size: 0.66rem;
+  font-weight: 800;
+  flex: 0 0 auto;
+}
+
+.pm-drill-step-title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pm-drill-step-hint {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #94A3B8;
+}
+
+/* Tiles — the primary navigation action, so deliberately larger than a chip */
+.pm-drill-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.pm-drill-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  min-width: 104px;
+  padding: 0.5rem 0.85rem;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 11px;
+  background: #FFFFFF;
+  color: #1E293B;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  text-align: left;
+}
+
+.pm-drill-tile:hover {
+  border-color: #A5B4FC;
+  background: #F5F3FF;
+  transform: translateY(-1px);
+}
+
+.pm-drill-tile.active {
+  border-color: #4F46E5;
+  background: #4F46E5;
+  box-shadow: 0 3px 10px rgba(79, 70, 229, 0.28);
+}
+
+.pm-drill-tile-main {
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.pm-drill-tile-sub {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #94A3B8;
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pm-drill-tile.active .pm-drill-tile-main,
+.pm-drill-tile.active .pm-drill-tile-sub {
+  color: #FFFFFF;
+}
+
+.pm-drill-tile.active .pm-drill-tile-sub {
+  opacity: 0.82;
+}
+
+.pm-drill-empty {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #64748B;
+}
+
+/* Facets */
+.pm-drill-facets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 0.75rem;
+}
+
+.pm-drill-facet-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #94A3B8;
+  margin-bottom: 0.25rem;
+}
+
+/* Dark theme */
+[data-theme="dark"] .pm-drill {
+  background: #0a0a0b !important;
+  border: 1px solid #1f1f23 !important;
+}
+
+[data-theme="dark"] .pm-drill-crumbs {
+  border-bottom: 1px solid #1f1f23 !important;
+}
+
+[data-theme="dark"] .pm-drill-crumb {
+  color: #8b8b94 !important;
+}
+
+[data-theme="dark"] .pm-drill-crumb:hover {
+  background: #1a1a1d !important;
+  border-color: #2c2c32 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .pm-drill-crumb.is-set {
+  color: #f4f4f5 !important;
+}
+
+[data-theme="dark"] .pm-drill-crumb--root,
+[data-theme="dark"] .pm-drill-crumb.is-set .pm-drill-crumb-val {
+  color: #a5b4fc !important;
+}
+
+[data-theme="dark"] .pm-drill-crumb-key {
+  color: #6b6b74 !important;
+}
+
+[data-theme="dark"] .pm-drill-crumb-sep {
+  color: #3a3a42 !important;
+}
+
+[data-theme="dark"] .pm-drill-crumb-clear {
+  background: transparent !important;
+  border: 1px solid #4c1d1d !important;
+  color: #f87171 !important;
+}
+
+[data-theme="dark"] .pm-drill-step-title {
+  color: #d4d4d8 !important;
+}
+
+[data-theme="dark"] .pm-drill-tile {
+  background: transparent !important;
+  border: 1.5px solid #2c2c32 !important;
+  color: #f4f4f5 !important;
+}
+
+[data-theme="dark"] .pm-drill-tile:hover {
+  background: #1a1a1d !important;
+  border-color: #55555e !important;
+}
+
+[data-theme="dark"] .pm-drill-tile.active {
+  background: #f4f4f5 !important;
+  border-color: #f4f4f5 !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .pm-drill-tile.active .pm-drill-tile-main,
+[data-theme="dark"] .pm-drill-tile.active .pm-drill-tile-sub {
+  color: #000000 !important;
+}
+
+[data-theme="dark"] .pm-drill-tile-sub {
+  color: #6b6b74 !important;
+}
+
+[data-theme="dark"] .pm-drill-empty {
+  color: #8b8b94 !important;
+}

@@ -28,11 +28,31 @@ import { cleanText } from '../cleanText';
 import { getAvatar } from '../utils/avatars';
 import { triggerHaptic } from '../utils/haptics';
 import { getVerdictQuote } from '../utils/verdictQuotes';
-import { getAuthUser, getAuthToken, clearStoredAuth, AuthUser } from '../auth';
+import {
+  getAuthUser,
+  getAuthToken,
+  clearStoredAuth,
+  setStoredAuth,
+  fetchBatchObjects,
+  updateStudentBatch,
+  AuthUser,
+  BatchObject,
+} from '../auth';
 import CollegeAuthModal from '../components/CollegeAuthModal';
 import StudentQuizHistoryModal from '../components/StudentQuizHistoryModal';
+import BatchPicker from '../components/BatchPicker';
 
 const LS_KEY = 'pollsync_participant';
+
+/**
+ * The server's wording for "you have no batch yet", matched verbatim so the
+ * join screen can answer it with a picker instead of a dead end. Changing the
+ * string in socketHandlers without changing it here degrades gracefully: the
+ * student just sees the plain error again, as they did before.
+ */
+const NO_BATCH_MESSAGE = 'Please select your batch before joining a quiz.';
+/** Sibling case: the student *has* a batch, and it is the wrong one. */
+const WRONG_BATCH_MESSAGE = 'This quiz is for a different batch.';
 
 /**
  * `rejoinToken` is the private half of the student's identity. Without it a
@@ -87,6 +107,21 @@ export default function JoinPage() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(() => getAuthUser());
   const [showAuthModal, setShowAuthModal] = useState(() => !getAuthUser());
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+
+  /**
+   * Inline batch self-assignment, shown only when the server turns a join away
+   * for having no batch on file. The picker also lives on StudentDashboard, but
+   * a student who scans the QR code lands here and never sees that screen — so
+   * the old behaviour was a correct error message with nothing to act on, which
+   * with a lecture hall of phones means everyone stuck at once.
+   */
+  const [needsBatch, setNeedsBatch] = useState(false);
+  const [batchOptions, setBatchOptions] = useState<BatchObject[]>([]);
+  const [joinBatchId, setJoinBatchId] = useState('');
+  const [joinBatchSaving, setJoinBatchSaving] = useState(false);
+  const [joinBatchError, setJoinBatchError] = useState('');
+  /** Set for the wrong-batch case, which the student cannot fix themselves. */
+  const [wrongBatch, setWrongBatch] = useState(false);
 
   // Server-authoritative session state. The screen is derived from `phase`
   // rather than a second local step machine that could drift out of sync.
@@ -145,6 +180,9 @@ export default function JoinPage() {
     pendingName.current = name;
     setJoining(true);
     setJoinError('');
+    // Both are re-derived from whatever the server says about *this* attempt.
+    setNeedsBatch(false);
+    setWrongBatch(false);
 
     if (joinTimeoutRef.current) clearTimeout(joinTimeoutRef.current);
     joinTimeoutRef.current = setTimeout(() => {
@@ -393,7 +431,22 @@ export default function JoinPage() {
       }
 
       if (!joinedRef.current) {
-        setJoinError(p.message || 'Unable to join session.');
+        const msg = p.message || 'Unable to join session.';
+        setJoinError(msg);
+        // Batch rejections are recoverable on this screen; everything else is
+        // not. Only the no-batch case gets a picker — a student who picked the
+        // wrong batch cannot change it again (the server allows one
+        // self-service change), so offering them a dropdown would just fail.
+        if (msg === NO_BATCH_MESSAGE) {
+          setNeedsBatch(true);
+          setWrongBatch(false);
+        } else if (msg === WRONG_BATCH_MESSAGE) {
+          setWrongBatch(true);
+          setNeedsBatch(false);
+        } else {
+          setNeedsBatch(false);
+          setWrongBatch(false);
+        }
         // A stale identity from a finished session must not block a fresh join.
         localStorage.removeItem(LS_KEY);
         identity.current = null;
@@ -487,6 +540,50 @@ export default function JoinPage() {
     }
   }, [phase]);
 
+  // ─── Inline batch self-assignment ─────────────────────────────────────────
+  // Loaded lazily: the list is only needed by students the server has actually
+  // turned away, and on demo day that request would otherwise fire from every
+  // phone in the room on page load.
+  useEffect(() => {
+    if (!needsBatch || batchOptions.length > 0) return;
+    let cancelled = false;
+    fetchBatchObjects()
+      .then((list) => {
+        if (!cancelled) setBatchOptions(list);
+      })
+      .catch((err: any) => {
+        if (!cancelled) setJoinBatchError(err?.message || 'Could not load the batch list.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [needsBatch, batchOptions.length]);
+
+  async function handleConfirmBatch() {
+    if (!joinBatchId || joinBatchSaving) return;
+    setJoinBatchSaving(true);
+    setJoinBatchError('');
+    try {
+      const { user, token } = await updateStudentBatch(joinBatchId);
+      // Persist before retrying: `doJoin` reads the token and user straight
+      // back out of storage, so a retry against the old cached user would be
+      // rejected for exactly the reason we just fixed.
+      setStoredAuth(token, user);
+      setAuthUser(user);
+      setNeedsBatch(false);
+      setJoinError('');
+      const code = codeInput.trim();
+      const name = nameInput.trim();
+      if (/^\d{6}$/.test(code) && name) {
+        doJoin(code, name, identity.current);
+      }
+    } catch (err: any) {
+      setJoinBatchError(err?.message || 'Could not save your batch.');
+    } finally {
+      setJoinBatchSaving(false);
+    }
+  }
+
   // ─── Actions ──────────────────────────────────────────────────────────────
   function handleJoinSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -495,9 +592,7 @@ export default function JoinPage() {
       return;
     }
     const studentEmail = (authUser.email || '').toLowerCase().trim();
-    const isMedhavi =
-      studentEmail.endsWith('@medhaviskillsuniversity.edu.in') ||
-      studentEmail.endsWith('@medhaviskillsunivercity.edu.in');
+    const isMedhavi = studentEmail.endsWith('@medhaviskillsuniversity.edu.in');
     if (authUser.role === 'student' && !isMedhavi) {
       setJoinError('Access Restricted: Students must sign in with their official Medhavi email (@medhaviskillsuniversity.edu.in).');
       setShowAuthModal(true);
@@ -919,6 +1014,79 @@ export default function JoinPage() {
             {joinError && (
               <div className="alert alert-error" style={{ width: '100%', borderRadius: '10px' }} role="alert">
                 ⚠ {joinError}
+              </div>
+            )}
+
+            {/*
+              The fix for both batch rejections. Previously the message above was
+              the whole response: accurate, and impossible to act on from this
+              screen, because the only batch picker in the app sits on the
+              dashboard a QR-code student never visits.
+            */}
+            {needsBatch && (
+              <div
+                className="card"
+                style={{
+                  width: '100%',
+                  padding: '0.9rem',
+                  borderRadius: '10px',
+                  textAlign: 'left',
+                  background: 'var(--bg-elevated, rgba(255,255,255,0.04))',
+                }}
+              >
+                <p style={{ margin: '0 0 0.6rem', fontSize: '0.82rem', lineHeight: 1.4, color: 'var(--text-secondary, #9CA3AF)' }}>
+                  Pick your class below to continue. <strong>You can only set this once</strong> — after
+                  that a mentor or administrator has to change it for you.
+                </p>
+                <BatchPicker
+                  batches={batchOptions}
+                  selectedBatchId={joinBatchId}
+                  onSelect={(id) => {
+                    setJoinBatchId(id);
+                    setJoinBatchError('');
+                  }}
+                  label="Your Batch / Class"
+                  allowCreate={false}
+                  disabled={joinBatchSaving}
+                />
+                {joinBatchError && (
+                  <p style={{ color: '#F87171', fontSize: '0.74rem', margin: '0.45rem 0 0' }}>
+                    {joinBatchError}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ width: '100%', marginTop: '0.6rem' }}
+                  onClick={handleConfirmBatch}
+                  disabled={!joinBatchId || joinBatchSaving}
+                >
+                  {joinBatchSaving ? 'Saving…' : 'Save batch & join'}
+                </button>
+              </div>
+            )}
+
+            {wrongBatch && (
+              <div
+                style={{
+                  width: '100%',
+                  padding: '0.75rem 0.9rem',
+                  borderRadius: '10px',
+                  textAlign: 'left',
+                  fontSize: '0.8rem',
+                  lineHeight: 1.45,
+                  color: 'var(--text-secondary, #9CA3AF)',
+                  background: 'var(--bg-elevated, rgba(255,255,255,0.04))',
+                }}
+              >
+                {/*
+                  No picker here on purpose: the server allows exactly one
+                  self-service batch change, so this student has already used
+                  theirs. A dropdown would collect a choice and then 409.
+                */}
+                Your account is registered to a different batch
+                {authUser?.realName ? ` (${authUser.realName})` : ''}. Double-check the 6-digit
+                code on the screen — if it is right, ask your mentor to move you to this batch.
               </div>
             )}
 

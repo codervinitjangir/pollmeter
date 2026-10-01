@@ -1233,7 +1233,35 @@ export async function getUniversityOverview(): Promise<{
   };
 }
 
-export async function searchStudents(query?: string): Promise<Array<{
+export interface StudentFilterOptions {
+  /** Matched against the student's own `users.batch_id`. */
+  batchId?: string;
+  /** Academic year of the student's own batch; matched on the digit, as in getMentorQuizzes. */
+  year?: number | string;
+  /** Inferred from participation — a student row carries no subject of its own. */
+  subject?: string;
+}
+
+/**
+ * Students, with their participation totals, optionally narrowed by batch,
+ * academic year and subject.
+ *
+ * The three dimensions do not all come from the same place:
+ *
+ * - `batchId` and `year` read the student's **own** batch (`users.batch_id`,
+ *   joined to `batches` for the year), so they answer "who is enrolled here".
+ * - `subject` has no column to read: enrolment records a batch, not a syllabus.
+ *   It is therefore inferred from **participation** — the sessions the student
+ *   actually joined — which also narrows `quizCount` and `avgScore` to that
+ *   subject, so the numbers shown match the filter in effect.
+ *
+ * Year matching mirrors getMentorQuizzes: batch years are free text, so the
+ * first digit run is compared rather than the whole string.
+ */
+export async function searchStudents(
+  query?: string,
+  options?: StudentFilterOptions
+): Promise<Array<{
   email: string;
   realName: string;
   quizCount: number;
@@ -1243,8 +1271,42 @@ export async function searchStudents(query?: string): Promise<Array<{
   batchName?: string;
 }>> {
   const cleanQ = query?.toLowerCase().trim() ?? '';
+  const wantBatch = options?.batchId && options.batchId !== 'all' ? options.batchId.trim() : '';
+  const wantSubject = options?.subject && options.subject !== 'all' ? options.subject.toLowerCase().trim() : '';
+  const wantYear =
+    options?.year !== undefined && options.year !== null && String(options.year).trim() !== '' && options.year !== 'all'
+      ? String(options.year).trim().match(/\d+/)?.[0] ?? String(options.year).trim()
+      : '';
 
   if (usePostgres && pool) {
+    const params: unknown[] = [cleanQ];
+    let where = `
+      WHERE (u.role = 'student' OR (u.id IS NULL AND p.email IS NOT NULL))
+        AND ($1 = '' OR LOWER(COALESCE(u.email, p.email)) LIKE '%' || $1 || '%' OR LOWER(COALESCE(u.real_name, p.real_name)) LIKE '%' || $1 || '%')
+    `;
+
+    if (wantBatch) {
+      params.push(wantBatch);
+      where += ` AND u.batch_id = $${params.length}`;
+    }
+    if (wantYear) {
+      params.push(`%${wantYear}%`);
+      where += ` AND b.year LIKE $${params.length}`;
+    }
+    // Subject lives on the session, so it is applied through the join. A LEFT
+    // JOIN keeps students with no participation visible while no subject is
+    // selected, and drops them the moment one is.
+    //
+    // `p.session_id IS NOT NULL` is load-bearing: without it, a student who
+    // has never joined a quiz has a NULL `qs` row, so COALESCE falls through
+    // to 'General' and they match a "General" filter despite having attended
+    // nothing. The COALESCE is still wanted for real participation in a
+    // session whose subject was left unset.
+    if (wantSubject) {
+      params.push(wantSubject);
+      where += ` AND p.session_id IS NOT NULL AND LOWER(COALESCE(qs.subject, 'General')) = $${params.length}`;
+    }
+
     const res = await pool.query(`
       SELECT COALESCE(u.email, p.email) as email,
              COALESCE(u.real_name, p.real_name) as "realName",
@@ -1256,14 +1318,32 @@ export async function searchStudents(query?: string): Promise<Array<{
       FROM users u
       FULL OUTER JOIN session_participants p ON LOWER(u.email) = LOWER(p.email)
       LEFT JOIN batches b ON b.id = u.batch_id
-      WHERE (u.role = 'student' OR (u.id IS NULL AND p.email IS NOT NULL))
-        AND ($1 = '' OR LOWER(COALESCE(u.email, p.email)) LIKE '%' || $1 || '%' OR LOWER(COALESCE(u.real_name, p.real_name)) LIKE '%' || $1 || '%')
+      LEFT JOIN quiz_sessions qs ON qs.id = p.session_id
+      ${where}
       GROUP BY COALESCE(u.email, p.email), COALESCE(u.real_name, p.real_name), u.batch_id, b.display_name
       ORDER BY "quizCount" DESC, "avgScore" DESC
       LIMIT 100
-    `, [cleanQ]);
+    `, params);
     return res.rows;
   }
+
+  /** Does this student's own batch satisfy the batch/year filters? */
+  const batchMatches = (batchId?: string): boolean => {
+    if (!wantBatch && !wantYear) return true;
+    if (!batchId) return false;
+    if (wantBatch && batchId !== wantBatch) return false;
+    if (wantYear) {
+      const year = localDb.batches?.[batchId]?.year ?? '';
+      if (!year.includes(wantYear)) return false;
+    }
+    return true;
+  };
+
+  const subjectMatches = (sessionId: string): boolean => {
+    if (!wantSubject) return true;
+    const subject = localDb.sessions?.[sessionId]?.subject || 'General';
+    return subject.toLowerCase() === wantSubject;
+  };
 
   const studentMap = new Map<string, { email: string; realName: string; scores: number[]; lastDate: string; batchId?: string; batchName?: string }>();
 
@@ -1273,6 +1353,7 @@ export async function searchStudents(query?: string): Promise<Array<{
     if (cleanQ && !u.email.toLowerCase().includes(cleanQ) && !u.realName.toLowerCase().includes(cleanQ)) {
       continue;
     }
+    if (!batchMatches(u.batchId)) continue;
     const bName = u.batchId ? (localDb.batches?.[u.batchId]?.displayName || u.batchId) : undefined;
     studentMap.set(u.email.toLowerCase(), {
       email: u.email.toLowerCase(),
@@ -1288,6 +1369,7 @@ export async function searchStudents(query?: string): Promise<Array<{
     if (cleanQ && !p.email.toLowerCase().includes(cleanQ) && !p.realName.toLowerCase().includes(cleanQ)) {
       continue;
     }
+    if (!subjectMatches(p.sessionId)) continue;
     const emailKey = p.email.toLowerCase();
     const existing = studentMap.get(emailKey);
     if (existing) {
@@ -1298,6 +1380,10 @@ export async function searchStudents(query?: string): Promise<Array<{
     } else {
       const user = Object.values(localDb.users || {}).find((u) => u.email.toLowerCase() === emailKey);
       if (user && user.role !== 'student') continue;
+      // A registered student already rejected by the batch/year filter above
+      // must not be re-added here through their participation rows.
+      if (user && !batchMatches(user.batchId)) continue;
+      if (!user && (wantBatch || wantYear)) continue;
       const bName = user?.batchId ? (localDb.batches?.[user.batchId]?.displayName || user.batchId) : undefined;
       studentMap.set(emailKey, {
         email: emailKey,
@@ -1310,7 +1396,11 @@ export async function searchStudents(query?: string): Promise<Array<{
     }
   }
 
-  return Array.from(studentMap.values()).map((s) => ({
+  // With a subject selected, a student who never sat a session in it has no
+  // business in the list — their totals would all be zero.
+  const rows = Array.from(studentMap.values()).filter((s) => !wantSubject || s.scores.length > 0);
+
+  return rows.map((s) => ({
     email: s.email,
     realName: s.realName,
     quizCount: s.scores.length,
