@@ -693,67 +693,51 @@ export default function StudentDashboard() {
         </section>
 
         {/* ─── Metric KPI Cards Grid ───────────────────────────────────────── */}
-        <section className="pm-admin-kpi-grid">
+        <section className="pm-stats-grid" style={{ marginBottom: '1.25rem' }}>
           {/* KPI 1: Attended */}
-          <div className="pm-kpi-card pm-kpi-card-blue">
-            <div className="pm-kpi-icon-wrap">
-              <span>📝</span>
+          <div className="pm-stat-box pm-stat-blue">
+            <div className="pm-stat-header">
+              <span className="pm-stat-label">Quizzes Attended</span>
+              <span className="pm-stat-icon">📝</span>
             </div>
-            <div className="pm-kpi-body">
-              <span className="pm-kpi-label">Quizzes Attended</span>
-              <div className="pm-kpi-val-row">
-                <span className="pm-kpi-number">{stats.totalSessions}</span>
-              </div>
-              <span className="pm-kpi-caption">Verified classroom sessions</span>
-            </div>
+            <div className="pm-stat-value">{stats.totalSessions}</div>
+            <div className="pm-stat-meta">Verified classroom sessions</div>
           </div>
 
           {/* KPI 2: Accuracy */}
-          <div className="pm-kpi-card pm-kpi-card-emerald">
-            <div className="pm-kpi-icon-wrap">
-              <span>🎯</span>
+          <div className="pm-stat-box pm-stat-emerald">
+            <div className="pm-stat-header">
+              <span className="pm-stat-label">Overall Accuracy</span>
+              <span className="pm-stat-icon">🎯</span>
             </div>
-            <div className="pm-kpi-body">
-              <span className="pm-kpi-label">Overall Accuracy</span>
-              <div className="pm-kpi-val-row">
-                <span className="pm-kpi-number">{stats.accuracy}%</span>
-              </div>
-              <span className="pm-kpi-caption">
-                {stats.totalCorrect} of {stats.totalQuestions} questions correct
-              </span>
+            <div className="pm-stat-value" style={{ color: '#10B981' }}>{stats.accuracy}%</div>
+            <div className="pm-stat-meta">
+              {stats.totalCorrect} of {stats.totalQuestions} questions correct
             </div>
           </div>
 
           {/* KPI 3: Best Rank */}
-          <div className="pm-kpi-card pm-kpi-card-amber">
-            <div className="pm-kpi-icon-wrap">
-              <span>🏆</span>
+          <div className="pm-stat-box pm-stat-amber">
+            <div className="pm-stat-header">
+              <span className="pm-stat-label">Best Placement</span>
+              <span className="pm-stat-icon">🏆</span>
             </div>
-            <div className="pm-kpi-body">
-              <span className="pm-kpi-label">Best Placement</span>
-              <div className="pm-kpi-val-row">
-                <span className="pm-kpi-number">
-                  {stats.bestRank ? `Rank #${stats.bestRank}` : '—'}
-                </span>
-              </div>
-              <span className="pm-kpi-caption">
-                {stats.podiumFinishes > 0 ? `${stats.podiumFinishes} top-3 podium finishes` : 'Join quizzes to rank'}
-              </span>
+            <div className="pm-stat-value" style={{ color: '#F59E0B' }}>
+              {stats.bestRank ? `Rank #${stats.bestRank}` : '—'}
+            </div>
+            <div className="pm-stat-meta">
+              {stats.podiumFinishes > 0 ? `${stats.podiumFinishes} top-3 podium finishes` : 'Join quizzes to rank'}
             </div>
           </div>
 
           {/* KPI 4: Total Points */}
-          <div className="pm-kpi-card pm-kpi-card-purple">
-            <div className="pm-kpi-icon-wrap">
-              <span>⚡</span>
+          <div className="pm-stat-box pm-stat-purple">
+            <div className="pm-stat-header">
+              <span className="pm-stat-label">Academic Points</span>
+              <span className="pm-stat-icon">⚡</span>
             </div>
-            <div className="pm-kpi-body">
-              <span className="pm-kpi-label">Academic Points</span>
-              <div className="pm-kpi-val-row">
-                <span className="pm-kpi-number">{stats.totalScore.toLocaleString()}</span>
-              </div>
-              <span className="pm-kpi-caption">Cumulative speed &amp; accuracy score</span>
-            </div>
+            <div className="pm-stat-value">{stats.totalScore.toLocaleString()}</div>
+            <div className="pm-stat-meta">Cumulative score</div>
           </div>
         </section>
 
