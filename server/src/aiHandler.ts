@@ -398,10 +398,19 @@ function reviewMeta(record: Record<string, unknown>): { covers?: string; why?: s
 /**
  * A model that returns a correctAnswer not present in its own options would
  * create a question no student can get right, so those are dropped entirely.
+ *
+ * `existingFingerprints` may be passed to seed the dedup set across two
+ * generation passes — this prevents the backfill pass from regenerating
+ * near-duplicates that would be caught by fingerprint dedup anyway.
  */
-function normalizeQuestions(raw: unknown[], timeLimitSeconds: number, limit: number): Question[] {
+function normalizeQuestions(
+  raw: unknown[],
+  timeLimitSeconds: number,
+  limit: number,
+  existingFingerprints?: Set<string>,
+): Question[] {
   const questions: Question[] = [];
-  const seen = new Set<string>();
+  const seen = existingFingerprints ? new Set<string>(existingFingerprints) : new Set<string>();
 
   for (const item of raw) {
     if (typeof item !== 'object' || item === null) continue;
@@ -410,6 +419,14 @@ function normalizeQuestions(raw: unknown[], timeLimitSeconds: number, limit: num
     const rawText = String(record.text ?? record.question ?? '').trim().slice(0, 300);
     const text = cleanAiText(rawText);
     if (!text) continue;
+
+    // ── Absolute length cap (Fix 1) ──────────────────────────────────────────
+    // The prompt asks "under 140 chars" but the model sometimes disobeys.
+    // Truncating mid-sentence produces a garbled question; dropping is safer.
+    if (text.length > 140) {
+      console.warn(`[ai] Question skipped - text exceeds 140 chars: ${text.length}`);
+      continue;
+    }
 
     const fingerprint = text.toLowerCase().replace(/[^a-z0-9]/g, '');
     if (seen.has(fingerprint)) continue;
@@ -427,6 +444,15 @@ function normalizeQuestions(raw: unknown[], timeLimitSeconds: number, limit: num
 
     const unique = Array.from(new Set(options));
     if (unique.length < 2) continue;
+
+    // ── Absolute option length cap (Fix 1) ───────────────────────────────────
+    // Drop the whole question, not just the offending option — a 4-option MCQ
+    // missing one option is not a valid question.
+    const longOption = unique.find((o) => o.length > 65);
+    if (longOption) {
+      console.warn(`[ai] Question skipped - option exceeds 65 chars (${longOption.length}): "${longOption.slice(0, 80)}"`);
+      continue;
+    }
 
     if (unique.some((o) => META_OPTION.test(o))) {
       console.warn('[ai] Question skipped - "all/none of the above" style option:', unique);
@@ -691,7 +717,64 @@ export async function handleGenerateQuestions(req: Request, res: Response): Prom
 
     console.log(`[ai] Final raw result length: ${raw?.length ?? 'null'}, model: ${usedModel}`);
 
-    const questions = normalizeQuestions(raw ?? [], request.timeLimitSeconds, request.count);
+    // First normalisation pass
+    const firstPassQuestions = normalizeQuestions(raw ?? [], request.timeLimitSeconds, request.count);
+
+    // ── Fix 2: Backfill pass ─────────────────────────────────────────────────
+    // If validation dropped enough questions that we came up short, fire ONE
+    // additional generation request asking only for the deficit. We pass the
+    // fingerprint set from the first pass so cross-pass near-duplicates are
+    // still caught before they reach the client.
+    let questions = firstPassQuestions;
+
+    if (firstPassQuestions.length < request.count) {
+      const deficit = request.count - firstPassQuestions.length;
+      console.log(`[ai] First pass only yielded ${firstPassQuestions.length}/${request.count} questions, requesting ${deficit} more`);
+
+      // Build the fingerprint set from the first pass so the second pass shares it
+      const firstPassFingerprints = new Set<string>(
+        firstPassQuestions.map((q) => q.text.toLowerCase().replace(/[^a-z0-9]/g, ''))
+      );
+
+      // De-dupe preamble: tell the model which questions already exist so it
+      // doesn't just rephrase the same things the fingerprint set would reject.
+      const alreadyUsed = firstPassQuestions.map((q) => q.text).join('\n');
+      const backfillRequest: GenerateRequest = {
+        ...request,
+        count: deficit + 3,  // ask for a few extra as headroom for the same validation
+      };
+      const backfillPrompt =
+        buildPrompt(backfillRequest) +
+        `\n\nDo not repeat any of these already-used questions:\n${alreadyUsed}`;
+
+      let rawBackfill: unknown[] | null = null;
+      if (gemini.length > 0) {
+        rawBackfill = await callGemini(GEMINI_MODEL, backfillPrompt);
+        if (rawBackfill === null || rawBackfill.length === 0) {
+          rawBackfill = await callGemini(FALLBACK_MODEL, backfillPrompt);
+        }
+      }
+      if ((!rawBackfill || rawBackfill.length === 0) && groq.length > 0) {
+        rawBackfill = await callGroq(GROQ_MODEL, backfillPrompt);
+        if (rawBackfill === null || rawBackfill.length === 0) {
+          rawBackfill = await callGroq('openai/gpt-oss-120b', backfillPrompt);
+        }
+      }
+
+      if (rawBackfill && rawBackfill.length > 0) {
+        const backfillQuestions = normalizeQuestions(
+          rawBackfill,
+          request.timeLimitSeconds,
+          deficit,
+          firstPassFingerprints,  // share fingerprints to catch cross-pass duplicates
+        );
+        console.log(`[ai] Backfill pass added ${backfillQuestions.length} more questions`);
+        questions = [...firstPassQuestions, ...backfillQuestions].slice(0, request.count);
+      } else {
+        console.log('[ai] Backfill pass returned no raw output — returning first pass results');
+      }
+    }
+    // ── end Fix 2 ────────────────────────────────────────────────────────────
 
     if (questions.length > 0) {
       res.json({ questions, source: 'ai', model: usedModel });
