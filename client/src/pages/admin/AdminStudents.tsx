@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { searchStudentAudit } from '../../auth';
+import { searchStudentAudit, adminUpdateStudentBatch, adminFetchBatches, BatchObject } from '../../auth';
 import { useAdminData } from './AdminContext';
 
 export default function AdminStudents() {
@@ -12,6 +12,13 @@ export default function AdminStudents() {
 
   const [studentSearch, setStudentSearch] = useState('');
 
+  // Batch edit modal state
+  const [editingEmail, setEditingEmail] = useState<string | null>(null);
+  const [allBatches, setAllBatches] = useState<BatchObject[]>([]);
+  const [batchModalValue, setBatchModalValue] = useState('');
+  const [batchModalSaving, setBatchModalSaving] = useState(false);
+  const [batchModalError, setBatchModalError] = useState('');
+
   // Handle student audit search debounce
   useEffect(() => {
     if (!authUser || authUser.role !== 'admin') return;
@@ -22,6 +29,32 @@ export default function AdminStudents() {
     }, 300);
     return () => clearTimeout(timer);
   }, [studentSearch, authUser, setStudentAudit]);
+
+  function openBatchModal(email: string, currentBatchId?: string) {
+    setEditingEmail(email);
+    setBatchModalValue(currentBatchId || '');
+    setBatchModalError('');
+    if (allBatches.length === 0) {
+      adminFetchBatches().then(setAllBatches).catch(() => {});
+    }
+  }
+
+  async function saveBatchChange() {
+    if (!editingEmail) return;
+    setBatchModalSaving(true);
+    setBatchModalError('');
+    try {
+      await adminUpdateStudentBatch(editingEmail, batchModalValue || null);
+      setEditingEmail(null);
+      // Refresh the list
+      const data = await searchStudentAudit(studentSearch);
+      setStudentAudit(data);
+    } catch (err: any) {
+      setBatchModalError(err.message || 'Failed to update batch.');
+    } finally {
+      setBatchModalSaving(false);
+    }
+  }
 
   return (
     <section className="pm-admin-panel-card">
@@ -65,6 +98,7 @@ export default function AdminStudents() {
               <tr>
                 <th>Student Name</th>
                 <th>College Email</th>
+                <th>Batch</th>
                 <th>Quizzes Attempted</th>
                 <th>Average Score</th>
                 <th>Last Active Session</th>
@@ -86,6 +120,29 @@ export default function AdminStudents() {
                     </td>
                     <td>
                       <code className="pm-student-email">{s.email}</code>
+                    </td>
+                    <td>
+                      {s.batchName ? (
+                        <span className="pm-badge-batch" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                          🎓 {s.batchName}
+                          <button
+                            className="pm-search-clear"
+                            style={{ fontSize: '0.7rem', marginLeft: '4px', opacity: 0.7 }}
+                            title="Change batch"
+                            onClick={() => openBatchModal(s.email, s.batchId)}
+                          >
+                            ✎
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          className="pm-host-action-link"
+                          style={{ fontSize: '0.78rem' }}
+                          onClick={() => openBatchModal(s.email)}
+                        >
+                          Assign batch
+                        </button>
+                      )}
                     </td>
                     <td>
                       <span className="pm-count-badge">
@@ -114,6 +171,70 @@ export default function AdminStudents() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Batch Edit Modal */}
+      {editingEmail && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setEditingEmail(null); }}
+        >
+          <div style={{
+            background: 'var(--surface, #18181B)',
+            border: '1px solid var(--border, #27272A)',
+            borderRadius: '16px',
+            padding: '1.75rem',
+            minWidth: '340px',
+            maxWidth: '480px',
+            width: '90%',
+          }}>
+            <h3 style={{ margin: '0 0 0.25rem', fontSize: '1.05rem' }}>Edit Student Batch</h3>
+            <p style={{ margin: '0 0 1rem', fontSize: '0.83rem', color: 'var(--mute, #94A3B8)' }}>
+              <code style={{ fontSize: '0.78rem' }}>{editingEmail}</code>
+            </p>
+
+            {batchModalError && (
+              <p style={{ color: '#EF4444', fontSize: '0.82rem', marginBottom: '0.75rem' }}>⚠️ {batchModalError}</p>
+            )}
+
+            <label style={{ fontSize: '0.8rem', fontWeight: 700, display: 'block', marginBottom: '0.4rem' }}>
+              New Batch
+            </label>
+            <select
+              className="input pm-host-select"
+              value={batchModalValue}
+              onChange={(e) => setBatchModalValue(e.target.value)}
+              disabled={batchModalSaving}
+              style={{ width: '100%', marginBottom: '1rem' }}
+            >
+              <option value="">— No batch / Clear —</option>
+              {allBatches.map((b) => (
+                <option key={b.id} value={b.id}>{b.displayName}</option>
+              ))}
+            </select>
+
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setEditingEmail(null)}
+                disabled={batchModalSaving}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={saveBatchChange}
+                disabled={batchModalSaving}
+              >
+                {batchModalSaving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </section>

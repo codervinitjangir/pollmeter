@@ -12,6 +12,7 @@ export interface User {
   department?: string;
   subject?: string;
   batches?: string[];
+  batchId?: string;
   picture?: string;
   /**
    * Faculty approval gate. A campus email alone never grants mentor rights —
@@ -255,6 +256,7 @@ export async function initDb(): Promise<void> {
           ALTER TABLE users ADD COLUMN IF NOT EXISTS subject VARCHAR(160);
           ALTER TABLE users ADD COLUMN IF NOT EXISTS batches JSONB DEFAULT '[]';
           ALTER TABLE users ADD COLUMN IF NOT EXISTS approved BOOLEAN DEFAULT false;
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS batch_id VARCHAR(64);
 
           CREATE TABLE IF NOT EXISTS quiz_sessions (
             id VARCHAR(64) PRIMARY KEY,
@@ -419,8 +421,8 @@ export async function initDb(): Promise<void> {
 export async function upsertUser(user: User): Promise<User> {
   if (usePostgres && pool) {
     const res = await pool.query(
-      `INSERT INTO users (id, email, real_name, role, college_domain, department, subject, picture, approved, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO users (id, email, real_name, role, college_domain, department, subject, picture, approved, batch_id, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (email) DO UPDATE
        SET real_name = EXCLUDED.real_name,
            picture = EXCLUDED.picture,
@@ -428,8 +430,9 @@ export async function upsertUser(user: User): Promise<User> {
            department = COALESCE(EXCLUDED.department, users.department),
            subject = COALESCE(EXCLUDED.subject, users.subject),
            approved = EXCLUDED.approved,
+           batch_id = COALESCE(users.batch_id, EXCLUDED.batch_id),
            role = CASE WHEN users.role = 'admin' THEN 'admin' ELSE EXCLUDED.role END
-       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, batches, picture, COALESCE(approved, false) as approved, created_at as "createdAt"`,
+       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, batches, batch_id as "batchId", picture, COALESCE(approved, false) as approved, created_at as "createdAt"`,
       [
         user.id,
         user.email.toLowerCase(),
@@ -440,6 +443,7 @@ export async function upsertUser(user: User): Promise<User> {
         user.subject ?? null,
         user.picture ?? null,
         user.approved ?? false,
+        user.batchId ?? null,
         user.createdAt,
       ]
     );
@@ -453,6 +457,7 @@ export async function upsertUser(user: User): Promise<User> {
     existing.collegeDomain = user.collegeDomain;
     existing.department = user.department ?? existing.department;
     existing.subject = user.subject ?? existing.subject;
+    existing.batchId = existing.batchId ?? user.batchId;
     existing.role = existing.role === 'admin' ? 'admin' : user.role;
     saveLocalDb();
     return existing;
@@ -467,7 +472,7 @@ export async function getUserByEmail(email: string): Promise<User | null> {
   const cleanEmail = email.toLowerCase().trim();
   if (usePostgres && pool) {
     const res = await pool.query(
-      `SELECT id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, COALESCE(batches, '[]'::jsonb) as batches, picture, COALESCE(approved, false) as approved, created_at as "createdAt"
+      `SELECT id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, COALESCE(batches, '[]'::jsonb) as batches, batch_id as "batchId", picture, COALESCE(approved, false) as approved, created_at as "createdAt"
        FROM users WHERE LOWER(email) = $1`,
       [cleanEmail]
     );
@@ -481,7 +486,7 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 export async function getUserById(id: string): Promise<User | null> {
   if (usePostgres && pool) {
     const res = await pool.query(
-      `SELECT id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, COALESCE(batches, '[]'::jsonb) as batches, picture, COALESCE(approved, false) as approved, created_at as "createdAt"
+      `SELECT id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, COALESCE(batches, '[]'::jsonb) as batches, batch_id as "batchId", picture, COALESCE(approved, false) as approved, created_at as "createdAt"
        FROM users WHERE id = $1`,
       [id]
     );
@@ -496,7 +501,7 @@ export async function setUserRole(email: string, role: 'mentor' | 'student' | 'a
   if (usePostgres && pool) {
     const res = await pool.query(
       `UPDATE users SET role = $1 WHERE LOWER(email) = $2
-       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, COALESCE(approved, false) as approved, created_at as "createdAt"`,
+       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, batches, batch_id as "batchId", picture, COALESCE(approved, false) as approved, created_at as "createdAt"`,
       [role, cleanEmail]
     );
     return res.rows[0] ?? null;
@@ -529,7 +534,7 @@ export async function setUserApproval(email: string, approved: boolean): Promise
                        ELSE 'student'
                      END
         WHERE LOWER(email) = $2
-       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, picture, COALESCE(approved, false) as approved, created_at as "createdAt"`,
+       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, batches, batch_id as "batchId", picture, COALESCE(approved, false) as approved, created_at as "createdAt"`,
       [approved, cleanEmail]
     );
     return res.rows[0] ?? null;
@@ -541,6 +546,58 @@ export async function setUserApproval(email: string, approved: boolean): Promise
   if (found.role !== 'admin') found.role = approved ? 'mentor' : 'student';
   saveLocalDb();
   return found;
+}
+
+/**
+ * Assigns or reassigns a student's batch_id.
+ */
+export async function setUserBatch(email: string, batchId: string | null): Promise<User | null> {
+  const cleanEmail = email.toLowerCase().trim();
+  const cleanBatchId = batchId ? batchId.trim() : null;
+
+  if (usePostgres && pool) {
+    const res = await pool.query(
+      `UPDATE users
+       SET batch_id = $1
+       WHERE LOWER(email) = $2
+       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, batches, batch_id as "batchId", picture, COALESCE(approved, false) as approved, created_at as "createdAt"`,
+      [cleanBatchId, cleanEmail]
+    );
+    if (res.rows[0]) return res.rows[0];
+
+    // If user record doesn't exist yet, insert one
+    const id = uuidv4();
+    const collegeDomain = cleanEmail.split('@')[1] || 'polariscampus.com';
+    const realName = cleanEmail.split('@')[0];
+    const ins = await pool.query(
+      `INSERT INTO users (id, email, real_name, role, college_domain, batch_id, approved, created_at)
+       VALUES ($1, $2, $3, 'student', $4, $5, false, CURRENT_TIMESTAMP)
+       RETURNING id, email, real_name as "realName", role, college_domain as "collegeDomain", department, subject, batches, batch_id as "batchId", picture, COALESCE(approved, false) as approved, created_at as "createdAt"`,
+      [id, cleanEmail, realName, collegeDomain, cleanBatchId]
+    );
+    return ins.rows[0] ?? null;
+  }
+
+  let user = Object.values(localDb.users).find((u) => u.email.toLowerCase() === cleanEmail);
+  if (!user) {
+    const id = uuidv4();
+    user = {
+      id,
+      email: cleanEmail,
+      realName: cleanEmail.split('@')[0],
+      role: 'student',
+      collegeDomain: cleanEmail.split('@')[1] || 'polariscampus.com',
+      batchId: cleanBatchId || undefined,
+      batches: [],
+      approved: false,
+      createdAt: new Date().toISOString(),
+    };
+    localDb.users[id] = user;
+  } else {
+    user.batchId = cleanBatchId || undefined;
+  }
+  saveLocalDb();
+  return user;
 }
 
 /** Used by the one-time admin bootstrap endpoint, which refuses to run twice. */
@@ -1182,52 +1239,85 @@ export async function searchStudents(query?: string): Promise<Array<{
   quizCount: number;
   avgScore: number;
   lastQuizDate?: string;
+  batchId?: string;
+  batchName?: string;
 }>> {
   const cleanQ = query?.toLowerCase().trim() ?? '';
 
   if (usePostgres && pool) {
     const res = await pool.query(`
-      SELECT p.email, p.real_name as "realName",
-             COUNT(DISTINCT p.session_id)::int as "quizCount",
-             ROUND(AVG(p.final_score))::int as "avgScore",
+      SELECT COALESCE(u.email, p.email) as email,
+             COALESCE(u.real_name, p.real_name) as "realName",
+             u.batch_id as "batchId",
+             b.display_name as "batchName",
+             COALESCE(COUNT(DISTINCT p.session_id), 0)::int as "quizCount",
+             COALESCE(ROUND(AVG(p.final_score)), 0)::int as "avgScore",
              MAX(p.joined_at) as "lastQuizDate"
-      FROM session_participants p
-      WHERE ($1 = '' OR LOWER(p.email) LIKE '%' || $1 || '%' OR LOWER(p.real_name) LIKE '%' || $1 || '%')
-      GROUP BY p.email, p.real_name
+      FROM users u
+      FULL OUTER JOIN session_participants p ON LOWER(u.email) = LOWER(p.email)
+      LEFT JOIN batches b ON b.id = u.batch_id
+      WHERE (u.role = 'student' OR (u.id IS NULL AND p.email IS NOT NULL))
+        AND ($1 = '' OR LOWER(COALESCE(u.email, p.email)) LIKE '%' || $1 || '%' OR LOWER(COALESCE(u.real_name, p.real_name)) LIKE '%' || $1 || '%')
+      GROUP BY COALESCE(u.email, p.email), COALESCE(u.real_name, p.real_name), u.batch_id, b.display_name
       ORDER BY "quizCount" DESC, "avgScore" DESC
       LIMIT 100
     `, [cleanQ]);
     return res.rows;
   }
 
-  const studentMap = new Map<string, { email: string; realName: string; scores: number[]; lastDate: string }>();
-  for (const p of localDb.participants) {
+  const studentMap = new Map<string, { email: string; realName: string; scores: number[]; lastDate: string; batchId?: string; batchName?: string }>();
+
+  // Registered students
+  for (const u of Object.values(localDb.users || {})) {
+    if (u.role !== 'student') continue;
+    if (cleanQ && !u.email.toLowerCase().includes(cleanQ) && !u.realName.toLowerCase().includes(cleanQ)) {
+      continue;
+    }
+    const bName = u.batchId ? (localDb.batches?.[u.batchId]?.displayName || u.batchId) : undefined;
+    studentMap.set(u.email.toLowerCase(), {
+      email: u.email.toLowerCase(),
+      realName: u.realName,
+      scores: [],
+      lastDate: '',
+      batchId: u.batchId,
+      batchName: bName,
+    });
+  }
+
+  for (const p of localDb.participants || []) {
     if (cleanQ && !p.email.toLowerCase().includes(cleanQ) && !p.realName.toLowerCase().includes(cleanQ)) {
       continue;
     }
-    // Group on email *and* name, matching the Postgres branch above. Students who
-    // join by code without signing in all share one placeholder email, so keying
-    // on email alone folded an entire anonymous class into a single roster row.
-    const key = `${p.email.toLowerCase()}|${p.realName.toLowerCase()}`;
-    const existing = studentMap.get(key) || {
-      email: p.email.toLowerCase(),
-      realName: p.realName,
-      scores: [],
-      lastDate: p.joinedAt,
-    };
-    existing.scores.push(p.finalScore);
-    if (new Date(p.joinedAt).getTime() > new Date(existing.lastDate).getTime()) {
-      existing.lastDate = p.joinedAt;
+    const emailKey = p.email.toLowerCase();
+    const existing = studentMap.get(emailKey);
+    if (existing) {
+      existing.scores.push(p.finalScore);
+      if (!existing.lastDate || new Date(p.joinedAt).getTime() > new Date(existing.lastDate).getTime()) {
+        existing.lastDate = p.joinedAt;
+      }
+    } else {
+      const user = Object.values(localDb.users || {}).find((u) => u.email.toLowerCase() === emailKey);
+      if (user && user.role !== 'student') continue;
+      const bName = user?.batchId ? (localDb.batches?.[user.batchId]?.displayName || user.batchId) : undefined;
+      studentMap.set(emailKey, {
+        email: emailKey,
+        realName: p.realName,
+        scores: [p.finalScore],
+        lastDate: p.joinedAt,
+        batchId: user?.batchId,
+        batchName: bName,
+      });
     }
-    studentMap.set(key, existing);
   }
 
   return Array.from(studentMap.values()).map((s) => ({
     email: s.email,
     realName: s.realName,
     quizCount: s.scores.length,
-    avgScore: Math.round(s.scores.reduce((a, b) => a + b, 0) / (s.scores.length || 1)),
-    lastQuizDate: s.lastDate,
+    avgScore: s.scores.length ? Math.round(s.scores.reduce((a, b) => a + b, 0) / s.scores.length) : 0,
+    lastQuizDate: s.lastDate || undefined,
+    batchId: s.batchId,
+    batchName: s.batchName,
   })).sort((a, b) => b.quizCount - a.quizCount);
 }
 

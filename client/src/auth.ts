@@ -17,6 +17,10 @@ export interface AuthUser {
   facultyPending?: boolean;
   subject?: string;
   department?: string;
+  /** Student's assigned batch ID (null / undefined = not yet set). */
+  batchId?: string;
+  /** Display name of the assigned batch (hydrated from the server). */
+  batchName?: string;
 }
 
 /** Campus domain for faculty. Kept in one place so the UI copy stays truthful. */
@@ -566,6 +570,8 @@ export interface StudentAuditItem {
   quizCount: number;
   avgScore: number;
   lastQuizDate?: string;
+  batchId?: string;
+  batchName?: string;
 }
 
 export interface BatchObject {
@@ -854,6 +860,41 @@ export async function searchStudentAudit(q?: string): Promise<StudentAuditItem[]
 
   const data = await res.json();
   return data.students || [];
+}
+
+/** Student self-service: set batch (allowed once). */
+export async function updateStudentBatch(batchId: string): Promise<{ user: AuthUser; token: string }> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Authentication required');
+
+  const res = await fetch(apiUrl('/api/student/profile'), {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ batchId }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to set batch');
+  return data;
+}
+
+/** Admin override: reassign (or clear) a student's batch. */
+export async function adminUpdateStudentBatch(
+  email: string,
+  batchId: string | null
+): Promise<{ success: boolean; user: any }> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Administrator authentication required');
+
+  const res = await fetch(apiUrl(`/api/admin/students/${encodeURIComponent(email)}/batch`), {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ batchId }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to update student batch');
+  return data;
 }
 
 export interface AuditLogItem {

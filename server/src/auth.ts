@@ -78,6 +78,7 @@ export interface JwtPayload {
   realName: string;
   role: 'student' | 'mentor' | 'admin';
   picture?: string;
+  batchId?: string;
 }
 
 export function getAllowedDomains(): string[] {

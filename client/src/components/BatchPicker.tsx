@@ -8,6 +8,8 @@ interface BatchPickerProps {
   onBatchCreated?: (batch: BatchObject) => void;
   label?: string;
   disabled?: boolean;
+  /** When false, hides the "+  Create new batch" toggle entirely. Default: true. */
+  allowCreate?: boolean;
 }
 
 export default function BatchPicker({
@@ -17,6 +19,7 @@ export default function BatchPicker({
   onBatchCreated,
   label = 'Target Batch / Class',
   disabled = false,
+  allowCreate = true,
 }: BatchPickerProps) {
   const [showNewBatchInput, setShowNewBatchInput] = useState(batches.length === 0);
   const [newBatchName, setNewBatchName] = useState('');
@@ -95,8 +98,8 @@ export default function BatchPicker({
         </select>
       )}
 
-      {/* Inline Create New Batch Toggle */}
-      {!showNewBatchInput ? (
+      {/* Inline Create New Batch Toggle — only for mentors/admins */}
+      {allowCreate && (!showNewBatchInput ? (
         <button
           type="button"
           className="pm-host-action-link"
@@ -161,7 +164,7 @@ export default function BatchPicker({
             </p>
           )}
         </div>
-      )}
+      ))}
     </div>
   );
 }

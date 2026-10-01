@@ -40,6 +40,7 @@ import {
   saveSessionResults,
   SessionParticipantRecord,
   StudentResponseRecord,
+  getUserByEmail,
 } from './db';
 
 /** Host-only broadcasts (participant names/ids) go to this room, never to students. */
@@ -625,7 +626,7 @@ export function registerSocketHandlers(io: Server, socket: Socket): void {
   });
 
   // ─── Student joins / rejoins ──────────────────────────────────────────────
-  socket.on('join_session', (payload: JoinSessionPayload) => {
+  socket.on('join_session', async (payload: JoinSessionPayload) => {
     const code = String(payload?.code ?? '').trim();
     const session = getSession(code);
 
@@ -654,6 +655,28 @@ export function registerSocketHandlers(io: Server, socket: Socket): void {
         email: payload.email,
       };
     }
+
+    // ── Batch enforcement for authenticated students ────────────────────────
+    if (authUser?.userId) {
+      // Only enforce for accounts that provided a real auth token.
+      const liveUser = authUser.email ? await getUserByEmail(authUser.email) : null;
+      if (!liveUser?.batchId) {
+        socket.emit('error', {
+          message: 'Please select your batch before joining a quiz.',
+          fatal: true,
+        });
+        return;
+      }
+      // Only enforce the batch check when the session is targeted at a specific batch.
+      if (session.batchId && liveUser.batchId !== session.batchId) {
+        socket.emit('error', {
+          message: 'This quiz is for a different batch.',
+          fatal: true,
+        });
+        return;
+      }
+    }
+    // ── End batch enforcement ──────────────────────────────────────────────
 
     const outcome = addOrRejoinParticipant(
       session,

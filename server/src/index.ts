@@ -45,6 +45,7 @@ import {
   isUsingPostgres,
   getAllSubjects,
   updateUserProfile,
+  setUserBatch,
   createQuizDraft,
   getQuizDrafts,
   getQuizDraftById,
@@ -546,10 +547,11 @@ app.get('/api/auth/me', requireAuth, async (req: AuthenticatedRequest, res: Resp
       realName: user.realName,
       role,
       picture: user.picture,
+      batchId: record?.batchId,
     });
 
     res.json({
-      user,
+      user: { ...user, batchId: record?.batchId },
       token: freshToken,
     });
   } catch (err) {
@@ -1436,6 +1438,60 @@ app.get('/api/subjects', requireAuth, async (_req: AuthenticatedRequest, res: Re
 });
 
 /**
+ * Student self-service: select their batch once.
+ * Returns 409 if already set — an admin must change it after that.
+ */
+app.patch('/api/student/profile', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const email = req.user?.email;
+    if (!email || req.user?.role !== 'student') {
+      res.status(403).json({ error: 'Student authentication required.' });
+      return;
+    }
+
+    const { batchId } = req.body ?? {};
+    if (!batchId || typeof batchId !== 'string' || !batchId.trim()) {
+      res.status(400).json({ error: 'batchId is required.' });
+      return;
+    }
+
+    const liveUser = await getUserByEmail(email);
+    if (liveUser?.batchId) {
+      res.status(409).json({ error: 'Your batch is already set — ask an admin to change it.' });
+      return;
+    }
+
+    const batchRecord = await getBatchById(batchId.trim());
+    if (!batchRecord || batchRecord.status !== 'active') {
+      res.status(404).json({ error: 'Batch not found or is inactive.' });
+      return;
+    }
+
+    const updated = await setUserBatch(email, batchRecord.id);
+    if (!updated) {
+      res.status(404).json({ error: 'User record not found.' });
+      return;
+    }
+
+    const token = generateToken({
+      id: updated.id,
+      email: updated.email,
+      realName: updated.realName,
+      role: updated.role,
+      picture: updated.picture,
+      batchId: updated.batchId,
+    });
+
+    await recordAuditLog(email, 'STUDENT_BATCH_SET', email, { batchId: batchRecord.id, batchName: batchRecord.displayName });
+
+    res.json({ user: { ...updated, batchName: batchRecord.displayName }, token });
+  } catch (err) {
+    console.error('[student] Failed to set student batch:', err);
+    res.status(500).json({ error: 'Failed to set batch.' });
+  }
+});
+
+/**
  * Mentor self-service: update their own profile (subject, department, realName).
  * Re-issues a fresh JWT token with their updated attributes.
  */
@@ -1657,6 +1713,54 @@ app.get('/api/admin/students', requireAdmin, async (req: AuthenticatedRequest, r
   } catch (err) {
     console.error('[admin] Failed to search students:', err);
     res.status(500).json({ error: 'Failed to search student audit data.' });
+  }
+});
+
+/**
+ * Admin override: reassign (or clear) a student's batch.
+ */
+app.patch('/api/admin/students/:email/batch', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const targetEmail = decodeURIComponent(req.params.email).toLowerCase().trim();
+    const { batchId } = req.body ?? {};
+
+    if (batchId !== null && (typeof batchId !== 'string' || !batchId.trim())) {
+      res.status(400).json({ error: 'batchId must be a non-empty string or null to clear.' });
+      return;
+    }
+
+    const cleanBatchId = batchId ? batchId.trim() : null;
+    let batchName: string | undefined;
+
+    if (cleanBatchId) {
+      const batchRecord = await getBatchById(cleanBatchId);
+      if (!batchRecord || batchRecord.status !== 'active') {
+        res.status(404).json({ error: 'Batch not found or is inactive.' });
+        return;
+      }
+      batchName = batchRecord.displayName;
+    }
+
+    const prevUser = await getUserByEmail(targetEmail);
+    const previousBatchId = prevUser?.batchId ?? null;
+
+    const updated = await setUserBatch(targetEmail, cleanBatchId);
+    if (!updated) {
+      res.status(404).json({ error: 'Student not found.' });
+      return;
+    }
+
+    await recordAuditLog(
+      req.user!.email,
+      'STUDENT_BATCH_CHANGED',
+      targetEmail,
+      { previousBatchId, newBatchId: cleanBatchId, batchName }
+    );
+
+    res.json({ success: true, user: updated });
+  } catch (err) {
+    console.error('[admin] Failed to update student batch:', err);
+    res.status(500).json({ error: 'Failed to update student batch.' });
   }
 });
 
