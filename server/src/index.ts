@@ -313,12 +313,6 @@ app.post('/api/sessions', sessionCreationLimiter, requireMentor, async (req: Aut
     return;
   }
 
-  // Mentor batch assignment. GET /api/batches deliberately offers every active
-  // batch in the mentor's dropdown, so denying an unassigned pick here made the
-  // dropdown lie: a mentor with no assignments could select any batch and every
-  // one of them failed. Instead, claim the batch on first use and audit it --
-  // the same rule POST /api/mentor/batches already applies when a mentor creates
-  // one. The real guard stays above: the batch must exist and be active.
   const liveUser = await getUserByEmail(req.user!.email);
   if (req.user?.role !== 'admin') {
     const assigned = liveUser?.batches ?? [];
@@ -332,14 +326,8 @@ app.post('/api/sessions', sessionCreationLimiter, requireMentor, async (req: Aut
       );
 
     if (!isAssigned) {
-      await addBatchToUser(req.user!.email, batchRecord.displayName);
-      await recordAuditLog(req.user!.email, 'BATCH_SELF_ASSIGNED', batchRecord.id, {
-        displayName: batchRecord.displayName,
-        via: 'session_create',
-      });
-      console.log(
-        `[batch] Auto-assigned '${batchRecord.displayName}' to ${req.user!.email} on first host`
-      );
+      res.status(403).json({ error: 'Access denied: You are not assigned to this batch.' });
+      return;
     }
   }
 
@@ -1124,20 +1112,18 @@ app.get('/api/batches', requireAuth, async (req: AuthenticatedRequest, res: Resp
       const liveUser = req.user.email ? await getUserByEmail(req.user.email) : null;
       const assigned = liveUser?.batches ?? [];
 
-      // Sort batches with mentor's assigned batches first (if any), then alphabetically
-      const sortedBatches = assigned.length > 0
-        ? [...allBatches].sort((a, b) => {
-          const aAssigned = assigned.includes(a.id) || assigned.includes(a.displayName);
-          const bAssigned = assigned.includes(b.id) || assigned.includes(b.displayName);
-          if (aAssigned && !bAssigned) return -1;
-          if (!aAssigned && bAssigned) return 1;
-          return a.displayName.localeCompare(b.displayName);
-        })
-        : allBatches;
+      const mentorBatches = allBatches.filter(
+        (b) =>
+          assigned.includes(b.id) ||
+          assigned.includes(b.displayName) ||
+          assigned.some(
+            (a) => a.toLowerCase() === b.displayName.toLowerCase() || a.toLowerCase() === b.id.toLowerCase()
+          )
+      );
 
       res.json({
-        batches: sortedBatches.map((b) => b.displayName),
-        batchObjects: sortedBatches,
+        batches: mentorBatches.map((b) => b.displayName),
+        batchObjects: mentorBatches,
         assignedBatches: assigned,
       });
       return;

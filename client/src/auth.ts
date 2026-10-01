@@ -96,7 +96,12 @@ export async function refreshAuthUser(): Promise<AuthUser | null> {
     const res = await fetch(apiUrl('/api/auth/me'), {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      if (res.status === 401) {
+        clearStoredAuth();
+      }
+      return null;
+    }
     const data = await res.json();
     if (data.user) {
       if (isFacultyEmail(data.user.email)) {
