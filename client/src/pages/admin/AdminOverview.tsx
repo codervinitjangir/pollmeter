@@ -24,42 +24,185 @@ export default function AdminOverview() {
 
   return (
     <div className="pm-overview-container">
+      {/* ─── Institutional Overview Header ───────────────────────── */}
+      <div className="pm-overview-welcome">
+        <div className="pm-overview-welcome-left">
+          <div className="pm-overview-welcome-crest">🏛️</div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <h1 className="pm-overview-welcome-title">Central Administration Hub</h1>
+              <span className="pm-overview-tenant-pill">
+                ● POLARIS VERIFIED TENANT
+              </span>
+            </div>
+            <p className="pm-overview-welcome-sub">
+              Manage university faculties, assign student cohorts, monitor live quizzes, and download institutional gradebooks.
+            </p>
+          </div>
+        </div>
+        <div className="pm-overview-welcome-actions">
+          <button
+            type="button"
+            className="pm-btn-hub-action pm-btn-hub-ghost"
+            onClick={() => navigate('/dashboard')}
+            title="Switch to Faculty Quiz Host Studio"
+          >
+            <span>⚡ Host Studio</span>
+          </button>
+          <button
+            type="button"
+            className="pm-btn-hub-action pm-btn-hub-primary"
+            onClick={() => navigate('/admin/faculty?add=true')}
+            title="Register a new faculty educator"
+          >
+            <span>＋ Add Mentor</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ─── Quick Administration Hub ─────────────────────────────── */}
+      <section className="pm-quick-hub-grid">
+        <div
+          className="pm-quick-hub-card"
+          onClick={() => navigate('/admin/faculty')}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="pm-quick-hub-icon-wrap pm-icon-amber">
+            <span>👨‍🏫</span>
+          </div>
+          <div className="pm-quick-hub-body">
+            <div className="pm-quick-hub-title-row">
+              <strong>Faculty &amp; Mentors</strong>
+              <span className="pm-quick-hub-arrow">→</span>
+            </div>
+            <p>Approve staff requests, assign subjects, and manage roles.</p>
+          </div>
+        </div>
+
+        <div
+          className="pm-quick-hub-card"
+          onClick={() => navigate('/admin/batches')}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="pm-quick-hub-icon-wrap pm-icon-blue">
+            <span>🗂️</span>
+          </div>
+          <div className="pm-quick-hub-body">
+            <div className="pm-quick-hub-title-row">
+              <strong>Batch Management</strong>
+              <span className="pm-quick-hub-arrow">→</span>
+            </div>
+            <p>Configure academic cohorts, year sections, and class rosters.</p>
+          </div>
+        </div>
+
+        <div
+          className="pm-quick-hub-card"
+          onClick={() => navigate('/admin/students')}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="pm-quick-hub-icon-wrap pm-icon-emerald">
+            <span>🎓</span>
+          </div>
+          <div className="pm-quick-hub-body">
+            <div className="pm-quick-hub-title-row">
+              <strong>Student Audit</strong>
+              <span className="pm-quick-hub-arrow">→</span>
+            </div>
+            <p>Audit participants, allocate cohorts, and inspect score history.</p>
+          </div>
+        </div>
+
+        <div
+          className="pm-quick-hub-card"
+          onClick={() => navigate('/admin/reports')}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="pm-quick-hub-icon-wrap pm-icon-purple">
+            <span>📈</span>
+          </div>
+          <div className="pm-quick-hub-body">
+            <div className="pm-quick-hub-title-row">
+              <strong>Campus Reports</strong>
+              <span className="pm-quick-hub-arrow">→</span>
+            </div>
+            <p>Review cross-cohort analytics and download full Excel / CSV data.</p>
+          </div>
+        </div>
+      </section>
+
       {/* ─── Metric KPI Cards ─────────────────────────────────────────────── */}
       <section className="pm-stats-grid">
-        <div className="pm-stat-box pm-stat-amber">
+        <div
+          className="pm-stat-box pm-stat-amber pm-stat-box-interactive"
+          onClick={() => navigate('/admin/faculty')}
+          title="Click to view and manage faculty members"
+        >
           <div className="pm-stat-header">
             <span className="pm-stat-label">Faculty Mentors</span>
             <div className="pm-stat-icon">👨‍🏫</div>
           </div>
           <div className="pm-stat-value">{totalMentors}</div>
           <div className="pm-stat-meta">Verified educators</div>
+          <div className="pm-stat-box-hint">
+            <span>Manage roster</span>
+            <span>→</span>
+          </div>
         </div>
 
-        <div className="pm-stat-box pm-stat-emerald">
+        <div
+          className="pm-stat-box pm-stat-emerald pm-stat-box-interactive"
+          onClick={() => navigate('/admin/students')}
+          title="Click to audit enrolled students"
+        >
           <div className="pm-stat-header">
             <span className="pm-stat-label">Active Students</span>
             <div className="pm-stat-icon">🎓</div>
           </div>
           <div className="pm-stat-value">{totalStudents}</div>
           <div className="pm-stat-meta">Across all departments</div>
+          <div className="pm-stat-box-hint">
+            <span>Review audit</span>
+            <span>→</span>
+          </div>
         </div>
 
-        <div className="pm-stat-box pm-stat-blue">
+        <div
+          className="pm-stat-box pm-stat-blue pm-stat-box-interactive"
+          onClick={() => navigate('/admin/quizzes')}
+          title="Click to review live quiz sessions"
+        >
           <div className="pm-stat-header">
             <span className="pm-stat-label">Quizzes Hosted</span>
             <div className="pm-stat-icon">📝</div>
           </div>
           <div className="pm-stat-value">{totalQuizzes}</div>
           <div className="pm-stat-meta">Interactive sessions</div>
+          <div className="pm-stat-box-hint">
+            <span>View quiz logs</span>
+            <span>→</span>
+          </div>
         </div>
 
-        <div className="pm-stat-box pm-stat-purple">
+        <div
+          className="pm-stat-box pm-stat-purple pm-stat-box-interactive"
+          onClick={() => navigate('/admin/reports')}
+          title="Click to view detailed evaluation reports"
+        >
           <div className="pm-stat-header">
             <span className="pm-stat-label">Student Responses</span>
             <div className="pm-stat-icon">⚡</div>
           </div>
           <div className="pm-stat-value">{totalResponses}</div>
           <div className="pm-stat-meta">Live evaluations</div>
+          <div className="pm-stat-box-hint">
+            <span>View reports</span>
+            <span>→</span>
+          </div>
         </div>
       </section>
 
@@ -230,6 +373,31 @@ export default function AdminOverview() {
                 </span>
               ))}
             </div>
+          </div>
+
+          {/* Security & System Integrity Card */}
+          <div className="pm-card" style={{ borderLeft: '3px solid #10B981' }}>
+            <div className="pm-card-header" style={{ marginBottom: '0.65rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '1rem' }}>🛡️</span>
+                <h3 className="pm-card-title">System &amp; Security</h3>
+              </div>
+              <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#10B981', background: 'rgba(16, 185, 129, 0.12)', padding: '2px 8px', borderRadius: '999px' }}>
+                ● HEALTHY
+              </span>
+            </div>
+            <p style={{ margin: '0 0 0.85rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+              Real-time audit trails active. Every quiz result and roster assignment is cryptographically tracked.
+            </p>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => navigate('/admin/audit')}
+              style={{ width: '100%', fontSize: '0.78rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+            >
+              <span>🔍</span>
+              <span>Open Security Audit Trail →</span>
+            </button>
           </div>
         </div>
       </div>

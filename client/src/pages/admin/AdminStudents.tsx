@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { searchStudentAudit, adminUpdateStudentBatch, adminFetchBatches, BatchObject } from '../../auth';
 import { useAdminData } from './AdminContext';
 import AcademicDrilldown, { AcademicDrilldownValue, EMPTY_DRILL } from './AcademicDrilldown';
@@ -11,6 +11,7 @@ export default function AdminStudents() {
     loading,
     allBatchObjects,
     activeSubjects,
+    showToast,
   } = useAdminData();
 
   const [studentSearch, setStudentSearch] = useState('');
@@ -19,6 +20,7 @@ export default function AdminStudents() {
    * "show me this cohort", the search answers "find this one person".
    */
   const [drill, setDrill] = useState<AcademicDrilldownValue>({ ...EMPTY_DRILL });
+  const [studentStatusFilter, setStudentStatusFilter] = useState<'all' | 'assigned' | 'unassigned' | 'regular'>('all');
 
   // Batch edit modal state
   const [editingEmail, setEditingEmail] = useState<string | null>(null);
@@ -42,6 +44,30 @@ export default function AdminStudents() {
     return () => clearTimeout(timer);
   }, [studentSearch, drill.batchId, drill.year, drill.subject, authUser, setStudentAudit]);
 
+  // Derived counts
+  const assignedCount = useMemo(
+    () => studentAudit.filter((s) => Boolean(s.batchName)).length,
+    [studentAudit]
+  );
+  const unassignedCount = useMemo(
+    () => studentAudit.filter((s) => !s.batchName).length,
+    [studentAudit]
+  );
+  const regularCount = useMemo(
+    () => studentAudit.filter((s) => s.quizCount >= 3).length,
+    [studentAudit]
+  );
+
+  // Filtered students based on status segment
+  const displayedStudents = useMemo(() => {
+    return studentAudit.filter((s) => {
+      if (studentStatusFilter === 'assigned') return Boolean(s.batchName);
+      if (studentStatusFilter === 'unassigned') return !s.batchName;
+      if (studentStatusFilter === 'regular') return s.quizCount >= 3;
+      return true;
+    });
+  }, [studentAudit, studentStatusFilter]);
+
   function openBatchModal(email: string, currentBatchId?: string) {
     setEditingEmail(email);
     setBatchModalValue(currentBatchId || '');
@@ -57,6 +83,7 @@ export default function AdminStudents() {
     setBatchModalError('');
     try {
       await adminUpdateStudentBatch(editingEmail, batchModalValue || null);
+      showToast(`Batch updated for ${editingEmail}.`);
       setEditingEmail(null);
       // Refresh the list
       const data = await searchStudentAudit(studentSearch, {
@@ -66,7 +93,7 @@ export default function AdminStudents() {
       });
       setStudentAudit(data);
     } catch (err: any) {
-      setBatchModalError(err.message || 'Failed to update batch.');
+      setBatchModalError(err.message || 'Failed to update student batch.');
     } finally {
       setBatchModalSaving(false);
     }
@@ -85,24 +112,80 @@ export default function AdminStudents() {
         batches={allBatchObjects}
       />
 
+      {/* ─── Metric Bar ─── */}
+      <div className="pm-admin-metrics-bar">
+        <div className="pm-admin-metric-chip">
+          <span>👥 Total Students:</span>
+          <strong>{studentAudit.length}</strong>
+        </div>
+        <div className="pm-admin-metric-chip pm-admin-metric-chip--success">
+          <span>🎓 Batch Assigned:</span>
+          <strong>{assignedCount}</strong>
+        </div>
+        {unassignedCount > 0 && (
+          <div className="pm-admin-metric-chip" style={{ borderColor: 'rgba(245, 158, 11, 0.4)' }}>
+            <span style={{ color: '#D97706' }}>⚠️ Unassigned:</span>
+            <strong style={{ color: '#D97706' }}>{unassignedCount}</strong>
+          </div>
+        )}
+        <div className="pm-admin-metric-chip">
+          <span>🌟 Regular Participants:</span>
+          <strong>{regularCount}</strong>
+        </div>
+      </div>
+
+      {/* ─── Search & Filter Toolbar ─── */}
       <div className="pm-panel-header-row">
-        <div className="pm-search-input-wrap">
-          <span>🔍</span>
-          <input
-            type="text"
-            placeholder="Audit student by name or university email ID..."
-            value={studentSearch}
-            onChange={(e) => setStudentSearch(e.target.value)}
-          />
-          {studentSearch && (
-            <button className="pm-search-clear" onClick={() => setStudentSearch('')}>
-              ✕
+        <div className="pm-panel-toolbar-left" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div className="pm-search-input-wrap">
+            <span>🔍</span>
+            <input
+              type="text"
+              placeholder="Audit student by name or university email ID..."
+              value={studentSearch}
+              onChange={(e) => setStudentSearch(e.target.value)}
+            />
+            {studentSearch && (
+              <button className="pm-search-clear" onClick={() => setStudentSearch('')}>
+                ✕
+              </button>
+            )}
+          </div>
+
+          <div className="pm-filter-segmented-group">
+            <button
+              type="button"
+              className={`pm-filter-segmented-btn ${studentStatusFilter === 'all' ? 'active' : ''}`}
+              onClick={() => setStudentStatusFilter('all')}
+            >
+              All ({studentAudit.length})
             </button>
-          )}
+            <button
+              type="button"
+              className={`pm-filter-segmented-btn ${studentStatusFilter === 'assigned' ? 'active' : ''}`}
+              onClick={() => setStudentStatusFilter('assigned')}
+            >
+              Assigned ({assignedCount})
+            </button>
+            <button
+              type="button"
+              className={`pm-filter-segmented-btn ${studentStatusFilter === 'unassigned' ? 'active' : ''}`}
+              onClick={() => setStudentStatusFilter('unassigned')}
+            >
+              Unassigned ({unassignedCount})
+            </button>
+            <button
+              type="button"
+              className={`pm-filter-segmented-btn ${studentStatusFilter === 'regular' ? 'active' : ''}`}
+              onClick={() => setStudentStatusFilter('regular')}
+            >
+              Regulars ({regularCount})
+            </button>
+          </div>
         </div>
 
         <span className="pm-table-count">
-          Showing <strong>{studentAudit.length}</strong> student{studentAudit.length === 1 ? '' : 's'}
+          Showing <strong>{displayedStudents.length}</strong> of <strong>{studentAudit.length}</strong> student{studentAudit.length === 1 ? '' : 's'}
         </span>
       </div>
 
@@ -111,11 +194,24 @@ export default function AdminStudents() {
           <div className="spinner" />
           <p>Auditing cross-subject student records...</p>
         </div>
-      ) : studentAudit.length === 0 ? (
-        <div className="pm-history-empty">
+      ) : displayedStudents.length === 0 ? (
+        <div className="pm-history-empty" style={{ padding: '2.5rem 1rem' }}>
           <span style={{ fontSize: '3rem' }}>🎯</span>
-          <h3>No student records found</h3>
-          <p>When students take live quizzes across any mentor&apos;s class, their scores appear here.</p>
+          <h3 style={{ margin: '0.5rem 0 0.2rem', fontWeight: 700 }}>No student records found</h3>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748B' }}>
+            {studentSearch
+              ? `No student matches "${studentSearch}". Try clearing your search.`
+              : 'When students participate in live quizzes across any mentor’s class, their scores appear here.'}
+          </p>
+          {studentSearch && (
+            <button
+              className="btn btn-secondary btn-sm"
+              style={{ marginTop: '0.85rem' }}
+              onClick={() => setStudentSearch('')}
+            >
+              Clear Search
+            </button>
+          )}
         </div>
       ) : (
         <div className="pm-table-responsive">
@@ -124,7 +220,7 @@ export default function AdminStudents() {
               <tr>
                 <th>Student Name</th>
                 <th>College Email</th>
-                <th>Batch</th>
+                <th>Batch / Cohort</th>
                 <th>Quizzes Attempted</th>
                 <th>Average Score</th>
                 <th>Last Active Session</th>
@@ -132,7 +228,7 @@ export default function AdminStudents() {
               </tr>
             </thead>
             <tbody>
-              {studentAudit.map((s, idx) => {
+              {displayedStudents.map((s, idx) => {
                 const scoreClass =
                   s.avgScore >= 1200
                     ? 'pm-score-high'
@@ -149,12 +245,13 @@ export default function AdminStudents() {
                     </td>
                     <td>
                       {s.batchName ? (
-                        <span className="pm-badge-batch" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                        <span className="pm-badge-batch" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                           🎓 {s.batchName}
                           <button
+                            type="button"
                             className="pm-search-clear"
-                            style={{ fontSize: '0.7rem', marginLeft: '4px', opacity: 0.7 }}
-                            title="Change batch"
+                            style={{ fontSize: '0.75rem', marginLeft: '4px', opacity: 0.8, cursor: 'pointer' }}
+                            title="Change student cohort / batch"
                             onClick={() => openBatchModal(s.email, s.batchId)}
                           >
                             ✎
@@ -162,11 +259,12 @@ export default function AdminStudents() {
                         </span>
                       ) : (
                         <button
-                          className="pm-host-action-link"
-                          style={{ fontSize: '0.78rem' }}
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          style={{ fontSize: '0.74rem', padding: '0.2rem 0.55rem', color: '#D97706', borderColor: 'rgba(245, 158, 11, 0.4)' }}
                           onClick={() => openBatchModal(s.email)}
                         >
-                          Assign batch
+                          ＋ Assign batch
                         </button>
                       )}
                     </td>
@@ -200,65 +298,80 @@ export default function AdminStudents() {
         </div>
       )}
 
-      {/* Batch Edit Modal */}
+      {/* ─── Batch Edit Modal (Refined for Light & Dark Theme) ─── */}
       {editingEmail && (
         <div
-          style={{
-            position: 'fixed', inset: 0, zIndex: 1000,
-            background: 'rgba(0,0,0,0.6)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-          onClick={(e) => { if (e.target === e.currentTarget) setEditingEmail(null); }}
+          className="pm-auth-modal-backdrop"
+          onClick={() => !batchModalSaving && setEditingEmail(null)}
+          style={{ zIndex: 10000 }}
         >
-          <div style={{
-            background: 'var(--surface, #18181B)',
-            border: '1px solid var(--border, #27272A)',
-            borderRadius: '16px',
-            padding: '1.75rem',
-            minWidth: '340px',
-            maxWidth: '480px',
-            width: '90%',
-          }}>
-            <h3 style={{ margin: '0 0 0.25rem', fontSize: '1.05rem' }}>Edit Student Batch</h3>
-            <p style={{ margin: '0 0 1rem', fontSize: '0.83rem', color: 'var(--mute, #94A3B8)' }}>
-              <code style={{ fontSize: '0.78rem' }}>{editingEmail}</code>
-            </p>
-
-            {batchModalError && (
-              <p style={{ color: '#EF4444', fontSize: '0.82rem', marginBottom: '0.75rem' }}>⚠️ {batchModalError}</p>
-            )}
-
-            <label style={{ fontSize: '0.8rem', fontWeight: 700, display: 'block', marginBottom: '0.4rem' }}>
-              New Batch
-            </label>
-            <select
-              className="input pm-host-select"
-              value={batchModalValue}
-              onChange={(e) => setBatchModalValue(e.target.value)}
-              disabled={batchModalSaving}
-              style={{ width: '100%', marginBottom: '1rem' }}
-            >
-              <option value="">— No batch / Clear —</option>
-              {allBatches.map((b) => (
-                <option key={b.id} value={b.id}>{b.displayName}</option>
-              ))}
-            </select>
-
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+          <div
+            className="pm-admin-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '440px', width: '92%' }}
+          >
+            <div className="pm-admin-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '1.4rem' }}>🎓</span>
+                <div>
+                  <h3 className="pm-admin-modal-title">Assign Student Cohort</h3>
+                  <p className="pm-admin-modal-sub">
+                    <code style={{ fontSize: '0.78rem' }}>{editingEmail}</code>
+                  </p>
+                </div>
+              </div>
               <button
-                className="btn btn-secondary"
+                className="pm-auth-close-btn"
                 onClick={() => setEditingEmail(null)}
                 disabled={batchModalSaving}
               >
-                Cancel
+                ✕
               </button>
-              <button
-                className="btn btn-primary"
-                onClick={saveBatchChange}
+            </div>
+
+            <div style={{ padding: '1.25rem 1.5rem' }}>
+              {batchModalError && (
+                <div className="pm-auth-error-alert" style={{ marginBottom: '1rem' }}>
+                  <span>⚠️ {batchModalError}</span>
+                </div>
+              )}
+
+              <label style={{ fontSize: '0.82rem', fontWeight: 700, display: 'block', marginBottom: '0.45rem' }}>
+                Assigned Cohort / Batch
+              </label>
+              <select
+                className="input pm-host-select"
+                value={batchModalValue}
+                onChange={(e) => setBatchModalValue(e.target.value)}
                 disabled={batchModalSaving}
+                style={{ width: '100%', marginBottom: '1.25rem', padding: '0.55rem 0.8rem' }}
               >
-                {batchModalSaving ? 'Saving…' : 'Save'}
-              </button>
+                <option value="">— No batch / Clear cohort —</option>
+                {allBatches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.displayName} {b.status === 'inactive' ? '(Archived)' : ''}
+                  </option>
+                ))}
+              </select>
+
+              <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setEditingEmail(null)}
+                  disabled={batchModalSaving}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={saveBatchChange}
+                  disabled={batchModalSaving}
+                >
+                  {batchModalSaving ? 'Saving…' : 'Save Batch'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
