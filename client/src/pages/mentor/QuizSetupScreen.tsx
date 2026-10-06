@@ -1014,6 +1014,22 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
             <MentorQuizHistoryModal
               embedded={true}
               onBack={() => setHostView('builder')}
+              availableBatches={availableBatchObjects}
+              onLoadInBuilder={(quiz) => {
+                setEditingDraftId(quiz.sourceDraftId || null);
+                setEditingDraftTitle(quiz.title);
+                setQuestions(quiz.questions || []);
+                if (quiz.subject) setQuizSubject(quiz.subject);
+                if (quiz.batchId) setQuizBatchId(quiz.batchId);
+                if (quiz.batch) setQuizBatch(quiz.batch);
+                setAiInitialTopic(quiz.title);
+                setHostView('builder');
+                setDraftSavedToast({
+                  message: `Loaded "${quiz.title}" (${quiz.questions.length} questions) into builder. You can edit questions, change options, and re-launch or save.`,
+                  draftId: quiz.sourceDraftId || '',
+                });
+                setTimeout(scrollToBuilder, 150);
+              }}
             />
           </main>
         ) : hostView === 'library' ? (
@@ -1043,6 +1059,20 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
                 setHostView('builder');
                 setTimeout(scrollToBuilder, 150);
               }}
+              onLoadPastQuiz={(quiz) => {
+                setEditingDraftId(quiz.sourceDraftId || null);
+                setEditingDraftTitle(quiz.title);
+                setQuestions(quiz.questions || []);
+                if (quiz.subject) setQuizSubject(quiz.subject);
+                setAiInitialTopic(quiz.title);
+                setHostView('builder');
+                setDraftSavedToast({
+                  message: `Loaded "${quiz.title}" (${quiz.questions.length} questions) into builder. You can edit questions, change options, and re-launch or save.`,
+                  draftId: quiz.sourceDraftId || '',
+                });
+                setTimeout(scrollToBuilder, 150);
+              }}
+              onViewReportsTab={() => setHostView('reports')}
               onNewQuiz={() => {
                 setEditingDraftId(null);
                 setEditingDraftTitle(null);

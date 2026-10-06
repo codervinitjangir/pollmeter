@@ -6,9 +6,14 @@ import {
   createQuizDraft,
   deleteQuizDraft,
   fetchMentorQuizzes,
+  fetchQuizDetails,
+  getAuthToken,
   BatchObject,
   AuthUser,
 } from '../auth';
+import { apiUrl } from '../api';
+import { setStoredHost } from '../pages/mentor/hostSession';
+import { useNavigate } from 'react-router-dom';
 import BatchPicker from './BatchPicker';
 
 interface QuizLibraryProps {
@@ -19,6 +24,24 @@ interface QuizLibraryProps {
   onNewQuiz: () => void;
   onOpenAi: () => void;
   authUser: AuthUser | null;
+  onLoadPastQuiz?: (quiz: {
+    title: string;
+    subject?: string;
+    questions: Question[];
+    sourceDraftId?: string;
+  }) => void;
+  onViewReportsTab?: () => void;
+}
+
+function parseQuestions(raw: any): Question[] {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+  }
+  return [];
 }
 
 export default function QuizLibrary({
@@ -29,20 +52,24 @@ export default function QuizLibrary({
   onNewQuiz,
   onOpenAi,
   authUser,
+  onLoadPastQuiz,
+  onViewReportsTab,
 }: QuizLibraryProps) {
+  const navigate = useNavigate();
   const [drafts, setDrafts] = useState<QuizDraftSummary[]>([]);
   const [pastSessions, setPastSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'draft' | 'archived'>('draft');
+  const [filterStatus, setFilterStatus] = useState<'draft' | 'past' | 'archived'>('draft');
 
   // Admin filter by mentor
   const [adminMentorEmail, setAdminMentorEmail] = useState('');
 
   // Go live modal state
   const [goLiveModalDraft, setGoLiveModalDraft] = useState<QuizDraftSummary | null>(null);
+  const [goLiveModalPastSession, setGoLiveModalPastSession] = useState<any | null>(null);
   const [selectedBatchId, setSelectedBatchId] = useState('');
   const [selectedBatchName, setSelectedBatchName] = useState('');
   const [startingSession, setStartingSession] = useState(false);
@@ -61,7 +88,7 @@ export default function QuizLibrary({
     try {
       const mentorEmailParam = authUser?.role === 'admin' && adminMentorEmail ? adminMentorEmail : undefined;
       const [draftList, sessionsList] = await Promise.all([
-        fetchQuizDrafts(filterStatus, mentorEmailParam),
+        fetchQuizDrafts(filterStatus === 'archived' ? 'archived' : 'draft', mentorEmailParam),
         fetchMentorQuizzes(mentorEmailParam ? { mentorEmail: mentorEmailParam } : undefined).catch(() => []),
       ]);
       setDrafts(draftList || []);
@@ -109,6 +136,19 @@ export default function QuizLibrary({
     );
   }, [drafts, searchQuery]);
 
+  // Filtered past sessions by search query
+  const filteredPastSessions = useMemo(() => {
+    if (!searchQuery.trim()) return pastSessions;
+    const q = searchQuery.toLowerCase().trim();
+    return pastSessions.filter(
+      (s) =>
+        (s.topic && s.topic.toLowerCase().includes(q)) ||
+        (s.subject && s.subject.toLowerCase().includes(q)) ||
+        (s.batch && s.batch.toLowerCase().includes(q)) ||
+        (s.code && s.code.toLowerCase().includes(q))
+    );
+  }, [pastSessions, searchQuery]);
+
   const handleDuplicate = async (draft: QuizDraftSummary) => {
     setActionLoadingId(draft.id);
     setError('');
@@ -127,6 +167,113 @@ export default function QuizLibrary({
       setError(err.message || 'Failed to duplicate quiz draft.');
     } finally {
       setActionLoadingId(null);
+    }
+  };
+
+  const handleCopyPastSessionToDraft = async (session: any) => {
+    setActionLoadingId(session.id);
+    setError('');
+    setSuccessMsg('');
+    try {
+      let qs = parseQuestions(session.questions);
+      if (!qs || qs.length === 0) {
+        try {
+          const d = await fetchQuizDetails(session.id);
+          qs = parseQuestions(d?.session?.questions);
+        } catch {}
+      }
+      if (!qs || qs.length === 0) {
+        throw new Error('No questions found in this quiz session.');
+      }
+      const duplicateTitle = `${session.topic || 'Quiz'} (Copy)`.slice(0, 200);
+      await createQuizDraft({
+        title: duplicateTitle,
+        subject: session.subject || 'General',
+        questions: qs,
+      });
+      setSuccessMsg(`✓ Saved "${duplicateTitle}" to your Drafts!`);
+      await loadData();
+    } catch (err: any) {
+      setError(err.message || 'Failed to save past quiz as draft.');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleEditPastSession = async (session: any) => {
+    let qs = parseQuestions(session.questions);
+    if (!qs || qs.length === 0) {
+      try {
+        const d = await fetchQuizDetails(session.id);
+        qs = parseQuestions(d?.session?.questions);
+      } catch {}
+    }
+    if (!qs || qs.length === 0) {
+      setError('No questions found in this past quiz.');
+      return;
+    }
+    if (onLoadPastQuiz) {
+      onLoadPastQuiz({
+        title: session.topic || 'Classroom Quiz',
+        subject: session.subject,
+        questions: qs,
+        sourceDraftId: session.sourceDraftId,
+      });
+    } else {
+      onEditDraft({
+        id: session.sourceDraftId || session.id,
+        title: session.topic || 'Classroom Quiz',
+        subject: session.subject || 'General',
+        questions: qs,
+        mentorEmail: authUser?.email || '',
+        status: 'draft',
+        createdAt: session.createdAt,
+        updatedAt: session.createdAt,
+      });
+    }
+  };
+
+  const handleStartPastSessionGoLive = async () => {
+    if (!goLiveModalPastSession) return;
+    if (!selectedBatchId) {
+      setGoLiveError('Please select or create a batch before going live.');
+      return;
+    }
+    setStartingSession(true);
+    setGoLiveError('');
+    try {
+      let qs = parseQuestions(goLiveModalPastSession.questions);
+      if (!qs || qs.length === 0) {
+        const d = await fetchQuizDetails(goLiveModalPastSession.id);
+        qs = parseQuestions(d?.session?.questions);
+      }
+      if (!qs || qs.length === 0) {
+        throw new Error('No questions found in this quiz session.');
+      }
+      const token = getAuthToken();
+      if (!token) throw new Error('Authentication required');
+      const res = await fetch(apiUrl('/api/sessions'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          questions: qs,
+          topic: goLiveModalPastSession.topic || 'Classroom Quiz',
+          subject: goLiveModalPastSession.subject || 'General',
+          batchId: selectedBatchId,
+        }),
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        throw new Error(d.error || 'Failed to start live session.');
+      }
+      setStoredHost({ code: d.code, hostId: d.hostId });
+      navigate('/dashboard/live/' + d.code);
+    } catch (err: any) {
+      setGoLiveError(err.message || 'Failed to launch live session.');
+      setStartingSession(false);
     }
   };
 
@@ -264,6 +411,14 @@ export default function QuizLibrary({
             </button>
             <button
               type="button"
+              className={`btn btn-sm ${filterStatus === 'past' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ fontSize: '0.78rem', padding: '0.25rem 0.65rem' }}
+              onClick={() => setFilterStatus('past')}
+            >
+              Hosted Quizzes ({pastSessions.length})
+            </button>
+            <button
+              type="button"
               className={`btn btn-sm ${filterStatus === 'archived' ? 'btn-primary' : 'btn-ghost'}`}
               style={{ fontSize: '0.78rem', padding: '0.25rem 0.65rem' }}
               onClick={() => setFilterStatus('archived')}
@@ -299,13 +454,183 @@ export default function QuizLibrary({
         </button>
       </div>
 
-      {/* Drafts List */}
+      {/* Quizzes Grid */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--text-secondary)' }}>
           <span className="spinner spinner--sm" style={{ marginRight: '0.5rem' }} />
           Loading your quiz library…
         </div>
+      ) : filterStatus === 'past' ? (
+        /* Past Hosted Quizzes Tab */
+        filteredPastSessions.length === 0 ? (
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '3.5rem 1.5rem',
+              background: 'var(--surface, rgba(255, 255, 255, 0.02))',
+              borderRadius: '16px',
+              border: '1px dashed var(--border, rgba(255, 255, 255, 0.15))',
+            }}
+          >
+            <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '0.75rem' }}>📋</span>
+            <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.15rem' }}>
+              {searchQuery ? 'No matching hosted quizzes found' : 'No hosted quizzes yet'}
+            </h3>
+            <p style={{ margin: '0 0 1.25rem', color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: '480px', marginLeft: 'auto', marginRight: 'auto' }}>
+              When you host live quizzes for your batches, they will appear here so you can re-run them, edit questions, or export reports anytime.
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1rem' }}>
+            {filteredPastSessions.map((session) => {
+              const qs = parseQuestions(session.questions);
+              const isActing = actionLoadingId === session.id;
+
+              return (
+                <div
+                  key={session.id}
+                  style={{
+                    background: 'var(--surface, #18181B)',
+                    borderRadius: '14px',
+                    border: '1px solid var(--border, #27272A)',
+                    padding: '1.25rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                    transition: 'border-color 0.15s ease, transform 0.15s ease',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      <span
+                        style={{
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          padding: '0.2rem 0.5rem',
+                          borderRadius: '6px',
+                          background: 'rgba(99, 102, 241, 0.12)',
+                          color: '#A5B4FC',
+                        }}
+                      >
+                        {session.subject || 'General'}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '0.74rem',
+                          color: 'var(--text-secondary, #9CA3AF)',
+                          fontWeight: 600,
+                        }}
+                      >
+                        {qs.length || session.questionCount || 0} Questions
+                      </span>
+                    </div>
+
+                    <h3
+                      style={{
+                        margin: '0.2rem 0 0.5rem',
+                        fontSize: '1.1rem',
+                        fontWeight: 700,
+                        color: 'var(--text-primary, #F2F2F2)',
+                        lineHeight: 1.35,
+                      }}
+                    >
+                      {session.topic || 'Classroom Quiz'}
+                    </h3>
+
+                    <div
+                      style={{
+                        fontSize: '0.78rem',
+                        color: 'var(--text-secondary, #9CA3AF)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        margin: '0.6rem 0 1rem',
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <span>🎓 {session.batch || 'General'}</span>
+                      <span>•</span>
+                      <span>#{session.code}</span>
+                      <span>•</span>
+                      <span>{new Date(session.createdAt).toLocaleDateString()}</span>
+                      <span>•</span>
+                      <span style={{ color: '#10B981', fontWeight: 600 }}>{session.participantCount || 0} Students</span>
+                    </div>
+                  </div>
+
+                  {/* Actions Row */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingTop: '0.85rem',
+                      borderTop: '1px solid var(--border, #27272A)',
+                      gap: '0.4rem',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={() => {
+                        setGoLiveModalPastSession(session);
+                        setSelectedBatchId(session.batchId || '');
+                        setSelectedBatchName(session.batch || '');
+                        setGoLiveError('');
+                      }}
+                      disabled={isActing}
+                      style={{
+                        fontWeight: 700,
+                        background: 'linear-gradient(135deg, #10B981, #059669)',
+                        border: 'none',
+                      }}
+                    >
+                      ▶ Host Again
+                    </button>
+
+                    <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => handleEditPastSession(session)}
+                        disabled={isActing}
+                        title="Load into Quiz Builder to edit or update questions"
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => handleCopyPastSessionToDraft(session)}
+                        disabled={isActing}
+                        title="Duplicate as new draft in library"
+                      >
+                        📋 Copy
+                      </button>
+                      {onViewReportsTab && (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={onViewReportsTab}
+                          disabled={isActing}
+                          title="View detailed student reports"
+                        >
+                          📊 Report
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )
       ) : filteredDrafts.length === 0 ? (
+        /* Empty Drafts */
         <div
           style={{
             textAlign: 'center',
@@ -334,6 +659,7 @@ export default function QuizLibrary({
           </div>
         </div>
       ) : (
+        /* Drafts Cards */
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1rem' }}>
           {filteredDrafts.map((draft) => {
             const usage = draftUsageMap.get(draft.id);
@@ -567,6 +893,107 @@ export default function QuizLibrary({
                 onClick={handleStartGoLive}
                 disabled={startingSession || !selectedBatchId}
                 id="modal-start-live-btn"
+              >
+                {startingSession ? (
+                  <><span className="spinner spinner--sm" style={{ borderTopColor: '#fff' }} /> Starting…</>
+                ) : (
+                  '🚀 Start Live Session'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Host Past Quiz Live Modal */}
+      {goLiveModalPastSession && (
+        <div
+          className="modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !startingSession) setGoLiveModalPastSession(null);
+          }}
+        >
+          <div
+            className="modal stack stack-4"
+            role="dialog"
+            aria-label="Host Quiz Again Batch Picker"
+            style={{ maxWidth: '480px', width: '92%' }}
+          >
+            <div className="modal-header">
+              <div className="stack stack-1">
+                <p className="t-title" style={{ fontSize: '1.25rem', margin: 0 }}>
+                  🚀 Host Quiz Again
+                </p>
+                <p className="t-body-sm text-secondary" style={{ margin: 0 }}>
+                  Choose which class/cohort will join this session
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn--icon"
+                onClick={() => !startingSession && setGoLiveModalPastSession(null)}
+                aria-label="Close"
+                disabled={startingSession}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div
+              style={{
+                background: 'var(--surface-mid, rgba(255, 255, 255, 0.04))',
+                padding: '0.75rem 1rem',
+                borderRadius: '10px',
+                border: '1px solid var(--border)',
+              }}
+            >
+              <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{goLiveModalPastSession.topic || 'Classroom Quiz'}</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                Subject: {goLiveModalPastSession.subject || 'General'} • {parseQuestions(goLiveModalPastSession.questions).length || goLiveModalPastSession.questionCount || 0} Questions
+              </div>
+            </div>
+
+            {/* Reusable BatchPicker Component */}
+            <BatchPicker
+              batches={availableBatches}
+              selectedBatchId={selectedBatchId}
+              onSelect={(batchId, displayName) => {
+                setSelectedBatchId(batchId);
+                setSelectedBatchName(displayName);
+                setGoLiveError('');
+              }}
+              onBatchCreated={(b) => {
+                if (onBatchCreated) onBatchCreated(b);
+              }}
+              disabled={startingSession}
+            />
+
+            {goLiveError && (
+              <div className="alert alert-error" style={{ padding: '0.5rem 0.75rem', fontSize: '0.82rem' }}>
+                ⚠ {goLiveError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setGoLiveModalPastSession(null)}
+                disabled={startingSession}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleStartPastSessionGoLive}
+                disabled={startingSession || !selectedBatchId}
+                id="modal-start-past-live-btn"
+                style={{
+                  background: 'linear-gradient(135deg, #10B981, #059669)',
+                  border: 'none',
+                  fontWeight: 700,
+                }}
               >
                 {startingSession ? (
                   <><span className="spinner spinner--sm" style={{ borderTopColor: '#fff' }} /> Starting…</>

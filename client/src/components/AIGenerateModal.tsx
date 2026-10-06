@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Question, AiStatus } from '../types';
 import { apiUrl } from '../api';
 import QuestionForm from './QuestionForm';
+import { getAuthUser } from '../auth';
 
 interface Props {
   onInsert: (questions: Question[]) => void;
@@ -18,25 +19,142 @@ const MAX_COUNT = 20;
 const MAX_SYLLABUS = 4000;
 const MAX_FOCUS = 200;
 
+interface AiSnapshot {
+  preview: Question[];
+  source: { source: string; model?: string; notice?: string } | null;
+  mode: Mode;
+  topic: string;
+  syllabus: string;
+  focus: string;
+  audience: string;
+  count: number;
+  difficulty: Difficulty;
+  qtype: QType;
+  timeLimit: number;
+  savedAt: number;
+}
+
+const aiSnapshotKey = (email?: string | null) =>
+  `pollsync_ai_preview_draft:${(email || 'anon').toLowerCase().trim()}`;
+
+function readAiSnapshot(email?: string | null): AiSnapshot | null {
+  try {
+    const raw = localStorage.getItem(aiSnapshotKey(email));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as AiSnapshot;
+    if (!Array.isArray(parsed?.preview) || parsed.preview.length === 0) return null;
+    // Discard drafts older than 24 hours
+    if (Date.now() - parsed.savedAt > 24 * 60 * 60 * 1000) {
+      localStorage.removeItem(aiSnapshotKey(email));
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeAiSnapshot(email: string | null | undefined, snapshot: Omit<AiSnapshot, 'savedAt'>) {
+  try {
+    if (!snapshot.preview || snapshot.preview.length === 0) {
+      localStorage.removeItem(aiSnapshotKey(email));
+      return;
+    }
+    localStorage.setItem(
+      aiSnapshotKey(email),
+      JSON.stringify({ ...snapshot, savedAt: Date.now() })
+    );
+  } catch {
+    /* ignore storage quota errors */
+  }
+}
+
+function clearAiSnapshot(email?: string | null) {
+  try {
+    localStorage.removeItem(aiSnapshotKey(email));
+  } catch {
+    /* ignore */
+  }
+}
+
 export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }: Props) {
-  const [mode, setMode] = useState<Mode>('topic');
-  const [topic, setTopic] = useState(initialTopic);
-  const [syllabus, setSyllabus] = useState('');
-  const [focus, setFocus] = useState('');
-  const [audience, setAudience] = useState('');
-  const [count, setCount] = useState(5);
-  const [difficulty, setDifficulty] = useState<Difficulty>('medium');
-  const [qtype, setQtype] = useState<QType>('mcq');
-  const [timeLimit, setTimeLimit] = useState(30);
+  const userEmail = getAuthUser()?.email;
+  const savedSnapshot = useMemo(() => readAiSnapshot(userEmail), [userEmail]);
+
+  const [mode, setMode] = useState<Mode>(() => savedSnapshot?.mode ?? 'topic');
+  const [topic, setTopic] = useState(() => savedSnapshot?.topic ?? initialTopic);
+  const [syllabus, setSyllabus] = useState(() => savedSnapshot?.syllabus ?? '');
+  const [focus, setFocus] = useState(() => savedSnapshot?.focus ?? '');
+  const [audience, setAudience] = useState(() => savedSnapshot?.audience ?? '');
+  const [count, setCount] = useState(() => savedSnapshot?.count ?? 5);
+  const [difficulty, setDifficulty] = useState<Difficulty>(() => savedSnapshot?.difficulty ?? 'medium');
+  const [qtype, setQtype] = useState<QType>(() => savedSnapshot?.qtype ?? 'mcq');
+  const [timeLimit, setTimeLimit] = useState(() => savedSnapshot?.timeLimit ?? 30);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [hint, setHint] = useState('');
-  const [preview, setPreview] = useState<Question[] | null>(null);
-  const [source, setSource] = useState<{ source: string; model?: string; notice?: string } | null>(null);
+  const [preview, setPreview] = useState<Question[] | null>(() => savedSnapshot?.preview ?? null);
+  const [source, setSource] = useState<{ source: string; model?: string; notice?: string } | null>(
+    () => savedSnapshot?.source ?? null
+  );
   const [editing, setEditing] = useState<Question | null>(null);
   const [status, setStatus] = useState<AiStatus | null>(null);
   const [loadStep, setLoadStep] = useState(0);
+  const [showConfirmDiscard, setShowConfirmDiscard] = useState(false);
+  const [restoredNotice, setRestoredNotice] = useState<boolean>(() => Boolean(savedSnapshot?.preview?.length));
+
+  // Sync preview snapshot into localStorage so reloads or accidental drops preserve work
+  useEffect(() => {
+    if (preview && preview.length > 0) {
+      writeAiSnapshot(userEmail, {
+        preview,
+        source,
+        mode,
+        topic,
+        syllabus,
+        focus,
+        audience,
+        count,
+        difficulty,
+        qtype,
+        timeLimit,
+      });
+    } else {
+      clearAiSnapshot(userEmail);
+    }
+  }, [preview, source, mode, topic, syllabus, focus, audience, count, difficulty, qtype, timeLimit, userEmail]);
+
+  // Guard against accidental tab close or page reload when preview exists
+  useEffect(() => {
+    if (!preview || preview.length === 0) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [preview]);
+
+  // Escape key handler: safely confirm discard if questions are in preview
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showConfirmDiscard) {
+          setShowConfirmDiscard(false);
+        } else if (editing) {
+          setEditing(null);
+        } else if (preview && preview.length > 0) {
+          setShowConfirmDiscard(true);
+        } else {
+          clearAiSnapshot(userEmail);
+          onClose();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showConfirmDiscard, editing, preview, userEmail, onClose]);
 
   useEffect(() => {
     if (!loading) {
@@ -64,6 +182,21 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
       .catch(() => setStatus(null));
   }, []);
 
+  function requestClose() {
+    if (preview && preview.length > 0) {
+      setShowConfirmDiscard(true);
+    } else {
+      clearAiSnapshot(userEmail);
+      onClose();
+    }
+  }
+
+  function confirmDiscard() {
+    clearAiSnapshot(userEmail);
+    setShowConfirmDiscard(false);
+    onClose();
+  }
+
   async function generate() {
     const t = topic.trim();
     const s = syllabus.trim();
@@ -75,8 +208,9 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
     setError('');
     setHint('');
     setLoading(true);
-    setPreview(null);
-    setSource(null);
+    // Note: Do NOT clear preview or source here!
+    // Keeping the existing preview ensures that if network fails or rate-limits,
+    // the user's previously generated questions are safe and never lost.
 
     try {
       const res = await fetch(apiUrl('/api/ai/generate-questions'), {
@@ -104,6 +238,7 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
         return;
       }
 
+      setRestoredNotice(false);
       setPreview(Array.isArray(data.questions) ? data.questions : []);
       setSource({ source: data.source ?? 'ai', model: data.model, notice: data.notice });
     } catch {
@@ -125,6 +260,7 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
 
   function handleInsert() {
     if (preview && preview.length > 0) {
+      clearAiSnapshot(userEmail);
       onInsert(preview);
       onClose();
     }
@@ -175,15 +311,52 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
   }
 
   return (
-    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && requestClose()}>
       <div className="modal stack stack-5" role="dialog" aria-label="AI Question Generator">
         <div className="modal-header">
           <div className="stack stack-2">
             <p className="t-title">✨ Generate questions</p>
             <p className="t-body-sm text-secondary">{subtitle}</p>
           </div>
-          <button className="btn btn-ghost btn--icon" onClick={onClose} aria-label="Close">✕</button>
+          <button className="btn btn-ghost btn--icon" onClick={requestClose} aria-label="Close">✕</button>
         </div>
+
+        {restoredNotice && preview && preview.length > 0 && (
+          <div
+            className="alert alert-info row row-2"
+            style={{
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: '#EFF6FF',
+              border: '1px solid #BFDBFE',
+              borderRadius: '10px',
+              padding: '0.65rem 1rem',
+            }}
+          >
+            <span style={{ fontSize: '0.85rem', color: '#1E40AF', fontWeight: 600 }}>
+              🔄 Restored your previous AI draft ({preview.length} question{preview.length === 1 ? '' : 's'}).
+            </span>
+            <button
+              type="button"
+              className="btn btn-ghost btn--sm"
+              style={{
+                textDecoration: 'underline',
+                padding: '0.2rem 0.5rem',
+                fontSize: '0.8rem',
+                color: '#1E40AF',
+                height: 'auto',
+              }}
+              onClick={() => {
+                clearAiSnapshot(userEmail);
+                setPreview(null);
+                setSource(null);
+                setRestoredNotice(false);
+              }}
+            >
+              Start fresh
+            </button>
+          </div>
+        )}
 
         <div className="row row-2">
           <button
@@ -347,6 +520,11 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
           <div className="alert alert-error stack stack-2">
             <span>⚠ {error}</span>
             {hint && <span className="t-body-sm">{hint}</span>}
+            {preview && preview.length > 0 && (
+              <span className="t-body-sm" style={{ fontWeight: 600, color: '#991B1B' }}>
+                ✓ Your previous {preview.length} question{preview.length === 1 ? '' : 's'} were kept safe below.
+              </span>
+            )}
           </div>
         )}
 
@@ -468,20 +646,22 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
           >
             <span className="spinner spinner--sm" style={{ borderTopColor: '#1F69FF', width: 18, height: 18 }} />
             <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#1E40AF' }}>
-              {LOADING_MESSAGES[Math.min(loadStep, LOADING_MESSAGES.length - 1)]}
+              {preview && preview.length > 0
+                ? '🔄 Regenerating new questions… (previous set is preserved)'
+                : LOADING_MESSAGES[Math.min(loadStep, LOADING_MESSAGES.length - 1)]}
             </span>
           </div>
         )}
 
         <div className="row row-3" style={{ justifyContent: 'flex-end' }}>
-          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn btn-secondary" onClick={requestClose}>Cancel</button>
           {preview && (
             <button className="btn btn-ghost" onClick={generate} disabled={loading} id="ai-regenerate-btn">
-              ↻ Regenerate
+              {loading ? '↻ Regenerating…' : '↻ Regenerate'}
             </button>
           )}
           {preview && preview.length > 0 ? (
-            <button className="btn btn-success" onClick={handleInsert} id="ai-insert-btn">
+            <button className="btn btn-success" onClick={handleInsert} disabled={loading} id="ai-insert-btn">
               ✓ Add {preview.length} question{preview.length === 1 ? '' : 's'}
             </button>
           ) : (
@@ -492,6 +672,88 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
             </button>
           )}
         </div>
+
+        {/* Custom in-UI confirmation popup when closing with active generated questions */}
+        {showConfirmDiscard && (
+          <div
+            className="modal-overlay"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 300,
+              background: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(4px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '1rem',
+            }}
+            onClick={(e) => e.target === e.currentTarget && setShowConfirmDiscard(false)}
+          >
+            <div
+              className="modal stack stack-4"
+              role="alertdialog"
+              aria-label="Discard questions confirmation"
+              style={{
+                maxWidth: '420px',
+                padding: '1.75rem',
+                border: '1px solid rgba(220, 38, 38, 0.2)',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.25)',
+              }}
+            >
+              <div className="row row-3" style={{ alignItems: 'flex-start', gap: '1rem' }}>
+                <div
+                  style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '50%',
+                    background: '#FEE2E2',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.4rem',
+                    flexShrink: 0,
+                  }}
+                >
+                  ⚠️
+                </div>
+                <div className="stack stack-1 flex-1">
+                  <p className="t-title" style={{ fontSize: '1.15rem', color: '#991B1B', margin: 0 }}>
+                    Discard generated questions?
+                  </p>
+                  <p className="t-body-sm text-secondary" style={{ lineHeight: 1.5, marginTop: '0.25rem' }}>
+                    You have <strong>{preview?.length} question{preview && preview.length === 1 ? '' : 's'}</strong> in preview.
+                    Closing now will discard this generated set.
+                  </p>
+                </div>
+              </div>
+
+              <div className="row row-2" style={{ justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn--sm"
+                  onClick={() => setShowConfirmDiscard(false)}
+                  autoFocus
+                >
+                  Keep Reviewing
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--sm"
+                  style={{
+                    background: '#DC2626',
+                    color: '#fff',
+                    border: 'none',
+                    fontWeight: 600,
+                  }}
+                  onClick={confirmDiscard}
+                >
+                  Discard & Exit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -690,6 +690,16 @@ export async function saveSessionResults(
             p.joinedAt || new Date().toISOString(),
           ]
         );
+
+        // Auto-allocate batch_id for students who have no assigned batch yet
+        if (p.batchId) {
+          await client.query(
+            `UPDATE users
+             SET batch_id = $1
+             WHERE LOWER(email) = $2 AND (batch_id IS NULL OR batch_id = '')`,
+            [p.batchId, p.email.toLowerCase()]
+          );
+        }
       }
 
       // Insert responses
@@ -734,6 +744,18 @@ export async function saveSessionResults(
   // Remove previous participants and responses for this session if re-saved
   localDb.participants = localDb.participants.filter((p) => p.sessionId !== sessionId);
   localDb.participants.push(...participants);
+
+  // Auto-allocate batchId for unallocated students
+  for (const p of participants) {
+    if (p.batchId) {
+      const u = Object.values(localDb.users || {}).find(
+        (user) => user.email.toLowerCase() === p.email.toLowerCase()
+      );
+      if (u && !u.batchId) {
+        u.batchId = p.batchId;
+      }
+    }
+  }
 
   localDb.responses = localDb.responses.filter((r) => r.sessionId !== sessionId);
   localDb.responses.push(...responses);
@@ -1287,11 +1309,11 @@ export async function searchStudents(
 
     if (wantBatch) {
       params.push(wantBatch);
-      where += ` AND u.batch_id = $${params.length}`;
+      where += ` AND (COALESCE(u.batch_id, slb.batch_id) = $${params.length} OR p.batch_id = $${params.length} OR qs.batch_id = $${params.length})`;
     }
     if (wantYear) {
       params.push(`%${wantYear}%`);
-      where += ` AND b.year LIKE $${params.length}`;
+      where += ` AND (COALESCE(b.year, pb.year, slb.batch, p.batch, '') LIKE $${params.length})`;
     }
     // Subject lives on the session, so it is applied through the join. A LEFT
     // JOIN keeps students with no participation visible while no subject is
@@ -1308,35 +1330,58 @@ export async function searchStudents(
     }
 
     const res = await pool.query(`
+      WITH student_latest_batch AS (
+        SELECT DISTINCT ON (LOWER(email))
+               LOWER(email) as email,
+               batch_id,
+               batch
+        FROM session_participants
+        WHERE batch_id IS NOT NULL OR (batch IS NOT NULL AND batch <> 'General')
+        ORDER BY LOWER(email), joined_at DESC
+      )
       SELECT COALESCE(u.email, p.email) as email,
              COALESCE(u.real_name, p.real_name) as "realName",
-             u.batch_id as "batchId",
-             b.display_name as "batchName",
+             COALESCE(u.batch_id, slb.batch_id) as "batchId",
+             COALESCE(b.display_name, pb.display_name, slb.batch) as "batchName",
              COALESCE(COUNT(DISTINCT p.session_id), 0)::int as "quizCount",
              COALESCE(ROUND(AVG(p.final_score)), 0)::int as "avgScore",
              MAX(p.joined_at) as "lastQuizDate"
       FROM users u
       FULL OUTER JOIN session_participants p ON LOWER(u.email) = LOWER(p.email)
+      LEFT JOIN student_latest_batch slb ON slb.email = LOWER(COALESCE(u.email, p.email))
       LEFT JOIN batches b ON b.id = u.batch_id
+      LEFT JOIN batches pb ON pb.id = slb.batch_id
       LEFT JOIN quiz_sessions qs ON qs.id = p.session_id
       ${where}
-      GROUP BY COALESCE(u.email, p.email), COALESCE(u.real_name, p.real_name), u.batch_id, b.display_name
+      GROUP BY COALESCE(u.email, p.email), COALESCE(u.real_name, p.real_name), u.batch_id, slb.batch_id, b.display_name, pb.display_name, slb.batch
       ORDER BY "quizCount" DESC, "avgScore" DESC
       LIMIT 100
     `, params);
     return res.rows;
   }
 
-  /** Does this student's own batch satisfy the batch/year filters? */
-  const batchMatches = (batchId?: string): boolean => {
+  const latestBatchByEmail = new Map<string, { batchId?: string; batchName?: string; year?: string }>();
+  for (const p of localDb.participants || []) {
+    const em = p.email.toLowerCase();
+    if (p.batchId || (p.batch && p.batch !== 'General')) {
+      const bObj = p.batchId ? localDb.batches?.[p.batchId] : undefined;
+      const bName = bObj?.displayName || p.batch;
+      const bYear = bObj?.year || (p.batch?.match(/\d+/)?.[0] ?? '');
+      latestBatchByEmail.set(em, { batchId: p.batchId, batchName: bName, year: bYear });
+    }
+  }
+
+  /** Does this student's own batch (or fallback from recent quiz) satisfy the batch/year filters? */
+  const batchMatches = (batchId?: string, email?: string): boolean => {
     if (!wantBatch && !wantYear) return true;
-    if (!batchId) return false;
-    if (wantBatch && batchId !== wantBatch) return false;
+    const fallback = email ? latestBatchByEmail.get(email.toLowerCase()) : undefined;
+    const effectiveBatchId = batchId || fallback?.batchId;
+    if (wantBatch && effectiveBatchId !== wantBatch) return false;
     if (wantYear) {
-      const year = localDb.batches?.[batchId]?.year ?? '';
+      const year = (effectiveBatchId ? localDb.batches?.[effectiveBatchId]?.year : undefined) || fallback?.year || '';
       if (!year.includes(wantYear)) return false;
     }
-    return true;
+    return Boolean(effectiveBatchId);
   };
 
   const subjectMatches = (sessionId: string): boolean => {
@@ -1350,17 +1395,20 @@ export async function searchStudents(
   // Registered students
   for (const u of Object.values(localDb.users || {})) {
     if (u.role !== 'student') continue;
-    if (cleanQ && !u.email.toLowerCase().includes(cleanQ) && !u.realName.toLowerCase().includes(cleanQ)) {
+    const em = u.email.toLowerCase();
+    if (cleanQ && !em.includes(cleanQ) && !u.realName.toLowerCase().includes(cleanQ)) {
       continue;
     }
-    if (!batchMatches(u.batchId)) continue;
-    const bName = u.batchId ? (localDb.batches?.[u.batchId]?.displayName || u.batchId) : undefined;
-    studentMap.set(u.email.toLowerCase(), {
-      email: u.email.toLowerCase(),
+    if (!batchMatches(u.batchId, em)) continue;
+    const fallback = latestBatchByEmail.get(em);
+    const bId = u.batchId || fallback?.batchId;
+    const bName = u.batchId ? (localDb.batches?.[u.batchId]?.displayName || u.batchId) : fallback?.batchName;
+    studentMap.set(em, {
+      email: em,
       realName: u.realName,
       scores: [],
       lastDate: '',
-      batchId: u.batchId,
+      batchId: bId,
       batchName: bName,
     });
   }
@@ -1380,17 +1428,18 @@ export async function searchStudents(
     } else {
       const user = Object.values(localDb.users || {}).find((u) => u.email.toLowerCase() === emailKey);
       if (user && user.role !== 'student') continue;
-      // A registered student already rejected by the batch/year filter above
-      // must not be re-added here through their participation rows.
-      if (user && !batchMatches(user.batchId)) continue;
-      if (!user && (wantBatch || wantYear)) continue;
-      const bName = user?.batchId ? (localDb.batches?.[user.batchId]?.displayName || user.batchId) : undefined;
+      if (!batchMatches(user?.batchId, emailKey)) continue;
+      const fallback = latestBatchByEmail.get(emailKey);
+      const bId = user?.batchId || fallback?.batchId || p.batchId;
+      const bName = user?.batchId
+        ? (localDb.batches?.[user.batchId]?.displayName || user.batchId)
+        : (fallback?.batchName || p.batch);
       studentMap.set(emailKey, {
         email: emailKey,
         realName: p.realName,
         scores: [p.finalScore],
         lastDate: p.joinedAt,
-        batchId: user?.batchId,
+        batchId: bId,
         batchName: bName,
       });
     }
