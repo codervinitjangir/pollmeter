@@ -15016,6 +15016,18 @@ html[data-theme="dark"] body {
   width: 100%;
 }
 
+.pm-host-input-inline-wrap input,
+.pm-host-input-inline-wrap .pm-host-input,
+.pm-host-input {
+  flex: 1 1 0% !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  height: 42px !important;
+  padding: 0.5rem 0.85rem !important;
+  font-size: 0.88rem !important;
+  box-sizing: border-box !important;
+}
+
 .pm-host-inline-btn {
   font-weight: 700;
   padding: 0.5rem 0.85rem;

@@ -109,6 +109,7 @@ export default function BatchPicker({
                   setNewBatchName('');
                 }
               }}
+              style={{ flex: '1 1 0%', minWidth: 0, width: '100%' }}
               disabled={creatingBatch || disabled}
               autoFocus
             />

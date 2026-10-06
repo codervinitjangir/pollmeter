@@ -1821,6 +1821,7 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
                                   if (e.key === 'Enter') handleAddBuilderSubject();
                                   if (e.key === 'Escape') { setShowBuilderNewSubject(false); setBuilderNewSubjectName(''); }
                                 }}
+                                style={{ flex: '1 1 0%', minWidth: 0, width: '100%' }}
                                 autoFocus
                               />
                               <button
