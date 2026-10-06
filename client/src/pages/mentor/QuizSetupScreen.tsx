@@ -1278,34 +1278,7 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
             </div>
           </section>
 
-          <section style={{ marginBottom: '2.5rem' }}>
-            <div className="menti-ai-header">
-              <span>Generate from your syllabus</span>
-              <span style={{ color: '#8B5CF6' }}>✨</span>
-            </div>
 
-            <div className="menti-ai-grid">
-              {[
-                { icon: '📘', label: 'Today’s chapter', topic: '' },
-                { icon: '🧠', label: 'Recap last class', topic: 'Quick recap of the previous lesson' },
-                { icon: '📐', label: 'Practice problems', topic: 'Practice problems with worked answers' },
-                { icon: '🔍', label: 'Check understanding', topic: 'Concept check on the core ideas of the topic' },
-                { icon: '🎯', label: 'Exam revision', topic: 'Exam-style revision questions' },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="menti-ai-box"
-                  onClick={() => openWithTopic(item.topic)}
-                  onKeyDown={(e) => e.key === 'Enter' && openWithTopic(item.topic)}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <span className="menti-ai-icon">{item.icon}</span>
-                  <span className="menti-ai-label">{item.label}</span>
-                </div>
-              ))}
-            </div>
-          </section>
 
           {/* Mentor Profile Subject Setup Prompt */}
           {authUser && !authUser.subject && (authUser.role === 'mentor' || authUser.role === 'admin') && showProfileSubjectPrompt && (
