@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAuthUser, clearStoredAuth, fetchStudentQuizzes, isFacultyEmail, AuthUser, setStoredAuth, fetchBatchObjects, updateStudentBatch } from '../auth';
+import { getAuthUser, clearStoredAuth, fetchStudentQuizzes, isFacultyEmail, AuthUser } from '../auth';
 import CollegeAuthModal from '../components/CollegeAuthModal';
-import BatchPicker from '../components/BatchPicker';
 import { getActiveTheme, toggleTheme } from '../theme';
-import { BatchObject } from '../auth';
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -29,36 +27,6 @@ export default function StudentDashboard() {
   });
   const [pinError, setPinError] = useState('');
   const digitRefs = useRef<Array<HTMLInputElement | null>>([]);
-
-  // Batch selection state (student-only onboarding)
-  const [batchPromptBatches, setBatchPromptBatches] = useState<BatchObject[]>([]);
-  const [selectedBatchId, setSelectedBatchId] = useState('');
-  const [batchSaving, setBatchSaving] = useState(false);
-  const [batchError, setBatchError] = useState('');
-
-  const needsBatchSetup = Boolean(authUser && authUser.role === 'student' && !authUser.batchId && !isFacultyEmail(authUser.email));
-
-  useEffect(() => {
-    if (!needsBatchSetup) return;
-    fetchBatchObjects()
-      .then((list) => setBatchPromptBatches(list))
-      .catch(() => {});
-  }, [needsBatchSetup]);
-
-  async function handleBatchSave() {
-    if (!selectedBatchId) { setBatchError('Please select your batch.'); return; }
-    setBatchSaving(true);
-    setBatchError('');
-    try {
-      const result = await updateStudentBatch(selectedBatchId);
-      setStoredAuth(result.token, result.user);
-      setAuthUser(result.user);
-    } catch (err: any) {
-      setBatchError(err.message || 'Failed to save batch.');
-    } finally {
-      setBatchSaving(false);
-    }
-  }
 
   // Sync theme
   useEffect(() => {
@@ -434,62 +402,13 @@ export default function StudentDashboard() {
         {/* Main Content Area */}
         <main className="pm-admin-content">
 
-          {/* ─── Batch Setup Banner (blocking until student picks batch) ─────── */}
-          {needsBatchSetup && (
-            <div
-              style={{
-                background: 'rgba(245, 158, 11, 0.08)',
-                border: '2px solid rgba(245, 158, 11, 0.5)',
-                borderRadius: '16px',
-                padding: '1.5rem 1.75rem',
-                marginBottom: '1.75rem',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                <span style={{ fontSize: '1.5rem' }}>🎓</span>
-                <div>
-                  <strong style={{ color: '#F59E0B', fontSize: '1rem' }}>One-Time Setup: Select Your Batch</strong>
-                  <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--mute, #94A3B8)', lineHeight: 1.4 }}>
-                    Choose the class/batch you belong to. You can only set this once — contact an admin to change it later.
-                  </p>
-                </div>
-              </div>
-
-              {batchError && (
-                <p style={{ color: '#EF4444', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.5rem' }}>⚠️ {batchError}</p>
-              )}
-
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: '240px' }}>
-                  <BatchPicker
-                    batches={batchPromptBatches}
-                    selectedBatchId={selectedBatchId}
-                    onSelect={(id) => { setSelectedBatchId(id); setBatchError(''); }}
-                    label="Your Batch / Class"
-                    allowCreate={false}
-                    disabled={batchSaving}
-                  />
-                </div>
-                <button
-                  className="btn btn-primary"
-                  onClick={handleBatchSave}
-                  disabled={!selectedBatchId || batchSaving}
-                  style={{ padding: '0.55rem 1.2rem', fontSize: '0.9rem', whiteSpace: 'nowrap' }}
-                >
-                  {batchSaving ? 'Saving…' : 'Confirm Batch →'}
-                </button>
-              </div>
-            </div>
-          )}
-
           {/*
-            Everything below is gated on the batch being set. The prompt above
-            used to sit as a banner over a fully usable dashboard, so a student
-            could scroll past it, go straight to a quiz, and only discover the
-            requirement as a join error with no picker in front of them.
+            There is deliberately no batch prompt here. Batch is the mentor's
+            allocation, made when they create the exam, and students are never
+            asked for it — scan, sign in, play. An admin can still set or move a
+            student's batch from Admin → Students when reporting needs it.
           */}
-          {!needsBatchSetup && (
-            <>
+
           {/* Mentor Switch Notice if Faculty logs in */}
           {isFaculty && (
             <div
@@ -920,8 +839,6 @@ export default function StudentDashboard() {
             )}
           </div>
         </section>
-            </>
-          )}
       </main>
       </div>
     </div>

@@ -40,7 +40,6 @@ import {
   saveSessionResults,
   SessionParticipantRecord,
   StudentResponseRecord,
-  getUserByEmail,
 } from './db';
 
 /** Host-only broadcasts (participant names/ids) go to this room, never to students. */
@@ -659,51 +658,27 @@ export function registerSocketHandlers(io: Server, socket: Socket): void {
       };
     }
 
-    // ── Batch enforcement ───────────────────────────────────────────────────
-    // Gated on the *session* carrying a batch, not on the caller carrying a
-    // token. The realName+email branch above is self-asserted, so a client
-    // that simply omitted its authToken used to arrive here with no `userId`,
-    // skip every check below, and join another batch's quiz under any address
-    // it cared to claim — scoring as that person. Keying on the session means
-    // dropping the token now fails the join instead of exempting it.
+    // ── Sign-in requirement ─────────────────────────────────────────────────
+    // The batch a session carries is the mentor's *allocation* — it labels the
+    // class for attendance and reporting. It deliberately does NOT restrict who
+    // may join: a student who scans the QR and signs in with their college
+    // email gets in, full stop. Gating the join on the student's own batch_id
+    // was removed on the mentor's instruction, because it stalled the one
+    // moment that has to be frictionless — a hall of phones all joining at once.
     //
-    // The anonymous branch is left in place for sessions with no batch, so
-    // reverting to an open join is still a one-line change.
-    if (session.batchId) {
-      if (!authUser?.userId) {
-        socket.emit('error', {
-          message: 'Please sign in with your college account to join this quiz.',
-          fatal: true,
-        });
-        return;
-      }
-
-      // Faculty hold no batch of their own, and a mentor joining their own
-      // session from a phone to sanity-check it before class is normal.
-      if (authUser.role !== 'mentor' && authUser.role !== 'admin') {
-        // Read the batch live rather than from the token: an admin may have
-        // moved this student since their 30-day JWT was minted.
-        const liveUser = authUser.email ? await getUserByEmail(authUser.email) : null;
-        if (!liveUser?.batchId) {
-          socket.emit('error', {
-            message: 'Please select your batch before joining a quiz.',
-            fatal: true,
-          });
-          return;
-        }
-        // Deliberately does not name the session's batch — a student who picked
-        // the wrong one should ask their mentor, not read the timetable off an
-        // error message.
-        if (liveUser.batchId !== session.batchId) {
-          socket.emit('error', {
-            message: 'This quiz is for a different batch.',
-            fatal: true,
-          });
-          return;
-        }
-      }
+    // What stays is identity. The realName+email branch above is self-asserted,
+    // so a client that simply omits its authToken could otherwise join under
+    // any address it cared to claim and score as that person. Requiring a
+    // verified token costs nothing here (the join screen already signs students
+    // in before it emits) and keeps the attendance sheet trustworthy.
+    if (session.batchId && !authUser?.userId) {
+      socket.emit('error', {
+        message: 'Please sign in with your college account to join this quiz.',
+        fatal: true,
+      });
+      return;
     }
-    // ── End batch enforcement ──────────────────────────────────────────────
+    // ── End sign-in requirement ────────────────────────────────────────────
 
     const outcome = addOrRejoinParticipant(
       session,

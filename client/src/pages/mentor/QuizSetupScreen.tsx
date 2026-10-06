@@ -33,17 +33,99 @@ export interface QuizSetupScreenProps {
   onSessionStarted?: (session: { code: string; hostId: string }) => void;
 }
 
+/**
+ * Crash / reload recovery for the quiz builder.
+ *
+ * Questions live in React state until the mentor clicks "Save as draft", so a
+ * refresh, a closed tab, a phone call on a laptop, or a Render cold-start
+ * redirect used to throw away a whole AI-generated paper. Generating 10
+ * questions takes real time and real API quota, and the mentor has no way to
+ * get the exact set back. The builder now snapshots itself to localStorage on
+ * every change and restores on load, so saving a draft is a deliberate act of
+ * publishing to the library rather than the only thing standing between the
+ * mentor and losing their work.
+ *
+ * Keyed per mentor: shared lab machines are the norm here, and one mentor
+ * inheriting another's half-built paper would be worse than losing it.
+ */
+const AUTOSAVE_VERSION = 1;
+
+interface BuilderSnapshot {
+  v: number;
+  questions: Question[];
+  quizSubject?: string;
+  aiInitialTopic?: string;
+  quizBatchId?: string;
+  quizBatch?: string;
+  editingDraftId?: string | null;
+  editingDraftTitle?: string | null;
+  savedAt: number;
+}
+
+const autosaveKey = (email?: string | null) =>
+  `pollsync_builder_autosave:${(email || 'anon').toLowerCase().trim()}`;
+
+function readBuilderSnapshot(email?: string | null): BuilderSnapshot | null {
+  try {
+    const raw = localStorage.getItem(autosaveKey(email));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as BuilderSnapshot;
+    // A version bump means the shape changed; drop rather than guess.
+    if (parsed?.v !== AUTOSAVE_VERSION) return null;
+    if (!Array.isArray(parsed.questions) || parsed.questions.length === 0) return null;
+    return parsed;
+  } catch {
+    // Quota-full, private-mode, or hand-edited JSON. Recovery is a nicety —
+    // never let it take the builder down with it.
+    return null;
+  }
+}
+
+function writeBuilderSnapshot(email: string | null | undefined, snapshot: Omit<BuilderSnapshot, 'v' | 'savedAt'>) {
+  try {
+    if (!snapshot.questions || snapshot.questions.length === 0) {
+      localStorage.removeItem(autosaveKey(email));
+      return;
+    }
+    localStorage.setItem(
+      autosaveKey(email),
+      JSON.stringify({ ...snapshot, v: AUTOSAVE_VERSION, savedAt: Date.now() })
+    );
+  } catch {
+    /* see readBuilderSnapshot */
+  }
+}
+
+function clearBuilderSnapshot(email?: string | null) {
+  try {
+    localStorage.removeItem(autosaveKey(email));
+  } catch {
+    /* see readBuilderSnapshot */
+  }
+}
+
 export default function QuizSetupScreen(props: QuizSetupScreenProps) {
   const navigate = useNavigate();
 
+  /**
+   * Read before any state initializer below, so the restored values are present
+   * on the very first render. Doing this in an effect instead would let the
+   * autosave writer fire once with an empty builder and delete the snapshot it
+   * was about to read.
+   */
+  const bootSnapshotRef = useRef<BuilderSnapshot | null | undefined>(undefined);
+  if (bootSnapshotRef.current === undefined) {
+    bootSnapshotRef.current = readBuilderSnapshot(getAuthUser()?.email);
+  }
+  const boot = bootSnapshotRef.current;
 
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questions, setQuestions] = useState<Question[]>(() => boot?.questions ?? []);
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showAI, setShowAI] = useState(false);
-  const [aiInitialTopic, setAiInitialTopic] = useState('');
-  const [quizSubject, setQuizSubject] = useState(() => getAuthUser()?.subject || '');
+  const [aiInitialTopic, setAiInitialTopic] = useState(() => boot?.aiInitialTopic ?? '');
+  const [quizSubject, setQuizSubject] = useState(() => boot?.quizSubject || getAuthUser()?.subject || '');
   const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
   const [showProfileSubjectPrompt, setShowProfileSubjectPrompt] = useState(() => {
     try {
@@ -58,8 +140,8 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
   const [profileNewSubjectText, setProfileNewSubjectText] = useState('');
   const [showBuilderNewSubject, setShowBuilderNewSubject] = useState(false);
   const [builderNewSubjectName, setBuilderNewSubjectName] = useState('');
-  const [quizBatch, setQuizBatch] = useState('');
-  const [quizBatchId, setQuizBatchId] = useState('');
+  const [quizBatch, setQuizBatch] = useState(() => boot?.quizBatch ?? '');
+  const [quizBatchId, setQuizBatchId] = useState(() => boot?.quizBatchId ?? '');
   const [availableBatches, setAvailableBatches] = useState<string[]>([]);
   const [availableBatchObjects, setAvailableBatchObjects] = useState<BatchObject[]>([]);
   const [showNewBatchInput, setShowNewBatchInput] = useState(false);
@@ -86,12 +168,86 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
     return Boolean(u && !isFacultyEmail(u.email) && u.role !== 'mentor' && u.role !== 'admin');
   });
   const [hostView, setHostView] = useState<'builder' | 'library' | 'reports'>('builder');
-  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
-  const [editingDraftTitle, setEditingDraftTitle] = useState<string | null>(null);
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(() => boot?.editingDraftId ?? null);
+  const [editingDraftTitle, setEditingDraftTitle] = useState<string | null>(() => boot?.editingDraftTitle ?? null);
   const [savingDraft, setSavingDraft] = useState(false);
   const [draftSavedToast, setDraftSavedToast] = useState<{ message: string; draftId: string } | null>(null);
 
+  /**
+   * Shown when the builder came back from a snapshot rather than empty, so the
+   * mentor understands why there is already work on screen — and can throw it
+   * away in one click if they wanted a blank page.
+   */
+  const [recoveredAt, setRecoveredAt] = useState<number | null>(() => (boot ? boot.savedAt : null));
+
   const [batchesLoading, setBatchesLoading] = useState(false);
+
+  // ─── Autosave ─────────────────────────────────────────────────────────────
+  // Writes on every builder change. `questions.length === 0` removes the key,
+  // so emptying the builder or clicking "Clear all" needs no special handling.
+  useEffect(() => {
+    writeBuilderSnapshot(authUser?.email, {
+      questions,
+      quizSubject,
+      aiInitialTopic,
+      quizBatchId,
+      quizBatch,
+      editingDraftId,
+      editingDraftTitle,
+    });
+    // Once signed in, drop the anonymous key: on a shared staff laptop it would
+    // otherwise keep offering this paper to whoever opens the builder next.
+    if (authUser?.email) clearBuilderSnapshot(null);
+  }, [
+    questions,
+    quizSubject,
+    aiInitialTopic,
+    quizBatchId,
+    quizBatch,
+    editingDraftId,
+    editingDraftTitle,
+    authUser?.email,
+  ]);
+
+  // Covers the one case the boot-time read cannot: the mentor was signed out
+  // when the page mounted (so we looked under the anonymous key) and signed in
+  // afterwards through the modal. Deliberately keyed on email alone — adding
+  // `questions` to the deps would re-run it mid-edit — and it bails the moment
+  // there is anything on screen, so it can never overwrite live work.
+  useEffect(() => {
+    if (!authUser?.email || questions.length > 0) return;
+    const late = readBuilderSnapshot(authUser.email);
+    if (!late) return;
+    setQuestions(late.questions);
+    if (late.quizSubject) setQuizSubject(late.quizSubject);
+    if (late.aiInitialTopic) setAiInitialTopic(late.aiInitialTopic);
+    if (late.quizBatchId) setQuizBatchId(late.quizBatchId);
+    if (late.quizBatch) setQuizBatch(late.quizBatch);
+    setEditingDraftId(late.editingDraftId ?? null);
+    setEditingDraftTitle(late.editingDraftTitle ?? null);
+    setRecoveredAt(late.savedAt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser?.email]);
+
+  // A restored batch the mentor no longer holds — reassigned, or the batch was
+  // deactivated. Left selected it would render as a blank dropdown and then
+  // 403 on start, so drop it and make them re-pick.
+  useEffect(() => {
+    if (!quizBatchId || availableBatchObjects.length === 0) return;
+    if (!availableBatchObjects.some((b) => b.id === quizBatchId)) {
+      setQuizBatchId('');
+      setQuizBatch('');
+    }
+  }, [availableBatchObjects, quizBatchId]);
+
+  function discardRecovered() {
+    setQuestions([]);
+    setEditingDraftId(null);
+    setEditingDraftTitle(null);
+    setRecoveredAt(null);
+    clearBuilderSnapshot(authUser?.email);
+  }
+  // ─── End autosave ─────────────────────────────────────────────────────────
 
   // Fetch college batches dynamically with role & assignment awareness (Gap 4)
   const loadBatches = useCallback(() => {
@@ -337,6 +493,7 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
               });
               if (retryRes.ok) {
                 const retryData = await retryRes.json();
+                clearBuilderSnapshot(authUser?.email);
                 setStoredHost({ code: retryData.code, hostId: retryData.hostId });
                 if (props.onSessionStarted) {
                   props.onSessionStarted({ code: retryData.code, hostId: retryData.hostId });
@@ -351,6 +508,9 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
         throw new Error(d.error ?? 'Could not create the session.');
       }
 
+      // The paper is now a live session owned by the server; keeping the
+      // recovery snapshot would re-seed the builder with it on the next visit.
+      clearBuilderSnapshot(authUser?.email);
       setStoredHost({ code: d.code, hostId: d.hostId });
       if (props.onSessionStarted) {
         props.onSessionStarted({ code: d.code, hostId: d.hostId });
@@ -437,6 +597,7 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
         throw new Error(d.error || 'Failed to start live session.');
       }
 
+      clearBuilderSnapshot(authUser?.email);
       setStoredHost({ code: d.code, hostId: d.hostId });
       if (props.onSessionStarted) {
         props.onSessionStarted({ code: d.code, hostId: d.hostId });
@@ -1261,6 +1422,50 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
                 >
                   View in Library →
                 </button>
+              </div>
+            )}
+
+            {recoveredAt && questions.length > 0 && (
+              <div
+                style={{
+                  background: 'rgba(59, 130, 246, 0.12)',
+                  border: '1px solid rgba(59, 130, 246, 0.4)',
+                  borderRadius: '12px',
+                  padding: '0.75rem 1.2rem',
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '1rem',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#60A5FA', fontWeight: 600, fontSize: '0.88rem' }}>
+                  <span>↩</span>
+                  <span>
+                    Recovered {questions.length} unsaved question{questions.length === 1 ? '' : 's'} from{' '}
+                    {new Date(recoveredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.
+                    {editingDraftTitle ? ` Editing "${editingDraftTitle}".` : ' Save as draft to keep them in your library.'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn--sm"
+                    onClick={() => setRecoveredAt(null)}
+                    style={{ color: '#60A5FA', fontWeight: 700, padding: '0.2rem 0.5rem' }}
+                  >
+                    Keep
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn--sm"
+                    onClick={discardRecovered}
+                    style={{ color: '#F87171', fontWeight: 700, padding: '0.2rem 0.5rem' }}
+                  >
+                    Start fresh
+                  </button>
+                </div>
               </div>
             )}
 
