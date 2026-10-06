@@ -1596,57 +1596,75 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
                   <div className="pm-host-course-card">
                     <div className="pm-host-course-header">
                       <div className="pm-host-course-title">
-                        <span className="pm-host-course-icon">📚</span>
+                        <span className="pm-host-course-icon">⚙️</span>
                         <div>
-                          <strong>Subject &amp; Academic Cohort Tagging</strong>
+                          <strong>Quiz Details &amp; Classroom Session</strong>
                           <span className="pm-host-course-sub">
-                            Auto-grouped in student transcripts and university gradebooks
+                            Set your quiz topic, subject category, and select the cohort taking this quiz
                           </span>
                         </div>
                       </div>
                     </div>
 
+                    {/* Quiz Topic / Unit Row */}
+                    <div className="pm-host-topic-row">
+                      <label className="pm-host-field-label">
+                        🏷️ Quiz Topic / Unit Name
+                      </label>
+                      <input
+                        type="text"
+                        className="input pm-host-input"
+                        placeholder="e.g. Unit 3: React State Management & Hooks"
+                        value={aiInitialTopic}
+                        onChange={(e) => setAiInitialTopic(e.target.value)}
+                      />
+                    </div>
+
                     <div className="pm-host-course-grid">
                       {/* Academic Subject */}
                       <div className="pm-host-field-group">
-                        <label className="pm-host-field-label">
-                          Academic Subject
-                        </label>
-                        {!showBuilderNewSubject ? (
-                          <>
-                            <select
-                              className="input pm-host-select"
-                              value={quizSubject}
-                              onChange={(e) => {
-                                if (e.target.value === '__NEW__') {
-                                  setShowBuilderNewSubject(true);
-                                } else {
-                                  setQuizSubject(e.target.value);
-                                }
-                              }}
-                            >
-                              {!quizSubject && <option value="">Select a subject…</option>}
-                              {authUser?.subject && !availableSubjects.some((s) => s.toLowerCase() === authUser.subject?.toLowerCase()) && (
-                                <option value={authUser.subject}>{authUser.subject} (My Subject)</option>
-                              )}
-                              {availableSubjects.map((s) => (
-                                <option key={s} value={s}>
-                                  {s}{authUser?.subject?.toLowerCase() === s.toLowerCase() ? ' (My Subject)' : ''}
-                                </option>
-                              ))}
-                              <option value="__NEW__">＋ Add custom subject…</option>
-                            </select>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
+                          <label className="pm-host-field-label" style={{ margin: 0 }}>
+                            📚 Academic Subject
+                          </label>
+                          {!showBuilderNewSubject && (
                             <button
                               type="button"
-                              className="pm-host-action-link"
+                              className="pm-host-action-pill"
                               onClick={() => { setShowBuilderNewSubject(true); setBuilderNewSubjectName(''); }}
+                              title="Add custom subject"
                             >
-                              <span>＋</span> Add custom subject
+                              ＋ New Subject
                             </button>
-                          </>
+                          )}
+                        </div>
+
+                        {!showBuilderNewSubject ? (
+                          <select
+                            className="input pm-host-select"
+                            value={quizSubject}
+                            onChange={(e) => {
+                              if (e.target.value === '__NEW__') {
+                                setShowBuilderNewSubject(true);
+                              } else {
+                                setQuizSubject(e.target.value);
+                              }
+                            }}
+                          >
+                            {!quizSubject && <option value="">Select a subject…</option>}
+                            {authUser?.subject && !availableSubjects.some((s) => s.toLowerCase() === authUser.subject?.toLowerCase()) && (
+                              <option value={authUser.subject}>{authUser.subject} (My Subject)</option>
+                            )}
+                            {availableSubjects.map((s) => (
+                              <option key={s} value={s}>
+                                {s}{authUser?.subject?.toLowerCase() === s.toLowerCase() ? ' (My Subject)' : ''}
+                              </option>
+                            ))}
+                            <option value="__NEW__">＋ Add custom subject…</option>
+                          </select>
                         ) : (
-                          <div style={{ marginTop: '0.2rem' }}>
-                            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                          <div>
+                            <div className="pm-host-input-inline-wrap">
                               <input
                                 type="text"
                                 className="input pm-host-input"
@@ -1657,24 +1675,23 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
                                   if (e.key === 'Enter') handleAddBuilderSubject();
                                   if (e.key === 'Escape') { setShowBuilderNewSubject(false); setBuilderNewSubjectName(''); }
                                 }}
-                                style={{ flex: 1 }}
                                 autoFocus
                               />
                               <button
                                 type="button"
-                                className="btn btn-primary btn-sm"
+                                className="btn btn-sm pm-host-inline-btn pm-host-inline-save"
                                 onClick={handleAddBuilderSubject}
                                 disabled={!builderNewSubjectName.trim()}
-                                style={{ whiteSpace: 'nowrap' }}
                               >
-                                Use
+                                ✓ Save
                               </button>
                               <button
                                 type="button"
-                                className="btn btn-secondary btn-sm"
+                                className="btn btn-sm pm-host-inline-btn pm-host-inline-cancel"
                                 onClick={() => { setShowBuilderNewSubject(false); setBuilderNewSubjectName(''); }}
+                                title="Cancel"
                               >
-                                Cancel
+                                ✕
                               </button>
                             </div>
                           </div>
@@ -1682,66 +1699,38 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
                       </div>
 
                       {/* Target Batch / Class */}
-                      <div className="pm-host-field-group">
-                        <label className="pm-host-field-label">
-                          Target Batch / Class
-                        </label>
-                        <BatchPicker
-                          batches={availableBatchObjects}
-                          selectedBatchId={quizBatchId}
-                          onSelect={(id, name) => {
-                            setQuizBatchId(id);
-                            setQuizBatch(name);
-                          }}
-                          onBatchCreated={(b) => {
-                            setAvailableBatchObjects((prev) => {
-                              const filtered = prev.filter((x) => x.id !== b.id && x.displayName !== b.displayName);
-                              return [...filtered, b].sort((x, y) => x.displayName.localeCompare(y.displayName));
-                            });
-                            setAvailableBatches((prev) => {
-                              const filtered = prev.filter((x) => x !== b.displayName);
-                              return [...filtered, b.displayName].sort();
-                            });
-                          }}
-                          disabled={loading}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Quiz Topic / Unit Row */}
-                    <div className="pm-host-topic-row">
-                      <label className="pm-host-field-label">
-                        Quiz Topic / Unit Name
-                      </label>
-                      <input
-                        type="text"
-                        className="input pm-host-input"
-                        placeholder="e.g. Unit 3: React State Management & Hooks"
-                        value={aiInitialTopic}
-                        onChange={(e) => setAiInitialTopic(e.target.value)}
+                      <BatchPicker
+                        batches={availableBatchObjects}
+                        selectedBatchId={quizBatchId}
+                        label="Target Batch / Class"
+                        onSelect={(id, name) => {
+                          setQuizBatchId(id);
+                          setQuizBatch(name);
+                        }}
+                        onBatchCreated={(b) => {
+                          setAvailableBatchObjects((prev) => {
+                            const filtered = prev.filter((x) => x.id !== b.id && x.displayName !== b.displayName);
+                            return [...filtered, b].sort((x, y) => x.displayName.localeCompare(y.displayName));
+                          });
+                          setAvailableBatches((prev) => {
+                            const filtered = prev.filter((x) => x !== b.displayName);
+                            return [...filtered, b.displayName].sort();
+                          });
+                        }}
+                        disabled={loading}
                       />
                     </div>
                   </div>
 
                   {error && <div className="alert alert-error">⚠ {error}</div>}
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: '0.75rem', marginTop: '0.5rem' }}>
+                  <div className="pm-host-action-footer">
                     <button
                       type="button"
-                      className="btn btn-secondary btn--lg"
+                      className="btn pm-host-save-draft-btn"
                       onClick={handleSaveDraft}
                       disabled={savingDraft || questions.length === 0}
                       id="save-draft-btn"
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '0.5rem',
-                        fontWeight: 700,
-                        border: '1px solid rgba(99, 102, 241, 0.4)',
-                        background: 'rgba(99, 102, 241, 0.08)',
-                        color: 'var(--text-primary, #F2F2F2)',
-                      }}
                       title="Save this quiz to your library without needing a batch selected"
                     >
                       {savingDraft ? (
@@ -1752,19 +1741,26 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
                     </button>
 
                     <button
-                      className="btn btn-primary btn--lg"
+                      className={`btn pm-host-live-launch-btn ${quizBatchId ? 'pm-host-live-launch-active' : ''}`}
                       onClick={createSession}
                       disabled={loading || questions.length === 0 || !quizBatchId}
                       id="create-session-btn"
-                      title={!quizBatchId ? 'Please select a batch to go live' : 'Launch live session now'}
+                      title={!quizBatchId ? 'Please select a batch above to go live' : 'Launch live session now'}
                     >
                       {loading ? (
-                        <><span className="spinner spinner--sm" style={{ borderTopColor: '#fff' }} /> Creating…</>
+                        <><span className="spinner spinner--sm" style={{ borderTopColor: '#fff' }} /> Creating Session…</>
                       ) : (
                         `🚀 Start Live Session (${questions.length} Q${questions.length === 1 ? '' : 's'})`
                       )}
                     </button>
                   </div>
+
+                  {!quizBatchId && questions.length > 0 && (
+                    <div className="pm-host-batch-hint">
+                      <span>💡</span>
+                      <span>Select a <strong>Target Batch</strong> above to enable launching the live session for your students.</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

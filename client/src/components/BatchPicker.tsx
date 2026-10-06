@@ -6,7 +6,7 @@ interface BatchPickerProps {
   selectedBatchId: string;
   onSelect: (batchId: string, displayName: string) => void;
   onBatchCreated?: (batch: BatchObject) => void;
-  label?: string;
+  label?: string | null;
   disabled?: boolean;
   /** When false, hides the "+  Create new batch" toggle entirely. Default: true. */
   allowCreate?: boolean;
@@ -66,17 +66,86 @@ export default function BatchPicker({
 
   return (
     <div className="pm-host-field-group">
-      {label && <label className="pm-host-field-label">{label}</label>}
+      {(label || (allowCreate && !showNewBatchInput)) && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
+          {label ? (
+            <label className="pm-host-field-label" style={{ margin: 0 }}>
+              {label}
+            </label>
+          ) : <span />}
+          {allowCreate && !showNewBatchInput && (
+            <button
+              type="button"
+              className="pm-host-action-pill"
+              onClick={() => {
+                setShowNewBatchInput(true);
+                setBatchError('');
+              }}
+              disabled={disabled}
+              title="Create a new batch/section"
+            >
+              ＋ New Batch
+            </button>
+          )}
+        </div>
+      )}
 
-      {batches.length === 0 ? (
-        <div style={{ padding: '0.4rem 0', color: 'var(--text-secondary, #9CA3AF)', fontSize: '0.85rem' }}>
-          {/*
-            Without allowCreate there is no create form underneath, so pointing
-            at one reads as a broken screen to a student who cannot make
-            batches in the first place. Point them at who can instead.
-          */}
+      {showNewBatchInput ? (
+        <div>
+          <div className="pm-host-input-inline-wrap">
+            <input
+              type="text"
+              className="input pm-host-input"
+              placeholder="e.g. 3rd Year – Batch B"
+              value={newBatchName}
+              onChange={(e) => {
+                setNewBatchName(e.target.value);
+                setBatchError('');
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleCreateBatch();
+                if (e.key === 'Escape') {
+                  if (batches.length > 0) setShowNewBatchInput(false);
+                  setNewBatchName('');
+                }
+              }}
+              disabled={creatingBatch || disabled}
+              autoFocus
+            />
+            <button
+              type="button"
+              className="btn btn-sm pm-host-inline-btn pm-host-inline-save"
+              onClick={handleCreateBatch}
+              disabled={creatingBatch || !newBatchName.trim() || disabled}
+            >
+              {creatingBatch ? '…' : '✓ Save'}
+            </button>
+            {batches.length > 0 && (
+              <button
+                type="button"
+                className="btn btn-sm pm-host-inline-btn pm-host-inline-cancel"
+                onClick={() => {
+                  setShowNewBatchInput(false);
+                  setNewBatchName('');
+                  setBatchError('');
+                }}
+                disabled={disabled}
+                title="Cancel"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          {batchError && (
+            <p style={{ color: '#F87171', fontSize: '0.74rem', marginTop: '0.35rem', margin: '0.35rem 0 0' }}>
+              ⚠️ {batchError}
+            </p>
+          )}
+        </div>
+      ) : batches.length === 0 ? (
+        <div style={{ padding: '0.45rem 0', color: 'var(--text-secondary, #9CA3AF)', fontSize: '0.85rem' }}>
           {allowCreate
-            ? 'No assigned batches found. Please create one below.'
+            ? 'No assigned batches found. Please create one.'
             : 'No batches are available yet — ask your mentor or an administrator to add yours.'}
         </div>
       ) : (
@@ -104,74 +173,6 @@ export default function BatchPicker({
           ))}
         </select>
       )}
-
-      {/* Inline Create New Batch Toggle — only for mentors/admins */}
-      {allowCreate && (!showNewBatchInput ? (
-        <button
-          type="button"
-          className="pm-host-action-link"
-          onClick={() => {
-            setShowNewBatchInput(true);
-            setBatchError('');
-          }}
-          disabled={disabled}
-        >
-          <span>＋</span> Create new batch
-        </button>
-      ) : (
-        <div style={{ marginTop: '0.45rem' }}>
-          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-            <input
-              type="text"
-              className="input pm-host-input"
-              placeholder="e.g. 3rd Year – Batch B"
-              value={newBatchName}
-              onChange={(e) => {
-                setNewBatchName(e.target.value);
-                setBatchError('');
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleCreateBatch();
-                if (e.key === 'Escape') {
-                  if (batches.length > 0) setShowNewBatchInput(false);
-                  setNewBatchName('');
-                }
-              }}
-              disabled={creatingBatch || disabled}
-              style={{ flex: 1 }}
-              autoFocus
-            />
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              onClick={handleCreateBatch}
-              disabled={creatingBatch || !newBatchName.trim() || disabled}
-              style={{ whiteSpace: 'nowrap' }}
-            >
-              {creatingBatch ? '…' : 'Add'}
-            </button>
-            {batches.length > 0 && (
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => {
-                  setShowNewBatchInput(false);
-                  setNewBatchName('');
-                  setBatchError('');
-                }}
-                disabled={disabled}
-              >
-                ✕
-              </button>
-            )}
-          </div>
-          {batchError && (
-            <p style={{ color: '#F87171', fontSize: '0.72rem', marginTop: '0.3rem', margin: '0.3rem 0 0' }}>
-              {batchError}
-            </p>
-          )}
-        </div>
-      ))}
     </div>
   );
 }
