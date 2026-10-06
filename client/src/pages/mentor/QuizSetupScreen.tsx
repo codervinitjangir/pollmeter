@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Question } from '../../types';
 import QuestionForm from '../../components/QuestionForm';
@@ -248,6 +248,17 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
     clearBuilderSnapshot(authUser?.email);
   }
   // ─── End autosave ─────────────────────────────────────────────────────────
+
+  // Live filter for question builder based on topbar search
+  const filteredQuestions = useMemo(() => {
+    if (!searchQuery.trim()) return questions;
+    const q = searchQuery.toLowerCase().trim();
+    return questions.filter(
+      (item) =>
+        item.text.toLowerCase().includes(q) ||
+        item.options?.some((opt) => opt.toLowerCase().includes(q))
+    );
+  }, [questions, searchQuery]);
 
   // Fetch college batches dynamically with role & assignment awareness (Gap 4)
   const loadBatches = useCallback(() => {
@@ -1617,77 +1628,115 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
 
               {questions.length > 0 && (
                 <div className="card stack stack-4" style={{ borderRadius: '20px' }}>
-                  <div className="row row-3" style={{ justifyContent: 'space-between' }}>
-                    <p className="t-title">Your questions</p>
-                    <span className="badge badge-primary">{questions.length}</span>
+                  <div className="row row-3" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <p className="t-title" style={{ margin: 0 }}>Your questions</p>
+                      <span className="badge badge-primary">{questions.length}</span>
+                    </div>
+                    {searchQuery.trim() && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                          {filteredQuestions.length} of {questions.length}
+                        </span>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn--sm"
+                          onClick={() => setSearchQuery('')}
+                          style={{ fontSize: '0.75rem', padding: '0.15rem 0.4rem', color: 'var(--accent)' }}
+                          title="Clear search filter"
+                        >
+                          ✕ Clear
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="stack stack-3" style={{ maxHeight: 420, overflowY: 'auto', paddingRight: '0.25rem' }}>
-                    {questions.map((q, idx) => (
-                      <div
-                        key={q.id}
-                        className="card card--sm row row-3"
-                        style={{ alignItems: 'flex-start', background: 'var(--surface, #1B1B1F)', border: '1px solid var(--border, #2A2A2F)' }}
-                      >
-                        <div className="flex-1 stack stack-2">
-                          <div className="row row-2 row-wrap">
-                            <span className="badge badge-neutral t-label-sm">#{idx + 1}</span>
-                            <span className={`badge t-label-sm ${q.type === 'mcq' ? 'badge-primary' : 'badge-success'}`}>
-                              {q.type === 'mcq' ? 'MCQ' : 'Open text'}
-                            </span>
-                            <span className="badge badge-warning t-label-sm">⏱ {q.timeLimitSeconds}s</span>
-                            {q.correctAnswer ? (
-                              <span className="badge badge-success t-label-sm">✓ Scored</span>
-                            ) : (
-                              <span className="badge badge-neutral t-label-sm">Poll</span>
-                            )}
-                          </div>
-                          <p className="t-body-md text-primary" style={{ fontWeight: 600 }}>{q.text}</p>
-                          {q.options && <p className="t-body-sm text-muted">{q.options.join(' · ')}</p>}
-                        </div>
-
-                        <div className="stack stack-2">
-                          <div className="row row-2">
-                            <button
-                              className="btn btn-ghost btn--icon btn--sm"
-                              onClick={() => moveQuestion(q.id, -1)}
-                              disabled={idx === 0}
-                              aria-label={`Move question ${idx + 1} up`}
-                              title="Move up"
-                            >
-                              ↑
-                            </button>
-                            <button
-                              className="btn btn-ghost btn--icon btn--sm"
-                              onClick={() => moveQuestion(q.id, 1)}
-                              disabled={idx === questions.length - 1}
-                              aria-label={`Move question ${idx + 1} down`}
-                              title="Move down"
-                            >
-                              ↓
-                            </button>
-                          </div>
-                          <div className="row row-2">
-                            <button
-                              className="btn btn-ghost btn--icon btn--sm"
-                              onClick={() => { setEditing(q); scrollToBuilder(); }}
-                              aria-label={`Edit question ${idx + 1}`}
-                              title="Edit"
-                            >
-                              ✏️
-                            </button>
-                            <button
-                              className="btn btn-ghost btn--icon btn--sm"
-                              onClick={() => removeQuestion(q.id)}
-                              aria-label={`Remove question ${idx + 1}`}
-                              title="Remove"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        </div>
+                    {filteredQuestions.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-secondary)' }}>
+                        <p style={{ margin: 0, fontSize: '0.9rem' }}>
+                          🔍 No questions matching &quot;<strong>{searchQuery}</strong>&quot;
+                        </p>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn--sm"
+                          onClick={() => setSearchQuery('')}
+                          style={{ marginTop: '0.75rem' }}
+                        >
+                          Clear search filter
+                        </button>
                       </div>
-                    ))}
+                    ) : (
+                      filteredQuestions.map((q) => {
+                        const originalIdx = questions.findIndex((orig) => orig.id === q.id);
+                        const displayIdx = originalIdx >= 0 ? originalIdx : 0;
+                        return (
+                          <div
+                            key={q.id}
+                            className="card card--sm row row-3"
+                            style={{ alignItems: 'flex-start', background: 'var(--surface, #1B1B1F)', border: '1px solid var(--border, #2A2A2F)' }}
+                          >
+                            <div className="flex-1 stack stack-2">
+                              <div className="row row-2 row-wrap">
+                                <span className="badge badge-neutral t-label-sm">#{displayIdx + 1}</span>
+                                <span className={`badge t-label-sm ${q.type === 'mcq' ? 'badge-primary' : 'badge-success'}`}>
+                                  {q.type === 'mcq' ? 'MCQ' : 'Open text'}
+                                </span>
+                                <span className="badge badge-warning t-label-sm">⏱ {q.timeLimitSeconds}s</span>
+                                {q.correctAnswer ? (
+                                  <span className="badge badge-success t-label-sm">✓ Scored</span>
+                                ) : (
+                                  <span className="badge badge-neutral t-label-sm">Poll</span>
+                                )}
+                              </div>
+                              <p className="t-body-md text-primary" style={{ fontWeight: 600 }}>{q.text}</p>
+                              {q.options && <p className="t-body-sm text-muted">{q.options.join(' · ')}</p>}
+                            </div>
+
+                            <div className="stack stack-2">
+                              <div className="row row-2">
+                                <button
+                                  className="btn btn-ghost btn--icon btn--sm"
+                                  onClick={() => moveQuestion(q.id, -1)}
+                                  disabled={displayIdx === 0}
+                                  aria-label={`Move question ${displayIdx + 1} up`}
+                                  title="Move up"
+                                >
+                                  ↑
+                                </button>
+                                <button
+                                  className="btn btn-ghost btn--icon btn--sm"
+                                  onClick={() => moveQuestion(q.id, 1)}
+                                  disabled={displayIdx === questions.length - 1}
+                                  aria-label={`Move question ${displayIdx + 1} down`}
+                                  title="Move down"
+                                >
+                                  ↓
+                                </button>
+                              </div>
+                              <div className="row row-2">
+                                <button
+                                  className="btn btn-ghost btn--icon btn--sm"
+                                  onClick={() => { setEditing(q); scrollToBuilder(); }}
+                                  aria-label={`Edit question ${displayIdx + 1}`}
+                                  title="Edit"
+                                >
+                                  ✏️
+                                </button>
+                                <button
+                                  className="btn btn-ghost btn--icon btn--sm"
+                                  onClick={() => removeQuestion(q.id)}
+                                  aria-label={`Remove question ${displayIdx + 1}`}
+                                  title="Remove"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
 
                   <div className="pm-host-course-card">
@@ -1865,7 +1914,13 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
             {questions.length === 0 && (
               <div
                 className="card text-center stack stack-3"
-                style={{ padding: '2.5rem', background: '#FFFFFF', borderRadius: '20px', marginTop: '1.5rem' }}
+                style={{
+                  padding: '2.5rem',
+                  background: 'var(--surface, #1B1B1F)',
+                  border: '1px solid var(--border, #2A2A2F)',
+                  borderRadius: '20px',
+                  marginTop: '1.5rem',
+                }}
               >
                 <p className="t-body-md text-secondary">
                   💡 No questions yet. Write one above, or hit <strong>✨ AI Generate</strong> and paste

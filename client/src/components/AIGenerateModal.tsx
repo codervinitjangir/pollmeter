@@ -636,16 +636,16 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
           <div
             className="row row-2"
             style={{
-              background: '#EFF6FF',
-              border: '1.5px solid #BFDBFE',
+              background: 'rgba(59, 130, 246, 0.12)',
+              border: '1.5px solid rgba(59, 130, 246, 0.35)',
               borderRadius: '12px',
               padding: '0.85rem 1.25rem',
               alignItems: 'center',
               animation: 'pop-in 0.3s var(--ease)',
             }}
           >
-            <span className="spinner spinner--sm" style={{ borderTopColor: '#1F69FF', width: 18, height: 18 }} />
-            <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#1E40AF' }}>
+            <span className="spinner spinner--sm" style={{ borderTopColor: '#3B82F6', width: 18, height: 18 }} />
+            <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>
               {preview && preview.length > 0
                 ? '🔄 Regenerating new questions… (previous set is preserved)'
                 : LOADING_MESSAGES[Math.min(loadStep, LOADING_MESSAGES.length - 1)]}

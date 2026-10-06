@@ -372,7 +372,7 @@ export default function MentorQuizHistoryModal({
                 </div>
                 <div className="pm-history-summary-item">
                   <span className="pm-summary-label">Target Batch</span>
-                  <strong className="pm-summary-value" style={{ color: '#4338CA' }}>
+                  <strong className="pm-summary-value" style={{ color: 'var(--accent, #818CF8)' }}>
                     🎓 {details.session?.batch || 'General'}
                   </strong>
                 </div>
