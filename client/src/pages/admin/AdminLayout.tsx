@@ -679,7 +679,27 @@ export default function AdminLayout() {
             </div>
 
             <div className="pm-admin-topbar-actions">
-
+              <button
+                type="button"
+                className="btn btn--sm"
+                onClick={() => navigate('/dashboard')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  color: 'var(--text-primary)',
+                  fontWeight: 600,
+                  borderRadius: '8px',
+                  padding: '0.4rem 0.85rem',
+                  cursor: 'pointer',
+                }}
+                title="Open Quiz Host Studio to build or run live quizzes"
+              >
+                <span>⚡</span>
+                <span>Quiz Host Studio</span>
+              </button>
 
               <button
                 className="pm-theme-toggle-btn"

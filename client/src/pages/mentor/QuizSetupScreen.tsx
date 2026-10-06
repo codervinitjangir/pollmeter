@@ -786,15 +786,25 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
           {authUser?.role === 'admin' && (
             <div className="menti-nav-group">
               <div className="menti-nav-title">CAMPUS SHORTCUTS</div>
-              <a
-                href="/admin"
+              <button
+                type="button"
+                onClick={() => navigate('/admin')}
                 className="menti-nav-link"
-                style={{ textDecoration: 'none' }}
+                style={{
+                  textAlign: 'left',
+                  background: 'rgba(245, 158, 11, 0.08)',
+                  border: '1px solid rgba(245, 158, 11, 0.25)',
+                  cursor: 'pointer',
+                  width: '100%',
+                  color: '#F59E0B',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                }}
                 title="University Admin Console"
               >
                 <span>🏛️</span>
                 <span>Admin Console</span>
-              </a>
+              </button>
             </div>
           )}
         </div>
@@ -901,22 +911,27 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
             {authUser ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                 {authUser.role === 'admin' && (
-                  <a
-                    href="/admin"
+                  <button
+                    type="button"
+                    onClick={() => navigate('/admin')}
                     className="btn btn--sm"
                     style={{
                       background: 'linear-gradient(135deg, #F59E0B, #D97706)',
                       color: '#09090B',
                       fontWeight: 700,
-                      textDecoration: 'none',
+                      border: 'none',
                       borderRadius: '8px',
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '5px',
+                      cursor: 'pointer',
+                      padding: '0.45rem 0.9rem',
+                      boxShadow: '0 2px 10px rgba(245, 158, 11, 0.3)',
                     }}
+                    title="Open Central University Admin Console"
                   >
-                    🏛️ Admin
-                  </a>
+                    🏛️ Admin Console
+                  </button>
                 )}
                 <span className="pm-auth-profile-badge">
                   🎓 {authUser.realName.split(' ')[0]} {authUser.role === 'admin' ? '(Admin)' : '(Faculty)'}
@@ -1091,6 +1106,88 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
           </main>
         ) : (
           <main className="menti-content">
+            {authUser?.role === 'admin' && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '1.25rem',
+                  padding: '1.1rem 1.4rem',
+                  marginBottom: '1.75rem',
+                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.05) 100%)',
+                  border: '1.5px solid rgba(245, 158, 11, 0.35)',
+                  borderRadius: '16px',
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.12)',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: '280px', flex: 1 }}>
+                  <div
+                    style={{
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: '12px',
+                      background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                      color: '#09090B',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '1.35rem',
+                      fontWeight: 800,
+                      flexShrink: 0,
+                      boxShadow: '0 2px 10px rgba(245, 158, 11, 0.35)',
+                    }}
+                  >
+                    🏛️
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span>Super-Administrator Mode</span>
+                      <span
+                        style={{
+                          fontSize: '0.72rem',
+                          padding: '2px 8px',
+                          borderRadius: '999px',
+                          background: 'rgba(245, 158, 11, 0.2)',
+                          color: '#F59E0B',
+                          fontWeight: 700,
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        HOST STUDIO VIEW
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '3px', lineHeight: 1.45 }}>
+                      Aap abhi <strong>Quiz Host Studio</strong> me hain (jahan live classroom quiz build &amp; host hoti hai). Batches, Student rosters, Faculty approvals ya Central Reports dekhne ke liye <strong>Admin Console</strong> open karein.
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate('/admin')}
+                  style={{
+                    background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                    color: '#09090B',
+                    fontWeight: 800,
+                    fontSize: '0.9rem',
+                    border: 'none',
+                    borderRadius: '10px',
+                    padding: '0.7rem 1.4rem',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 14px rgba(245, 158, 11, 0.35)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <span>🏛️ Switch to Admin Console</span>
+                  <span style={{ fontSize: '1.1rem' }}>→</span>
+                </button>
+              </div>
+            )}
+
             <h1 className="menti-welcome-title">Run a quiz with your class</h1>
 
           <section className="menti-hero-row">

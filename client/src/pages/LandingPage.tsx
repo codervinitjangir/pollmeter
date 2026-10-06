@@ -162,14 +162,19 @@ export default function LandingPage() {
 
             {authUser ? (
               <>
+                {authUser.role === 'admin' && (
+                  <button
+                    className="lp-lnk lp-hide-s"
+                    onClick={() => navigate('/admin')}
+                    type="button"
+                    style={{ color: '#F59E0B', fontWeight: 700 }}
+                  >
+                    🏛️ Admin Console
+                  </button>
+                )}
                 {isFacultyUser && (
                   <button className="lp-lnk lp-hide-s" onClick={() => navigate('/dashboard')} type="button">
                     👨‍🏫 Host Studio
-                  </button>
-                )}
-                {authUser.role === 'admin' && (
-                  <button className="lp-lnk lp-hide-s" onClick={() => navigate('/admin')} type="button">
-                    🏛️ Admin Console
                   </button>
                 )}
                 {!isFacultyUser && authUser.role !== 'admin' && (
@@ -257,20 +262,42 @@ export default function LandingPage() {
                   </div>
                 </div>
                 <div className="lp-welcome-actions">
-                  {isFacultyUser && (
+                  {authUser.role === 'admin' ? (
+                    <>
+                      <button
+                        className="lp-btn lp-btn-lg"
+                        onClick={() => navigate('/admin')}
+                        id="welcome-admin-btn"
+                        type="button"
+                        style={{
+                          background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                          color: '#09090B',
+                          fontWeight: 800,
+                          boxShadow: '0 4px 18px rgba(245, 158, 11, 0.4)',
+                        }}
+                      >
+                        🏛️ Open Admin Console →
+                      </button>
+                      <button
+                        className="lp-btn lp-btn-ghost"
+                        onClick={() => navigate('/dashboard')}
+                        id="welcome-host-btn"
+                        type="button"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1em', height: '1em' }}>
+                          <path d="M13 3L5 14h6l-1 7 8-11h-6z" />
+                        </svg>
+                        Host Studio
+                      </button>
+                    </>
+                  ) : isFacultyUser ? (
                     <button className="lp-btn lp-btn-lg" onClick={() => navigate('/dashboard')} id="welcome-host-btn" type="button">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1em', height: '1em' }}>
                         <path d="M13 3L5 14h6l-1 7 8-11h-6z" />
                       </svg>
                       Open Host Studio →
                     </button>
-                  )}
-                  {authUser.role === 'admin' && (
-                    <button className="lp-btn lp-btn-ghost" onClick={() => navigate('/admin')} id="welcome-admin-btn" type="button">
-                      🏛️ Admin Console
-                    </button>
-                  )}
-                  {!isFacultyUser && authUser.role !== 'admin' && (
+                  ) : (
                     <button
                       className="lp-btn lp-btn-lg"
                       onClick={() => navigate('/student')}
@@ -291,7 +318,23 @@ export default function LandingPage() {
               </div>
 
               <div className="lp-welcome-quick">
-                {isFacultyUser ? (
+                {authUser.role === 'admin' ? (
+                  <div className="lp-quick-card" style={{ border: '1.5px solid rgba(245, 158, 11, 0.4)' }}>
+                    <div className="lp-quick-head">
+                      <span style={{ color: '#F59E0B' }}>🏛️</span>
+                      <strong>University Administration Console</strong>
+                    </div>
+                    <p>Manage university batches, faculty approvals, student audit rosters, and institution-wide attendance reports.</p>
+                    <button
+                      className="lp-btn"
+                      onClick={() => navigate('/admin')}
+                      type="button"
+                      style={{ width: '100%', fontSize: '0.85rem', background: '#F59E0B', color: '#09090B', fontWeight: 700 }}
+                    >
+                      🏛️ Launch Admin Console →
+                    </button>
+                  </div>
+                ) : isFacultyUser ? (
                   <div className="lp-quick-card">
                     <div className="lp-quick-head">
                       <span style={{ color: 'var(--blue)' }}>⚡</span>
