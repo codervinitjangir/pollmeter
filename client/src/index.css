@@ -10272,19 +10272,28 @@ html[data-theme="dark"] body {
 }
 
 [data-theme="dark"] {
-  --canvas: #1B121E;
-  --surface: #241828;
-  --surface-low: #160E18;
-  --surface-mid: #241828;
-  --surface-high: #312136;
-  --primary: #E27E6C;
-  --primary-hover: #F0907E;
-  --text-primary: #F7F2F6;
-  --text-secondary: #B9AAB8;
-  --text-muted: #7C6C7B;
-  --border: #38273D;
-  --border-focus: #E27E6C;
+  --bg: #0A0A0C;
+  --fg: #F4F4F5;
+  --mute: #94A3B8;
+  --dim: #64748B;
+  --line: #222226;
+  --line2: #2E2E34;
+  --panel: #111113;
+  --sheet: #111113;
+  --canvas: #0A0A0C;
+  --surface: #111113;
+  --surface-low: #0A0A0C;
+  --surface-mid: #18181B;
+  --surface-high: #222226;
+  --primary: #F59E0B;
+  --primary-hover: #D97706;
+  --text-primary: #F4F4F5;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --border: #222226;
+  --border-focus: #F59E0B;
 }
+
 
 /* Top Navbars */
 [data-theme="dark"] .pm-landing-nav,

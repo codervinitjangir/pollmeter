@@ -472,10 +472,10 @@ export default function StudentDashboard() {
                 🚀
               </div>
               <div>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--fg, #F4F4F5)', letterSpacing: '-0.015em' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)', letterSpacing: '-0.015em' }}>
                   Live Classroom Quiz Terminal
                 </h2>
-                <span style={{ fontSize: '0.82rem', color: 'var(--mute, #94A3B8)' }}>
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
                   Enter the 6-digit session PIN shown on your instructor&rsquo;s projector screen to join live.
                 </span>
               </div>
@@ -526,8 +526,8 @@ export default function StudentDashboard() {
                           fontSize: '1.5rem',
                           fontWeight: 800,
                           fontFamily: 'var(--mono, monospace)',
-                          background: 'var(--bg, #0A0A0C)',
-                          border: digit ? '2px solid #F59E0B' : '1.5px solid var(--border, #27272A)',
+                          background: theme === 'dark' ? '#18181B' : '#F8FAFC',
+                          border: digit ? '2px solid #F59E0B' : `1.5px solid ${theme === 'dark' ? '#2E2E34' : '#CBD5E1'}`,
                           borderRadius: '10px',
                           color: '#F59E0B',
                           boxShadow: digit ? '0 0 12px rgba(245, 158, 11, 0.3)' : 'none',
@@ -548,7 +548,7 @@ export default function StudentDashboard() {
                       fontWeight: 800,
                       textTransform: 'uppercase',
                       letterSpacing: '0.06em',
-                      color: 'var(--mute, #9CA3AF)',
+                      color: 'var(--text-secondary)',
                       marginBottom: '0.5rem',
                     }}
                   >
@@ -564,10 +564,10 @@ export default function StudentDashboard() {
                       width: '100%',
                       height: '52px',
                       padding: '0 1rem',
-                      background: 'var(--bg, #0A0A0C)',
-                      border: '1.5px solid var(--border, #27272A)',
+                      background: theme === 'dark' ? '#18181B' : '#F8FAFC',
+                      border: `1.5px solid ${theme === 'dark' ? '#2E2E34' : '#CBD5E1'}`,
                       borderRadius: '10px',
-                      color: 'var(--fg, #F4F4F5)',
+                      color: 'var(--text-primary)',
                       fontSize: '0.95rem',
                       fontWeight: 600,
                       outline: 'none',
@@ -583,7 +583,7 @@ export default function StudentDashboard() {
                   style={{
                     height: '52px',
                     padding: '0 1.75rem',
-                    background: '#F59E0B',
+                    background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
                     color: '#000000',
                     border: 'none',
                     borderRadius: '10px',
@@ -737,14 +737,52 @@ export default function StudentDashboard() {
                 <span>⚠️ {error}</span>
               </div>
             ) : filteredHistory.length === 0 ? (
-              <div className="pm-history-empty">
-                <span style={{ fontSize: '3rem' }}>🎯</span>
-                <h3>{searchQuery ? 'No matching quiz records' : 'No quiz records found yet'}</h3>
-                <p>
+              <div className="pm-history-empty" style={{ padding: '3rem 1.5rem', textAlign: 'center' }}>
+                <div
+                  style={{
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '16px',
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.8rem',
+                    margin: '0 auto 1rem',
+                  }}
+                >
+                  🎯
+                </div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: '0 0 0.4rem', color: 'var(--text-primary)' }}>
+                  {searchQuery ? 'No matching quiz records' : 'Ready for your live quizzes!'}
+                </h3>
+                <p style={{ maxWidth: '480px', margin: '0 auto 1.25rem', fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                   {searchQuery
                     ? 'Try searching with a different keyword or clearing the search query.'
-                    : 'When your mentor launches an active session in class, enter the 6-digit PIN above to join! Your attendance and ranks will appear here automatically.'}
+                    : 'When your mentor launches a live quiz session in class, enter the 6-digit PIN in the terminal above to join. Your performance, score, and ranking will appear here automatically.'}
                 </p>
+                {searchQuery ? (
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setSearchQuery('')}
+                    type="button"
+                  >
+                    Clear Search
+                  </button>
+                ) : (
+                  <button
+                    className="btn btn-primary btn-sm"
+                    style={{ padding: '0.5rem 1.25rem', borderRadius: '8px' }}
+                    onClick={() => {
+                      terminalRef.current?.scrollIntoView({ behavior: 'smooth' });
+                      digitRefs.current[0]?.focus();
+                    }}
+                    type="button"
+                  >
+                    ⚡ Jump to PIN Terminal
+                  </button>
+                )}
               </div>
             ) : (
               <div className="pm-quizzes-card-list">
