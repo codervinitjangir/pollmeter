@@ -780,8 +780,24 @@ export default function JoinPage() {
           onSuccess={(user) => {
             setAuthUser(user);
             setShowAuthModal(false);
+            const name = nameInput.trim() || user.realName.split(' ')[0];
             if (!nameInput.trim()) {
-              setNameInput(user.realName.split(' ')[0]);
+              setNameInput(name);
+            }
+            /*
+              Scan → Medhavi login → in. The code already arrived in the QR
+              link and the nickname defaults to their own first name, so the
+              "Enter Lobby" press after signing in was a step with nothing in
+              it — a hundred students each tapping through a form they have
+              already filled. Only fires with a complete code, so opening
+              /join by hand still shows the form.
+
+              `doJoin` reads the token out of storage, which the login call
+              wrote before invoking this callback.
+            */
+            const code = codeInput.trim();
+            if (/^\d{6}$/.test(code) && name) {
+              doJoin(code, name, identity.current);
             }
           }}
           onClose={authUser ? () => setShowAuthModal(false) : undefined}

@@ -245,6 +245,7 @@ export default function AdminStudents() {
                     </td>
                     <td>
                       {s.batchName ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
                         <span className="pm-badge-batch" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                           🎓 {s.batchName}
                           <button
@@ -256,6 +257,31 @@ export default function AdminStudents() {
                           >
                             ✎
                           </button>
+                        </span>
+                        {/*
+                          Students may sit any batch's exam, so the drill-down
+                          lists everyone who took this batch's quiz. Without this
+                          marker the row shows one batch under a tile for
+                          another and reads as a bug.
+                        */}
+                        {s.visiting && (
+                          <span
+                            title="Took this batch's quiz but is enrolled elsewhere"
+                            style={{
+                              fontSize: '0.68rem',
+                              fontWeight: 700,
+                              letterSpacing: '0.02em',
+                              padding: '0.1rem 0.4rem',
+                              borderRadius: '999px',
+                              color: '#F59E0B',
+                              background: 'rgba(245, 158, 11, 0.12)',
+                              border: '1px solid rgba(245, 158, 11, 0.35)',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            visiting
+                          </span>
+                        )}
                         </span>
                       ) : (
                         <button

@@ -572,6 +572,12 @@ export interface StudentAuditItem {
   lastQuizDate?: string;
   batchId?: string;
   batchName?: string;
+  /**
+   * True when this student only matched the active batch filter by having sat
+   * that batch's exam — their own batch is a different one. Students may take
+   * any batch's quiz, so this is expected, not an error.
+   */
+  visiting?: boolean;
 }
 
 export interface BatchObject {

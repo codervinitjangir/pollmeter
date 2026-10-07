@@ -691,12 +691,17 @@ export async function saveSessionResults(
           ]
         );
 
-        // Auto-allocate batch_id for students who have no assigned batch yet
+        // Auto-allocate batch_id for students who have no assigned batch yet.
+        // `role = 'student'` matters: a mentor joining their own session from a
+        // phone to sanity-check it before class is a participant like any other,
+        // and faculty hold no batch of their own by design.
         if (p.batchId) {
           await client.query(
             `UPDATE users
              SET batch_id = $1
-             WHERE LOWER(email) = $2 AND (batch_id IS NULL OR batch_id = '')`,
+             WHERE LOWER(email) = $2
+               AND role = 'student'
+               AND (batch_id IS NULL OR batch_id = '')`,
             [p.batchId, p.email.toLowerCase()]
           );
         }
@@ -745,13 +750,14 @@ export async function saveSessionResults(
   localDb.participants = localDb.participants.filter((p) => p.sessionId !== sessionId);
   localDb.participants.push(...participants);
 
-  // Auto-allocate batchId for unallocated students
+  // Auto-allocate batchId for unallocated students. Mirrors the Postgres path:
+  // students only, never faculty who joined their own session to test it.
   for (const p of participants) {
     if (p.batchId) {
       const u = Object.values(localDb.users || {}).find(
         (user) => user.email.toLowerCase() === p.email.toLowerCase()
       );
-      if (u && !u.batchId) {
+      if (u && u.role === 'student' && !u.batchId) {
         u.batchId = p.batchId;
       }
     }
@@ -1270,15 +1276,24 @@ export interface StudentFilterOptions {
  *
  * The three dimensions do not all come from the same place:
  *
- * - `batchId` and `year` read the student's **own** batch (`users.batch_id`,
- *   joined to `batches` for the year), so they answer "who is enrolled here".
+ * - `batchId` matches a student's enrolment **or** their participation. Students
+ *   may sit any batch's exam here — that is a deliberate product decision, not
+ *   an oversight — so a batch tile lists everyone who took that batch's quiz,
+ *   not only those enrolled in it. Rows where the two differ come back with
+ *   `visiting: true` so the screen can say so; without that marker the row
+ *   shows one batch under a tile for another and reads as a bug.
+ * - `year` reads the batch's academic year, falling back to the batch label when
+ *   the `year` column is blank.
  * - `subject` has no column to read: enrolment records a batch, not a syllabus.
  *   It is therefore inferred from **participation** — the sessions the student
  *   actually joined — which also narrows `quizCount` and `avgScore` to that
  *   subject, so the numbers shown match the filter in effect.
  *
+ * Because batch is participation-tolerant, one student can legitimately appear
+ * under more than one batch tile, and the tile counts will not sum to the total.
+ *
  * Year matching mirrors getMentorQuizzes: batch years are free text, so the
- * first digit run is compared rather than the whole string.
+ * first run of digits is compared rather than the whole string.
  */
 export async function searchStudents(
   query?: string,
@@ -1291,6 +1306,8 @@ export async function searchStudents(
   lastQuizDate?: string;
   batchId?: string;
   batchName?: string;
+  /** True when this row only matched the batch filter through participation. */
+  visiting?: boolean;
 }>> {
   const cleanQ = query?.toLowerCase().trim() ?? '';
   const wantBatch = options?.batchId && options.batchId !== 'all' ? options.batchId.trim() : '';
@@ -1307,13 +1324,21 @@ export async function searchStudents(
         AND ($1 = '' OR LOWER(COALESCE(u.email, p.email)) LIKE '%' || $1 || '%' OR LOWER(COALESCE(u.real_name, p.real_name)) LIKE '%' || $1 || '%')
     `;
 
+    // Remembered so the SELECT can reuse it for the `visiting` flag below.
+    let batchParam = 0;
     if (wantBatch) {
       params.push(wantBatch);
-      where += ` AND (COALESCE(u.batch_id, slb.batch_id) = $${params.length} OR p.batch_id = $${params.length} OR qs.batch_id = $${params.length})`;
+      batchParam = params.length;
+      where += ` AND (COALESCE(u.batch_id, slb.batch_id) = $${batchParam} OR p.batch_id = $${batchParam} OR qs.batch_id = $${batchParam})`;
     }
     if (wantYear) {
-      params.push(`%${wantYear}%`);
-      where += ` AND (COALESCE(b.year, pb.year, slb.batch, p.batch, '') LIKE $${params.length})`;
+      params.push(wantYear);
+      // Compared against the first run of digits, not matched as a substring of
+      // the whole label. `LIKE '%2%'` also answered yes for "CS 2026 Section A"
+      // and "Draft Year - Batch A 4753", so a single stray number in a batch
+      // name put its students under the wrong year tile. `wantYear` is already
+      // reduced to digits by the caller above.
+      where += ` AND (substring(COALESCE(b.year, pb.year, slb.batch, p.batch, '') from '[0-9]+') = $${params.length})`;
     }
     // Subject lives on the session, so it is applied through the join. A LEFT
     // JOIN keeps students with no participation visible while no subject is
@@ -1345,7 +1370,12 @@ export async function searchStudents(
              COALESCE(b.display_name, pb.display_name, slb.batch) as "batchName",
              COALESCE(COUNT(DISTINCT p.session_id), 0)::int as "quizCount",
              COALESCE(ROUND(AVG(p.final_score)), 0)::int as "avgScore",
-             MAX(p.joined_at) as "lastQuizDate"
+             MAX(p.joined_at) as "lastQuizDate",
+             ${
+               batchParam
+                 ? `(COALESCE(u.batch_id, slb.batch_id) IS DISTINCT FROM $${batchParam})`
+                 : 'FALSE'
+             } as "visiting"
       FROM users u
       FULL OUTER JOIN session_participants p ON LOWER(u.email) = LOWER(p.email)
       LEFT JOIN student_latest_batch slb ON slb.email = LOWER(COALESCE(u.email, p.email))
@@ -1371,17 +1401,45 @@ export async function searchStudents(
     }
   }
 
-  /** Does this student's own batch (or fallback from recent quiz) satisfy the batch/year filters? */
+  /** Every batch this student has ever sat an exam for, not just the latest. */
+  const satBatchesByEmail = new Map<string, Set<string>>();
+  for (const p of localDb.participants || []) {
+    if (!p.batchId) continue;
+    const em = p.email.toLowerCase();
+    if (!satBatchesByEmail.has(em)) satBatchesByEmail.set(em, new Set());
+    satBatchesByEmail.get(em)!.add(p.batchId);
+  }
+
+  /** First run of digits, so "CS 2026 Section A" cannot answer year "2". */
+  const yearDigits = (v?: string) => v?.match(/\d+/)?.[0] ?? '';
+
+  /**
+   * Does this student satisfy the batch/year filters — by enrolment, or by
+   * having sat that batch's exam? Mirrors the Postgres branch, which is
+   * participation-tolerant on purpose.
+   */
   const batchMatches = (batchId?: string, email?: string): boolean => {
     if (!wantBatch && !wantYear) return true;
-    const fallback = email ? latestBatchByEmail.get(email.toLowerCase()) : undefined;
+    const em = email?.toLowerCase();
+    const fallback = em ? latestBatchByEmail.get(em) : undefined;
     const effectiveBatchId = batchId || fallback?.batchId;
-    if (wantBatch && effectiveBatchId !== wantBatch) return false;
+    if (wantBatch) {
+      const sat = em ? satBatchesByEmail.get(em) : undefined;
+      if (effectiveBatchId !== wantBatch && !sat?.has(wantBatch)) return false;
+    }
     if (wantYear) {
       const year = (effectiveBatchId ? localDb.batches?.[effectiveBatchId]?.year : undefined) || fallback?.year || '';
-      if (!year.includes(wantYear)) return false;
+      if (yearDigits(year) !== wantYear) return false;
     }
-    return Boolean(effectiveBatchId);
+    return Boolean(effectiveBatchId) || Boolean(wantBatch && em && satBatchesByEmail.get(em)?.has(wantBatch));
+  };
+
+  /** True when the row matched `wantBatch` only through participation. */
+  const isVisiting = (batchId?: string, email?: string): boolean => {
+    if (!wantBatch) return false;
+    const em = email?.toLowerCase();
+    const effectiveBatchId = batchId || (em ? latestBatchByEmail.get(em)?.batchId : undefined);
+    return effectiveBatchId !== wantBatch;
   };
 
   const subjectMatches = (sessionId: string): boolean => {
@@ -1457,6 +1515,7 @@ export async function searchStudents(
     lastQuizDate: s.lastDate || undefined,
     batchId: s.batchId,
     batchName: s.batchName,
+    visiting: isVisiting(s.batchId, s.email),
   })).sort((a, b) => b.quizCount - a.quizCount);
 }
 
