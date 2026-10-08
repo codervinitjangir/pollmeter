@@ -1,7 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { searchStudentAudit, adminUpdateStudentBatch, adminFetchBatches, BatchObject } from '../../auth';
+import { searchStudentAudit, adminUpdateStudentBatch, BatchObject } from '../../auth';
 import { useAdminData } from './AdminContext';
 import AcademicDrilldown, { AcademicDrilldownValue, EMPTY_DRILL } from './AcademicDrilldown';
+
+function formatStudentYear(raw?: string): string {
+  if (!raw) return 'General';
+  const m = raw.match(/\b([1-9])\b|\b([1-9])(?:st|nd|rd|th)\b/i);
+  if (m) {
+    const d = m[1] || m[2];
+    const suf = d === '1' ? 'st' : d === '2' ? 'nd' : d === '3' ? 'rd' : 'th';
+    return `${d}${suf} Year`;
+  }
+  return raw;
+}
 
 export default function AdminStudents() {
   const {
@@ -15,26 +26,20 @@ export default function AdminStudents() {
   } = useAdminData();
 
   const [studentSearch, setStudentSearch] = useState('');
-  /**
-   * Browsing axis, independent of the text box below it: the drill-down answers
-   * "show me this cohort", the search answers "find this one person".
-   */
   const [drill, setDrill] = useState<AcademicDrilldownValue>({ ...EMPTY_DRILL });
-  const [studentStatusFilter, setStudentStatusFilter] = useState<'all' | 'assigned' | 'unassigned' | 'regular'>('all');
+  const [studentStatusFilter, setStudentStatusFilter] = useState<'all' | 'regular' | 'top'>('all');
 
-  // Batch edit modal state
+  // Academic year edit modal state
   const [editingEmail, setEditingEmail] = useState<string | null>(null);
-  const [allBatches, setAllBatches] = useState<BatchObject[]>([]);
-  const [batchModalValue, setBatchModalValue] = useState('');
-  const [batchModalSaving, setBatchModalSaving] = useState(false);
-  const [batchModalError, setBatchModalError] = useState('');
+  const [yearModalValue, setYearModalValue] = useState('');
+  const [yearModalSaving, setYearModalSaving] = useState(false);
+  const [yearModalError, setYearModalError] = useState('');
 
   // Handle student audit search debounce
   useEffect(() => {
     if (!authUser || authUser.role !== 'admin') return;
     const timer = setTimeout(() => {
       searchStudentAudit(studentSearch, {
-        batchId: drill.batchId,
         year: drill.year,
         subject: drill.subject,
       })
@@ -42,74 +47,76 @@ export default function AdminStudents() {
         .catch(() => {});
     }, 300);
     return () => clearTimeout(timer);
-  }, [studentSearch, drill.batchId, drill.year, drill.subject, authUser, setStudentAudit]);
+  }, [studentSearch, drill.year, drill.subject, authUser, setStudentAudit]);
 
   // Derived counts
-  const assignedCount = useMemo(
-    () => studentAudit.filter((s) => Boolean(s.batchName)).length,
-    [studentAudit]
-  );
-  const unassignedCount = useMemo(
-    () => studentAudit.filter((s) => !s.batchName).length,
-    [studentAudit]
-  );
   const regularCount = useMemo(
     () => studentAudit.filter((s) => s.quizCount >= 3).length,
+    [studentAudit]
+  );
+  const topCount = useMemo(
+    () => studentAudit.filter((s) => s.avgScore >= 1200).length,
+    [studentAudit]
+  );
+  const activeCount = useMemo(
+    () => studentAudit.filter((s) => Boolean(s.lastQuizDate)).length,
     [studentAudit]
   );
 
   // Filtered students based on status segment
   const displayedStudents = useMemo(() => {
     return studentAudit.filter((s) => {
-      if (studentStatusFilter === 'assigned') return Boolean(s.batchName);
-      if (studentStatusFilter === 'unassigned') return !s.batchName;
       if (studentStatusFilter === 'regular') return s.quizCount >= 3;
+      if (studentStatusFilter === 'top') return s.avgScore >= 1200;
       return true;
     });
   }, [studentAudit, studentStatusFilter]);
 
-  function openBatchModal(email: string, currentBatchId?: string) {
+  function openYearModal(email: string, currentBatchName?: string) {
     setEditingEmail(email);
-    setBatchModalValue(currentBatchId || '');
-    setBatchModalError('');
-    if (allBatches.length === 0) {
-      adminFetchBatches().then(setAllBatches).catch(() => {});
-    }
+    // Find matching year digit if present
+    const m = (currentBatchName || '').match(/\b([1-4])\b|\b([1-4])(?:st|nd|rd|th)\b/i);
+    setYearModalValue(m ? m[1] || m[2] : '');
+    setYearModalError('');
   }
 
-  async function saveBatchChange() {
+  async function saveYearChange() {
     if (!editingEmail) return;
-    setBatchModalSaving(true);
-    setBatchModalError('');
+    setYearModalSaving(true);
+    setYearModalError('');
     try {
-      await adminUpdateStudentBatch(editingEmail, batchModalValue || null);
-      showToast(`Batch updated for ${editingEmail}.`);
+      // Find a matching batch object representing this year if one exists, or null
+      let targetBatchId: string | null = null;
+      if (yearModalValue) {
+        const found = allBatchObjects.find((b: BatchObject) => {
+          const m = b.displayName.match(/\b([1-4])\b|\b([1-4])(?:st|nd|rd|th)\b/i);
+          return m && (m[1] === yearModalValue || m[2] === yearModalValue);
+        });
+        targetBatchId = found ? found.id : null;
+      }
+
+      await adminUpdateStudentBatch(editingEmail, targetBatchId);
+      showToast(`Academic Year updated for ${editingEmail}.`);
       setEditingEmail(null);
       // Refresh the list
       const data = await searchStudentAudit(studentSearch, {
-        batchId: drill.batchId,
         year: drill.year,
         subject: drill.subject,
       });
       setStudentAudit(data);
     } catch (err: any) {
-      setBatchModalError(err.message || 'Failed to update student batch.');
+      setYearModalError(err.message || 'Failed to update student academic year.');
     } finally {
-      setBatchModalSaving(false);
+      setYearModalSaving(false);
     }
   }
 
   return (
     <section className="pm-admin-panel-card">
-      {/*
-        Mentor is not forwarded to the student endpoint — a student belongs to a
-        batch, not to a mentor, so the facet would have nothing to match.
-      */}
       <AcademicDrilldown
         value={drill}
         onChange={setDrill}
         subjects={activeSubjects}
-        batches={allBatchObjects}
       />
 
       {/* ─── Metric Bar ─── */}
@@ -119,18 +126,16 @@ export default function AdminStudents() {
           <strong>{studentAudit.length}</strong>
         </div>
         <div className="pm-admin-metric-chip pm-admin-metric-chip--success">
-          <span>🎓 Batch Assigned:</span>
-          <strong>{assignedCount}</strong>
-        </div>
-        {unassignedCount > 0 && (
-          <div className="pm-admin-metric-chip" style={{ borderColor: 'rgba(245, 158, 11, 0.4)' }}>
-            <span style={{ color: '#D97706' }}>⚠️ Unassigned:</span>
-            <strong style={{ color: '#D97706' }}>{unassignedCount}</strong>
-          </div>
-        )}
-        <div className="pm-admin-metric-chip">
           <span>🌟 Regular Participants:</span>
           <strong>{regularCount}</strong>
+        </div>
+        <div className="pm-admin-metric-chip" style={{ borderColor: 'rgba(99, 102, 241, 0.4)' }}>
+          <span style={{ color: '#6366F1' }}>🏆 High Performers:</span>
+          <strong style={{ color: '#6366F1' }}>{topCount}</strong>
+        </div>
+        <div className="pm-admin-metric-chip">
+          <span>⚡ Active Takers:</span>
+          <strong>{activeCount}</strong>
         </div>
       </div>
 
@@ -162,24 +167,17 @@ export default function AdminStudents() {
             </button>
             <button
               type="button"
-              className={`pm-filter-segmented-btn ${studentStatusFilter === 'assigned' ? 'active' : ''}`}
-              onClick={() => setStudentStatusFilter('assigned')}
-            >
-              Assigned ({assignedCount})
-            </button>
-            <button
-              type="button"
-              className={`pm-filter-segmented-btn ${studentStatusFilter === 'unassigned' ? 'active' : ''}`}
-              onClick={() => setStudentStatusFilter('unassigned')}
-            >
-              Unassigned ({unassignedCount})
-            </button>
-            <button
-              type="button"
               className={`pm-filter-segmented-btn ${studentStatusFilter === 'regular' ? 'active' : ''}`}
               onClick={() => setStudentStatusFilter('regular')}
             >
               Regulars ({regularCount})
+            </button>
+            <button
+              type="button"
+              className={`pm-filter-segmented-btn ${studentStatusFilter === 'top' ? 'active' : ''}`}
+              onClick={() => setStudentStatusFilter('top')}
+            >
+              Top Scorers ({topCount})
             </button>
           </div>
         </div>
@@ -220,7 +218,7 @@ export default function AdminStudents() {
               <tr>
                 <th>Student Name</th>
                 <th>College Email</th>
-                <th>Batch / Cohort</th>
+                <th>Academic Year</th>
                 <th>Quizzes Attempted</th>
                 <th>Average Score</th>
                 <th>Last Active Session</th>
@@ -235,6 +233,8 @@ export default function AdminStudents() {
                     : s.avgScore >= 700
                     ? 'pm-score-mid'
                     : 'pm-score-low';
+                const yearLabel = formatStudentYear(s.batchName);
+
                 return (
                   <tr key={s.email || idx}>
                     <td>
@@ -244,55 +244,20 @@ export default function AdminStudents() {
                       <code className="pm-student-email">{s.email}</code>
                     </td>
                     <td>
-                      {s.batchName ? (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
                         <span className="pm-badge-batch" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                          🎓 {s.batchName}
+                          🎓 {yearLabel}
                           <button
                             type="button"
                             className="pm-search-clear"
                             style={{ fontSize: '0.75rem', marginLeft: '4px', opacity: 0.8, cursor: 'pointer' }}
-                            title="Change student cohort / batch"
-                            onClick={() => openBatchModal(s.email, s.batchId)}
+                            title="Edit student academic year"
+                            onClick={() => openYearModal(s.email, s.batchName)}
                           >
                             ✎
                           </button>
                         </span>
-                        {/*
-                          Students may sit any batch's exam, so the drill-down
-                          lists everyone who took this batch's quiz. Without this
-                          marker the row shows one batch under a tile for
-                          another and reads as a bug.
-                        */}
-                        {s.visiting && (
-                          <span
-                            title="Took this batch's quiz but is enrolled elsewhere"
-                            style={{
-                              fontSize: '0.68rem',
-                              fontWeight: 700,
-                              letterSpacing: '0.02em',
-                              padding: '0.1rem 0.4rem',
-                              borderRadius: '999px',
-                              color: '#F59E0B',
-                              background: 'rgba(245, 158, 11, 0.12)',
-                              border: '1px solid rgba(245, 158, 11, 0.35)',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            visiting
-                          </span>
-                        )}
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          style={{ fontSize: '0.74rem', padding: '0.2rem 0.55rem', color: '#D97706', borderColor: 'rgba(245, 158, 11, 0.4)' }}
-                          onClick={() => openBatchModal(s.email)}
-                        >
-                          ＋ Assign batch
-                        </button>
-                      )}
+                      </span>
                     </td>
                     <td>
                       <span className="pm-count-badge">
@@ -324,23 +289,23 @@ export default function AdminStudents() {
         </div>
       )}
 
-      {/* ─── Batch Edit Modal (Refined for Light & Dark Theme) ─── */}
+      {/* ─── Academic Year Edit Modal ─── */}
       {editingEmail && (
         <div
           className="pm-auth-modal-backdrop"
-          onClick={() => !batchModalSaving && setEditingEmail(null)}
+          onClick={() => !yearModalSaving && setEditingEmail(null)}
           style={{ zIndex: 10000 }}
         >
           <div
             className="pm-admin-modal-card"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: '440px', width: '92%' }}
+            style={{ maxWidth: '420px', width: '92%' }}
           >
             <div className="pm-admin-modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '1.4rem' }}>🎓</span>
                 <div>
-                  <h3 className="pm-admin-modal-title">Assign Student Cohort</h3>
+                  <h3 className="pm-admin-modal-title">Set Academic Year</h3>
                   <p className="pm-admin-modal-sub">
                     <code style={{ fontSize: '0.78rem' }}>{editingEmail}</code>
                   </p>
@@ -349,35 +314,34 @@ export default function AdminStudents() {
               <button
                 className="pm-auth-close-btn"
                 onClick={() => setEditingEmail(null)}
-                disabled={batchModalSaving}
+                disabled={yearModalSaving}
               >
                 ✕
               </button>
             </div>
 
             <div style={{ padding: '1.25rem 1.5rem' }}>
-              {batchModalError && (
+              {yearModalError && (
                 <div className="pm-auth-error-alert" style={{ marginBottom: '1rem' }}>
-                  <span>⚠️ {batchModalError}</span>
+                  <span>⚠️ {yearModalError}</span>
                 </div>
               )}
 
               <label style={{ fontSize: '0.82rem', fontWeight: 700, display: 'block', marginBottom: '0.45rem' }}>
-                Assigned Cohort / Batch
+                Academic Year
               </label>
               <select
                 className="input pm-host-select"
-                value={batchModalValue}
-                onChange={(e) => setBatchModalValue(e.target.value)}
-                disabled={batchModalSaving}
+                value={yearModalValue}
+                onChange={(e) => setYearModalValue(e.target.value)}
+                disabled={yearModalSaving}
                 style={{ width: '100%', marginBottom: '1.25rem', padding: '0.55rem 0.8rem' }}
               >
-                <option value="">— No batch / Clear cohort —</option>
-                {allBatches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.displayName} {b.status === 'inactive' ? '(Archived)' : ''}
-                  </option>
-                ))}
+                <option value="">— General / Not Specified —</option>
+                <option value="1">1st Year</option>
+                <option value="2">2nd Year</option>
+                <option value="3">3rd Year</option>
+                <option value="4">4th Year</option>
               </select>
 
               <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
@@ -385,17 +349,17 @@ export default function AdminStudents() {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setEditingEmail(null)}
-                  disabled={batchModalSaving}
+                  disabled={yearModalSaving}
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   className="btn btn-primary"
-                  onClick={saveBatchChange}
-                  disabled={batchModalSaving}
+                  onClick={saveYearChange}
+                  disabled={yearModalSaving}
                 >
-                  {batchModalSaving ? 'Saving…' : 'Save Batch'}
+                  {yearModalSaving ? 'Saving…' : 'Save Academic Year'}
                 </button>
               </div>
             </div>

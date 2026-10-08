@@ -190,7 +190,7 @@ export default function AdminReports() {
         value={drilldownValue}
         onChange={(next) => {
           setReportYear(next.year);
-          setReportBatch(next.batchId);
+          setReportBatch(next.batchId || 'all');
           setReportSubject(next.subject);
           setReportMentorQuery(next.mentorQuery);
         }}

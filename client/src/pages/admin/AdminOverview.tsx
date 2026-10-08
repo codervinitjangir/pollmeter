@@ -82,19 +82,19 @@ export default function AdminOverview() {
 
         <div
           className="pm-quick-hub-card"
-          onClick={() => navigate('/admin/batches')}
+          onClick={() => navigate('/admin/quizzes')}
           role="button"
           tabIndex={0}
         >
           <div className="pm-quick-hub-icon-wrap pm-icon-blue">
-            <span>🗂️</span>
+            <span>📊</span>
           </div>
           <div className="pm-quick-hub-body">
             <div className="pm-quick-hub-title-row">
-              <strong>Batch Management</strong>
+              <strong>Quiz Logs &amp; Analytics</strong>
               <span className="pm-quick-hub-arrow">→</span>
             </div>
-            <p>Configure academic cohorts, year sections, and class rosters.</p>
+            <p>Inspect live classroom sessions, question statistics, and attendance.</p>
           </div>
         </div>
 
@@ -353,23 +353,28 @@ export default function AdminOverview() {
             )}
           </div>
 
-          {/* Active Cohorts */}
+          {/* Academic Years */}
           <div className="pm-card">
             <div className="pm-card-header">
-              <h3 className="pm-card-title">Active Cohorts</h3>
+              <h3 className="pm-card-title">Academic Years</h3>
               <button
                 className="pm-card-link-btn"
-                onClick={() => navigate('/admin/batches')}
+                onClick={() => navigate('/admin/students')}
               >
-                Manage →
+                View Students →
               </button>
             </div>
 
             <div className="pm-cohort-tags-wrap">
-              {(topBatches.length > 0 ? topBatches.map((b) => b.batch) : standardBatches.slice(0, 8)).map((batchName, idx) => (
-                <span key={idx} className="pm-cohort-pill" title={batchName}>
-                  <span className="pm-cohort-bullet" />
-                  <span className="pm-cohort-name">{batchName}</span>
+              {['1st Year Undergraduate', '2nd Year Undergraduate', '3rd Year Undergraduate', '4th Year Undergraduate'].map((yr, idx) => (
+                <span
+                  key={idx}
+                  className="pm-cohort-pill"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => navigate('/admin/students')}
+                >
+                  <span className="pm-cohort-bullet" style={{ background: '#6366F1' }} />
+                  <span className="pm-cohort-name">{yr}</span>
                 </span>
               ))}
             </div>

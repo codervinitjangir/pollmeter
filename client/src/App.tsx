@@ -29,7 +29,7 @@ export default function App() {
           <Route path="students" element={<AdminStudents />} />
           <Route path="quizzes" element={<AdminQuizzes />} />
           <Route path="audit" element={<AdminAuditLog />} />
-          <Route path="batches" element={<AdminBatches />} />
+          <Route path="batches" element={<Navigate to="/admin/students" replace />} />
           <Route path="reports" element={<AdminReports />} />
         </Route>
 

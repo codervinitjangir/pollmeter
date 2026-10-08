@@ -594,20 +594,6 @@ export default function AdminLayout() {
                 <span className="pm-tab-pill">{auditLogs.length || 'Logs'}</span>
               </NavLink>
 
-              <NavLink
-                to="/admin/batches"
-                className={({ isActive }) => `menti-nav-link ${isActive ? 'active' : ''}`}
-                onClick={() => {
-                  setMobileSidebarOpen(false);
-                  refreshBatches();
-                }}
-              >
-                <span>🗂️</span>
-                <span style={{ flex: 1 }}>Batch Management</span>
-                <span className="pm-tab-pill">
-                  {allBatchObjects.filter((b) => b.status === 'active').length || standardBatches.length}
-                </span>
-              </NavLink>
 
               <NavLink
                 to="/admin/reports"
