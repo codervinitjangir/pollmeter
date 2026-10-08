@@ -171,7 +171,7 @@ Requirements:
 - Only assert things you are certain of. Do not invent specific dates, version numbers, statistics, percentages, author names, or citations. If you are not sure of a specific figure, ask about the underlying concept instead — a concept question that is right beats a precise-sounding question that is wrong.
 - Before you emit each question, re-read your own options and confirm that exactly one is correct and every other option is clearly, defensibly wrong. If two options could both be argued, rewrite the question.
 - correctAnswer must be copied character-for-character from one of the options, with identical spelling, casing and spacing.
-- Randomize the position of the correct answer across the options. Do NOT always place the correct answer as option A or the first option.
+- CRITICAL ANSWER KEY DISTRIBUTION: Distribute the correct answer evenly across all 4 positions (roughly 25% Option A, 25% Option B, 25% Option C, and 25% Option D across the questions). Never make the same option index (e.g. Option B) the correct answer for consecutive questions.
 - Write in clean, simple plain text. DO NOT use markdown backticks, asterisks, or code symbols in question text or options (e.g. write process.nextTick plainly, write Node.js without spaces).
 - Keep question text under 140 characters; it has to be readable from the back of a classroom.
 - Keep each option under 65 characters.
@@ -530,7 +530,102 @@ function normalizeQuestions(
     if (questions.length >= limit) break;
   }
 
-  return questions;
+  return enforceBalancedOptionDistribution(questions);
+}
+
+/**
+ * Strictly enforces an even, anti-bias distribution of correct answer positions across
+ * all MCQ questions in the set.
+ *
+ * Prevents LLM option position bias (e.g., model placing 8 out of 10 answers in Option B or C).
+ * For N MCQ questions with 4 options:
+ * - Each option slot (0=A, 1=B, 2=C, 3=D) is allocated ~N/4 times.
+ * - Consecutive questions are prevented from sharing the same correct option slot.
+ * - Distractors are shuffled independently so option text has no positional artifacts.
+ */
+export function enforceBalancedOptionDistribution(questions: Question[]): Question[] {
+  if (!questions || questions.length === 0) return questions;
+
+  const mcqIndices: number[] = [];
+  for (let i = 0; i < questions.length; i++) {
+    const q = questions[i];
+    if (
+      q.type === 'mcq' &&
+      Array.isArray(q.options) &&
+      q.options.length >= 2 &&
+      q.correctAnswer
+    ) {
+      mcqIndices.push(i);
+    }
+  }
+
+  const mcqCount = mcqIndices.length;
+  if (mcqCount === 0) return questions;
+
+  // 1. Build an equitable pool of slots.
+  // For standard 4-option MCQs: slots 0, 1, 2, 3 (A, B, C, D).
+  const numSlots = 4;
+  const targetSlots: number[] = [];
+  const basePerSlot = Math.floor(mcqCount / numSlots);
+  const remainder = mcqCount % numSlots;
+
+  for (let s = 0; s < numSlots; s++) {
+    const countForThisSlot = basePerSlot + (s < remainder ? 1 : 0);
+    for (let c = 0; c < countForThisSlot; c++) {
+      targetSlots.push(s);
+    }
+  }
+
+  // Shuffle target slots so the order of letters (A, B, C, D) is random
+  const shuffledSlots = shuffle(targetSlots);
+
+  // 2. Prevent consecutive identical slots (e.g. avoid [1, 1] meaning Option B right after Option B)
+  for (let i = 1; i < shuffledSlots.length; i++) {
+    if (shuffledSlots[i] === shuffledSlots[i - 1]) {
+      let swapIdx = -1;
+      for (let j = i + 1; j < shuffledSlots.length; j++) {
+        if (
+          shuffledSlots[j] !== shuffledSlots[i - 1] &&
+          (j + 1 >= shuffledSlots.length || shuffledSlots[j] !== shuffledSlots[j + 1])
+        ) {
+          swapIdx = j;
+          break;
+        }
+      }
+      if (swapIdx !== -1) {
+        const tmp = shuffledSlots[i];
+        shuffledSlots[i] = shuffledSlots[swapIdx];
+        shuffledSlots[swapIdx] = tmp;
+      }
+    }
+  }
+
+  // 3. Clone and apply each target slot to the corresponding MCQ
+  const balanced = [...questions];
+  for (let m = 0; m < mcqCount; m++) {
+    const qIndex = mcqIndices[m];
+    const q = { ...balanced[qIndex] };
+    const rawOptions = [...(q.options || [])];
+    const key = q.correctAnswer!;
+
+    const matchingOpt =
+      rawOptions.find((o) => o.trim().toLowerCase() === key.trim().toLowerCase()) || key;
+    const distractors = shuffle(
+      rawOptions.filter((o) => o.trim().toLowerCase() !== matchingOpt.trim().toLowerCase())
+    );
+
+    const totalOpts = distractors.length + 1;
+    const assignedSlot = Math.min(shuffledSlots[m], totalOpts - 1);
+
+    const reorderedOptions = [...distractors];
+    reorderedOptions.splice(assignedSlot, 0, matchingOpt);
+
+    q.options = reorderedOptions;
+    q.correctAnswer = matchingOpt;
+    balanced[qIndex] = q;
+  }
+
+  return balanced;
 }
 
 // ─── Built-in question bank (used only when no API key is configured) ────────
@@ -683,7 +778,7 @@ function buildBankQuestions(req: GenerateRequest): Question[] {
     }
   }
 
-  return questions;
+  return enforceBalancedOptionDistribution(questions);
 }
 
 // ─── Route handler ────────────────────────────────────────────────────────────
@@ -809,7 +904,8 @@ export async function handleGenerateQuestions(req: Request, res: Response): Prom
     // ── end Fix 2 ────────────────────────────────────────────────────────────
 
     if (questions.length > 0) {
-      res.json({ questions, source: 'ai', model: usedModel });
+      const balancedQuestions = enforceBalancedOptionDistribution(questions);
+      res.json({ questions: balancedQuestions, source: 'ai', model: usedModel });
       return;
     }
 
@@ -1040,8 +1136,8 @@ YOUR MISSION — SYSTEMATIC INGESTION & FACTUAL AUDITING:
    - All 4 options must be roughly equal in length (±25%).
    - NEVER make the correct answer significantly longer, more qualified, or more detailed than the distractors.
    - Absolutely NO "All of the above", "None of the above", "Both A and B", or "Neither". Replace with conceptual alternatives.
-5. RANDOMIZE ANSWER POSITIONS:
-   - Distribute the correct answer across all 4 positions (do not place the correct answer as option 1 all the time).
+5. ANSWER KEY SPREAD & ANTI-BIAS:
+   - Distribute the correct answer evenly across all 4 positions A, B, C, D (approx 25% each). Never make the same option letter correct repeatedly.
 6. LENGTH & CLARITY:
    - Question text under 150 characters (readable on class projector).
    - Each option under 65 characters.
@@ -1079,7 +1175,7 @@ EXAMINATION REQUIREMENTS:
    - Options under 65 characters each.
    - "covers": 2 to 5 words subtopic tag.
    - "why": 1 concise sentence (under 25 words) explaining why the key is indisputably correct.
-   - Randomize the position of the correct answer among the 4 choices.
+   - Distribute the correct answer evenly across all 4 positions A, B, C, D (approx 25% each). Never cluster answers on one single option like B.
 
 Return ONLY a valid JSON array matching the required schema.`;
 }
@@ -1136,16 +1232,17 @@ export async function handleExtractFromFile(req: Request, res: Response): Promis
     if (['csv', 'tsv', 'xlsx', 'xls'].includes(fileType)) {
       const directQuestions = parseCsvFallback(extractedText, targetTime, 100);
       if (directQuestions.length > 0) {
+        const balanced = enforceBalancedOptionDistribution(directQuestions);
         res.json({
           success: true,
-          questions: directQuestions,
+          questions: balanced,
           source: 'direct-parse',
-          notice: `Imported ${directQuestions.length} question${directQuestions.length === 1 ? '' : 's'} directly from spreadsheet.`,
+          notice: `Imported ${balanced.length} question${balanced.length === 1 ? '' : 's'} directly from spreadsheet with balanced option positions.`,
           summary: {
             fileName,
             fileType,
             extractedLength: extractedText.length,
-            verifiedCount: directQuestions.length,
+            verifiedCount: balanced.length,
           },
         });
         return;
@@ -1187,9 +1284,10 @@ export async function handleExtractFromFile(req: Request, res: Response): Promis
       if (raw && raw.length > 0) {
         const questions = normalizeQuestions(raw, targetTime, targetCount);
         if (questions.length > 0) {
+          const balanced = enforceBalancedOptionDistribution(questions);
           res.json({
             success: true,
-            questions,
+            questions: balanced,
             source: 'ai',
             model: usedModel,
             summary: {

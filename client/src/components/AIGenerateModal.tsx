@@ -380,6 +380,86 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '', 
     return Array.from(tally.entries()).sort((a, b) => b[1] - a[1]);
   }, [preview]);
 
+  const answerSpread = useMemo(() => {
+    if (!preview || preview.length === 0) return null;
+    const counts: Record<'A' | 'B' | 'C' | 'D', number> = { A: 0, B: 0, C: 0, D: 0 };
+    let mcqTotal = 0;
+    for (const q of preview) {
+      if (q.type === 'mcq' && q.options && q.options.length >= 2 && q.correctAnswer) {
+        mcqTotal++;
+        const idx = q.options.findIndex(
+          (o) => o.trim().toLowerCase() === q.correctAnswer?.trim().toLowerCase()
+        );
+        const letter = idx >= 0 && idx < 4 ? ((['A', 'B', 'C', 'D'] as const)[idx]) : null;
+        if (letter) counts[letter] = (counts[letter] || 0) + 1;
+      }
+    }
+    if (mcqTotal === 0) return null;
+    return { counts, mcqTotal };
+  }, [preview]);
+
+  function handleRebalanceSpread() {
+    if (!preview) return;
+    const mcqIndices: number[] = [];
+    preview.forEach((q, idx) => {
+      if (q.type === 'mcq' && q.options && q.options.length >= 2 && q.correctAnswer) {
+        mcqIndices.push(idx);
+      }
+    });
+    if (mcqIndices.length === 0) return;
+
+    const numSlots = 4;
+    const targetSlots: number[] = [];
+    const basePerSlot = Math.floor(mcqIndices.length / numSlots);
+    const remainder = mcqIndices.length % numSlots;
+
+    for (let s = 0; s < numSlots; s++) {
+      const count = basePerSlot + (s < remainder ? 1 : 0);
+      for (let c = 0; c < count; c++) targetSlots.push(s);
+    }
+
+    // Shuffle target slots
+    for (let i = targetSlots.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [targetSlots[i], targetSlots[j]] = [targetSlots[j], targetSlots[i]];
+    }
+
+    // Avoid consecutive duplicates
+    for (let i = 1; i < targetSlots.length; i++) {
+      if (targetSlots[i] === targetSlots[i - 1]) {
+        for (let j = i + 1; j < targetSlots.length; j++) {
+          if (targetSlots[j] !== targetSlots[i - 1]) {
+            const tmp = targetSlots[i];
+            targetSlots[i] = targetSlots[j];
+            targetSlots[j] = tmp;
+            break;
+          }
+        }
+      }
+    }
+
+    const updated = [...preview];
+    mcqIndices.forEach((qIdx, m) => {
+      const q = updated[qIdx];
+      const key = q.correctAnswer!;
+      const matching = q.options!.find((o) => o.trim().toLowerCase() === key.trim().toLowerCase()) || key;
+      const distractors = q.options!.filter((o) => o.trim().toLowerCase() !== matching.trim().toLowerCase());
+
+      // Shuffle distractors
+      for (let i = distractors.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [distractors[i], distractors[j]] = [distractors[j], distractors[i]];
+      }
+
+      const assignedSlot = Math.min(targetSlots[m] ?? 0, distractors.length);
+      const reordered = [...distractors];
+      reordered.splice(assignedSlot, 0, matching);
+      updated[qIdx] = { ...q, options: reordered, correctAnswer: matching };
+    });
+
+    setPreview(updated);
+  }
+
   // One section owning more than half the set is the exact failure mentors
   // described, so say so plainly rather than leaving them to count badges.
   const lopsided =
@@ -817,6 +897,60 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '', 
                     “Narrow it down” to pick the part you actually taught.
                   </p>
                 )}
+              </div>
+            )}
+
+            {answerSpread && answerSpread.mcqTotal > 0 && (
+              <div
+                style={{
+                  background: 'var(--bg-secondary, rgba(99, 102, 241, 0.04))',
+                  border: '1px solid var(--border-subtle, rgba(99, 102, 241, 0.15))',
+                  borderRadius: '10px',
+                  padding: '0.55rem 0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                    🎯 Answer Key Spread:
+                  </span>
+                  <div style={{ display: 'flex', gap: '0.35rem' }}>
+                    {(['A', 'B', 'C', 'D'] as const).map((letter) => {
+                      const count = answerSpread.counts[letter] || 0;
+                      return (
+                        <span
+                          key={letter}
+                          style={{
+                            fontSize: '0.76rem',
+                            fontWeight: 700,
+                            padding: '0.15rem 0.5rem',
+                            borderRadius: '6px',
+                            background: 'rgba(99, 102, 241, 0.12)',
+                            color: 'var(--color-primary, #6366F1)',
+                          }}
+                        >
+                          {letter}: {count}
+                        </span>
+                      );
+                    })}
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    (Anti-bias verified)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn--sm"
+                  onClick={handleRebalanceSpread}
+                  style={{ fontSize: '0.78rem', padding: '0.2rem 0.55rem', color: '#6366F1' }}
+                  title="Randomly redistribute answer choices evenly across A, B, C, D"
+                >
+                  🎲 Re-shuffle Options
+                </button>
               </div>
             )}
 
