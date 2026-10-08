@@ -22,8 +22,8 @@ function getGroqKeys(): string[] {
   ].map(k => (k ?? '').trim()).filter(k => k.length > 20 && !PLACEHOLDER_KEYS.includes(k));
 }
 
-const GEMINI_MODEL = (process.env.GEMINI_MODEL ?? 'gemini-3.6-flash').trim();
-const FALLBACK_MODEL = (process.env.GEMINI_FALLBACK_MODEL ?? 'gemini-flash-lite-latest').trim();
+const GEMINI_MODEL = (process.env.GEMINI_MODEL ?? 'gemini-3.8-flash').trim();
+const FALLBACK_MODEL = (process.env.GEMINI_FALLBACK_MODEL ?? 'gemini-flash-latest').trim();
 const GROQ_MODEL = (process.env.GROQ_MODEL ?? 'qwen/qwen3.8-27b').trim();
 /**
  * Generating a dozen questions from a pasted syllabus is not a fast call, and
