@@ -14,7 +14,7 @@ import {
   MAX_QUESTIONS,
 } from './sessionStore';
 import { registerSocketHandlers } from './socketHandlers';
-import { handleGenerateQuestions, getAiStatus } from './aiHandler';
+import { handleGenerateQuestions, handleExtractFromFile, getAiStatus } from './aiHandler';
 import { Question, QuestionType } from './types';
 import {
   initDb,
@@ -113,7 +113,7 @@ const corsOptions: cors.CorsOptions = {
 const app = express();
 app.set('trust proxy', true);
 app.use(cors(corsOptions));
-app.use(express.json({ limit: '256kb' }));
+app.use(express.json({ limit: '15mb' }));
 
 /**
  * The handful of response headers that matter for an app like this, set by
@@ -1806,6 +1806,7 @@ app.get('/api/admin/audit-logs', requireAdmin, async (_req: AuthenticatedRequest
 // ─── REST: AI question generation ─────────────────────────────────────────────
 
 app.post('/api/ai/generate-questions', aiGenerationLimiter, handleGenerateQuestions);
+app.post('/api/ai/extract-from-file', aiGenerationLimiter, handleExtractFromFile);
 app.get('/api/ai/status', (_req, res) => res.json(getAiStatus()));
 
 // ─── REST: Network info for the join QR ───────────────────────────────────────

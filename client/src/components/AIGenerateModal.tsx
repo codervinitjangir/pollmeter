@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Question, AiStatus } from '../types';
 import { apiUrl } from '../api';
 import QuestionForm from './QuestionForm';
@@ -8,11 +8,12 @@ interface Props {
   onInsert: (questions: Question[]) => void;
   onClose: () => void;
   initialTopic?: string;
+  initialMode?: Mode;
 }
 
 type Difficulty = 'easy' | 'medium' | 'hard';
 type QType = 'mcq' | 'open_text' | 'mixed';
-type Mode = 'topic' | 'syllabus';
+type Mode = 'topic' | 'document' | 'syllabus';
 
 /** Mirrors the server's own caps so the UI can't ask for something it will trim. */
 const MAX_COUNT = 20;
@@ -77,11 +78,11 @@ function clearAiSnapshot(email?: string | null) {
   }
 }
 
-export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }: Props) {
+export default function AIGenerateModal({ onInsert, onClose, initialTopic = '', initialMode }: Props) {
   const userEmail = getAuthUser()?.email;
   const savedSnapshot = useMemo(() => readAiSnapshot(userEmail), [userEmail]);
 
-  const [mode, setMode] = useState<Mode>(() => savedSnapshot?.mode ?? 'topic');
+  const [mode, setMode] = useState<Mode>(() => initialMode ?? savedSnapshot?.mode ?? 'topic');
   const [topic, setTopic] = useState(() => savedSnapshot?.topic ?? initialTopic);
   const [syllabus, setSyllabus] = useState(() => savedSnapshot?.syllabus ?? '');
   const [focus, setFocus] = useState(() => savedSnapshot?.focus ?? '');
@@ -90,6 +91,10 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
   const [difficulty, setDifficulty] = useState<Difficulty>(() => savedSnapshot?.difficulty ?? 'medium');
   const [qtype, setQtype] = useState<QType>(() => savedSnapshot?.qtype ?? 'mcq');
   const [timeLimit, setTimeLimit] = useState(() => savedSnapshot?.timeLimit ?? 30);
+
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -103,6 +108,41 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
   const [loadStep, setLoadStep] = useState(0);
   const [showConfirmDiscard, setShowConfirmDiscard] = useState(false);
   const [restoredNotice, setRestoredNotice] = useState<boolean>(() => Boolean(savedSnapshot?.preview?.length));
+
+  function downloadSampleCsv() {
+    const csvContent =
+      'Question,Option A,Option B,Option C,Option D,Correct Answer,Time Limit,Subtopic\n' +
+      '"Which HTTP status code represents \\"Created\\"?","200 OK","201 Created","204 No Content","400 Bad Request","201 Created",30,"REST APIs"\n' +
+      '"What is the average time complexity of binary search?","O(1)","O(log n)","O(n)","O(n log n)","O(log n)",30,"Data Structures"\n' +
+      '"In Python, which built-in sequence data type is immutable?","List","Dictionary","Tuple","Set","Tuple",30,"Python Core"\n' +
+      '"Which protocol maps IP addresses to MAC hardware addresses?","DNS","DHCP","ARP","ICMP","ARP",30,"Computer Networks"\n' +
+      '"What is the primary function of an operating system kernel?","Manage hardware resources","Render web pages","Compile source code","Format disk partitions","Manage hardware resources",30,"Operating Systems"\n';
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'pollmeter_quiz_question_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  function handleFileSelect(file: File) {
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    const allowed = ['pdf', 'csv', 'xlsx', 'xls', 'txt', 'tsv'];
+    if (!allowed.includes(ext)) {
+      setError(`Unsupported format ".${ext}". Please upload PDF, CSV, Excel (.xlsx), or TXT.`);
+      return;
+    }
+    if (file.size > 12 * 1024 * 1024) {
+      setError('File size exceeds 12MB limit.');
+      return;
+    }
+    setSelectedFile(file);
+    setError('');
+  }
 
   // Sync preview snapshot into localStorage so reloads or accidental drops preserve work
   useEffect(() => {
@@ -168,10 +208,10 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
   }, [loading]);
 
   const LOADING_MESSAGES = [
-    '✨ Analyzing topic & syllabus...',
-    '⚡ Crafting multiple-choice options & answers...',
-    '🔍 Verifying correctness & formatting...',
-    '🚀 Finalizing question set...',
+    mode === 'document' ? '📄 Reading and parsing document structure...' : '✨ Analyzing topic & syllabus...',
+    mode === 'document' ? '🤖 AI auditing facts & verifying answer keys...' : '⚡ Crafting multiple-choice options & answers...',
+    mode === 'document' ? '⚖️ Standardizing 4 balanced options & parity...' : '🔍 Verifying correctness & formatting...',
+    '🚀 Finalizing live classroom quiz set...',
   ];
 
   // Report what is actually configured rather than claiming a specific vendor.
@@ -198,27 +238,84 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
   }
 
   async function generate() {
-    const t = topic.trim();
-    const s = syllabus.trim();
-    if (!t && !s) {
-      setError(mode === 'syllabus' ? 'Paste some syllabus text first.' : 'Enter a topic.');
-      return;
+    if (mode === 'document') {
+      if (!selectedFile) {
+        setError('Please choose or drop a PDF, CSV, Excel, or TXT document first.');
+        return;
+      }
+    } else {
+      const t = topic.trim();
+      const s = syllabus.trim();
+      if (!t && !s) {
+        setError(mode === 'syllabus' ? 'Paste some syllabus text first.' : 'Enter a topic.');
+        return;
+      }
     }
 
     setError('');
     setHint('');
     setLoading(true);
-    // Note: Do NOT clear preview or source here!
-    // Keeping the existing preview ensures that if network fails or rate-limits,
-    // the user's previously generated questions are safe and never lost.
 
     try {
+      if (mode === 'document' && selectedFile) {
+        const ext = (selectedFile.name.split('.').pop() || '').toLowerCase();
+        let textContent = '';
+        let base64Data = '';
+
+        if (['csv', 'txt', 'tsv', 'json'].includes(ext)) {
+          textContent = await selectedFile.text();
+        } else {
+          base64Data = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const res = reader.result as string;
+              const b64 = res.includes(',') ? res.split(',')[1] : res;
+              resolve(b64);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(selectedFile);
+          });
+        }
+
+        const res = await fetch(apiUrl('/api/ai/extract-from-file'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: selectedFile.name,
+            fileType: ext,
+            textContent: textContent || undefined,
+            base64Data: base64Data || undefined,
+            count,
+            difficulty,
+            topic: topic.trim(),
+            focus: focus.trim(),
+            timeLimitSeconds: timeLimit,
+          }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          setError(data.error ?? 'Document extraction failed.');
+          setHint('Ensure the document has readable text and is not an empty or scanned image file.');
+          return;
+        }
+
+        setRestoredNotice(false);
+        setPreview(Array.isArray(data.questions) ? data.questions : []);
+        setSource({
+          source: data.source ?? 'ai',
+          model: data.model,
+          notice: data.notice || (data.summary ? `Audited and extracted from ${data.summary.fileName}` : undefined),
+        });
+        return;
+      }
+
       const res = await fetch(apiUrl('/api/ai/generate-questions'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          topic: t,
-          syllabus: mode === 'syllabus' ? s : '',
+          topic: topic.trim(),
+          syllabus: mode === 'syllabus' ? syllabus.trim() : '',
           focus: mode === 'syllabus' ? focus.trim() : '',
           audience: audience.trim(),
           count,
@@ -231,8 +328,6 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
 
       if (!res.ok) {
         setError(data.error ?? 'Generation failed.');
-        // 502 means the model answered but not usably — retrying often works.
-        // 503 means nothing is configured, so retrying never will.
         if (res.status === 502) setHint('Try again, or lower the question count.');
         if (res.status === 503) setHint('Add a key to server/.env, or write the questions by hand.');
         return;
@@ -358,60 +453,186 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
           </div>
         )}
 
-        <div className="row row-2">
+        <div className="row row-3" style={{ gap: '0.5rem', marginBottom: '1.25rem' }}>
           <button
             type="button"
             className={`btn btn--sm ${mode === 'topic' ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => setMode('topic')}
+            style={{ flex: 1 }}
           >
-            From a topic
+            ✨ From Topic
+          </button>
+          <button
+            type="button"
+            className={`btn btn--sm ${mode === 'document' ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setMode('document')}
+            style={{ flex: 1.25 }}
+          >
+            📁 Upload File (PDF / CSV / Excel)
           </button>
           <button
             type="button"
             className={`btn btn--sm ${mode === 'syllabus' ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => setMode('syllabus')}
+            style={{ flex: 1 }}
           >
-            From my syllabus
+            📝 Paste Syllabus
           </button>
         </div>
 
-        <div className="field">
-          <div className="row row-2" style={{ justifyContent: 'space-between' }}>
-            <label className="field-label" htmlFor="ai-topic">
-              {mode === 'syllabus' ? 'What to call it' : 'Topic'}
-            </label>
-            <span className="t-body-sm text-muted">shown to you only, not to students</span>
-          </div>
-          <input
-            id="ai-topic"
-            type="text"
-            value={topic}
-            maxLength={200}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder={
-              mode === 'syllabus'
-                ? 'e.g. "Unit 3 — Process Scheduling"'
-                : 'e.g. "Operating Systems", "Python OOP", "Calculus Basics"'
-            }
-            onKeyDown={(e) => e.key === 'Enter' && mode === 'topic' && !loading && generate()}
-          />
-          {mode === 'topic' && (
-            <div className="row row-2 row-wrap" style={{ marginTop: '0.4rem' }}>
-              {[
-                'Python Basics',
-                'Operating Systems',
-                'Data Structures',
-                'Web Dev & JS',
-                'General Science',
-                'World Geography',
-              ].map((syl) => (
-                <button key={syl} type="button" className="syllabus-chip" onClick={() => setTopic(syl)}>
-                  + {syl}
-                </button>
-              ))}
+        {mode === 'document' && (
+          <div className="stack stack-3" style={{ marginBottom: '1.25rem' }}>
+            <input
+              type="file"
+              ref={fileInputRef}
+              style={{ display: 'none' }}
+              accept=".pdf,.csv,.xlsx,.xls,.txt,.tsv"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFileSelect(file);
+              }}
+            />
+
+            {!selectedFile ? (
+              <div
+                className={`pm-file-dropzone ${isDragging ? 'pm-drag-active' : ''}`}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) handleFileSelect(file);
+                }}
+                onClick={() => fileInputRef.current?.click()}
+                role="button"
+                tabIndex={0}
+              >
+                <div style={{ fontSize: '2.3rem', marginBottom: '0.2rem' }}>📁</div>
+                <div style={{ fontWeight: 700, fontSize: '0.98rem', color: 'var(--text-primary)' }}>
+                  Drop your PDF, CSV, Excel, or TXT file here, or <span style={{ color: '#6366F1', textDecoration: 'underline' }}>browse</span>
+                </div>
+                <div className="row row-2" style={{ gap: '0.4rem', marginTop: '0.35rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <span className="pm-format-badge pm-format-badge--pdf">PDF Notes</span>
+                  <span className="pm-format-badge pm-format-badge--csv">CSV Question Bank</span>
+                  <span className="pm-format-badge pm-format-badge--xlsx">Excel .XLSX</span>
+                  <span className="pm-format-badge pm-format-badge--txt">TXT Notes</span>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.4rem', maxWidth: '420px', lineHeight: 1.4 }}>
+                  AI will audit every question, verify answer keys for factual correctness, standardize exactly 4 balanced options, and remove formatting clutter.
+                </div>
+              </div>
+            ) : (
+              <div className="pm-file-info-card">
+                <div className="row row-2" style={{ alignItems: 'center', gap: '0.75rem' }}>
+                  <span style={{ fontSize: '1.6rem' }}>
+                    {selectedFile.name.endsWith('.pdf') ? '📄' : selectedFile.name.endsWith('.csv') ? '📊' : selectedFile.name.endsWith('.xlsx') || selectedFile.name.endsWith('.xls') ? '📗' : '📝'}
+                  </span>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
+                      {selectedFile.name}
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                      {(selectedFile.size / 1024).toFixed(1)} KB · Ready for AI Extraction & Factual Auditing
+                    </div>
+                  </div>
+                </div>
+                <div className="row row-2" style={{ gap: '0.5rem' }}>
+                  <button
+                    type="button"
+                    className="btn btn--sm btn-ghost"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Change
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--sm btn-ghost"
+                    style={{ color: '#EF4444' }}
+                    onClick={() => setSelectedFile(null)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="row row-2" style={{ justifyContent: 'space-between', alignItems: 'center', marginTop: '0.2rem' }}>
+              <button
+                type="button"
+                onClick={downloadSampleCsv}
+                className="btn btn-ghost btn--sm"
+                style={{ fontSize: '0.8rem', color: '#6366F1', padding: '0.25rem 0.5rem' }}
+                title="Download ready-to-use CSV template"
+              >
+                📥 Download Sample CSV Template
+              </button>
+              <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                Max file size: 12MB
+              </span>
             </div>
-          )}
-        </div>
+
+            <div className="field" style={{ marginTop: '0.35rem' }}>
+              <div className="row row-2" style={{ justifyContent: 'space-between' }}>
+                <label className="field-label" htmlFor="ai-doc-focus">
+                  Focus / Unit Filter <span className="text-muted">(optional)</span>
+                </label>
+                <span className="t-body-sm text-muted">e.g. "Chapter 3 only" or "Deadlocks"</span>
+              </div>
+              <input
+                id="ai-doc-focus"
+                type="text"
+                value={focus}
+                maxLength={MAX_FOCUS}
+                onChange={(e) => setFocus(e.target.value)}
+                placeholder='e.g. "Focus on Chapter 4" or "Extract from Unit 2"'
+              />
+            </div>
+          </div>
+        )}
+
+        {mode !== 'document' && (
+          <div className="field">
+            <div className="row row-2" style={{ justifyContent: 'space-between' }}>
+              <label className="field-label" htmlFor="ai-topic">
+                {mode === 'syllabus' ? 'What to call it' : 'Topic'}
+              </label>
+              <span className="t-body-sm text-muted">shown to you only, not to students</span>
+            </div>
+            <input
+              id="ai-topic"
+              type="text"
+              value={topic}
+              maxLength={200}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder={
+                mode === 'syllabus'
+                  ? 'e.g. "Unit 3 — Process Scheduling"'
+                  : 'e.g. "Operating Systems", "Python OOP", "Calculus Basics"'
+              }
+              onKeyDown={(e) => e.key === 'Enter' && mode === 'topic' && !loading && generate()}
+            />
+            {mode === 'topic' && (
+              <div className="row row-2 row-wrap" style={{ marginTop: '0.4rem' }}>
+                {[
+                  'Python Basics',
+                  'Operating Systems',
+                  'Data Structures',
+                  'Web Dev & JS',
+                  'General Science',
+                  'World Geography',
+                ].map((syl) => (
+                  <button key={syl} type="button" className="syllabus-chip" onClick={() => setTopic(syl)}>
+                    + {syl}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {mode === 'syllabus' && (
           <div className="field">
@@ -667,8 +888,8 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '' }
           ) : (
             <button className="btn btn-ai" onClick={generate} disabled={loading} id="ai-generate-btn">
               {loading ? (
-                <><span className="spinner spinner--sm" style={{ borderTopColor: '#fff' }} /> Generating…</>
-              ) : '✨ Generate'}
+                <><span className="spinner spinner--sm" style={{ borderTopColor: '#fff' }} /> {mode === 'document' ? 'Auditing & Extracting…' : 'Generating…'}</>
+              ) : mode === 'document' ? '📁 Extract & Audit with AI' : '✨ Generate'}
             </button>
           )}
         </div>

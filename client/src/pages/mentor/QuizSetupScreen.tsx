@@ -125,6 +125,7 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
   const [error, setError] = useState('');
   const [showAI, setShowAI] = useState(false);
   const [aiInitialTopic, setAiInitialTopic] = useState(() => boot?.aiInitialTopic ?? '');
+  const [aiInitialMode, setAiInitialMode] = useState<'topic' | 'document' | 'syllabus'>('topic');
   const [quizSubject, setQuizSubject] = useState(() => boot?.quizSubject || getAuthUser()?.subject || '');
   const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
   const [showProfileSubjectPrompt, setShowProfileSubjectPrompt] = useState(() => {
@@ -624,9 +625,14 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
     builderRef.current?.scrollIntoView({ behavior: 'smooth' });
   }
 
-  function openWithTopic(topicPrompt: string) {
+  function openWithTopic(topicPrompt: string, mode: 'topic' | 'document' | 'syllabus' = 'topic') {
     setAiInitialTopic(topicPrompt);
+    setAiInitialMode(mode);
     setShowAI(true);
+  }
+
+  function openWithDocument() {
+    openWithTopic('', 'document');
   }
 
   function startNewScored() {
@@ -980,6 +986,7 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
             }}
             onClose={() => setShowAI(false)}
             initialTopic={aiInitialTopic}
+            initialMode={aiInitialMode}
           />
         )}
 
@@ -1462,9 +1469,25 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
                   Scored multiple choice, True / False, or live audience polls.
                 </p>
               </div>
-              <button className="btn btn-ai btn--sm" onClick={() => openWithTopic('')} id="open-ai-builder-btn">
-                ✨ AI Generate
-              </button>
+              <div className="row row-2" style={{ gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn--sm"
+                  onClick={openWithDocument}
+                  id="open-file-import-btn"
+                  style={{
+                    borderColor: 'rgba(99, 102, 241, 0.45)',
+                    background: 'rgba(99, 102, 241, 0.08)',
+                    fontWeight: 600,
+                  }}
+                  title="Import questions from PDF notes, CSV question bank, Excel, or TXT"
+                >
+                  📁 Import (PDF / CSV)
+                </button>
+                <button className="btn btn-ai btn--sm" onClick={() => openWithTopic('')} id="open-ai-builder-btn">
+                  ✨ AI Generate
+                </button>
+              </div>
             </div>
 
             {editingDraftId && (

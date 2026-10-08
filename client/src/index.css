@@ -15696,3 +15696,87 @@ html[data-theme="dark"] body {
   color: #94A3B8 !important;
   border-color: rgba(148, 163, 184, 0.3) !important;
 }
+
+/* ─── File-Based AI Document Ingestion & Dropzone ──────────────────────────── */
+.pm-file-dropzone {
+  border: 2px dashed rgba(99, 102, 241, 0.4);
+  border-radius: 16px;
+  padding: 1.75rem 1.25rem;
+  text-align: center;
+  background: rgba(99, 102, 241, 0.03);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.pm-file-dropzone:hover,
+.pm-file-dropzone.pm-drag-active {
+  border-color: #6366F1;
+  background: rgba(99, 102, 241, 0.08);
+  transform: translateY(-1px);
+}
+
+[data-theme="dark"] .pm-file-dropzone {
+  background: rgba(99, 102, 241, 0.05);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+[data-theme="dark"] .pm-file-dropzone:hover,
+[data-theme="dark"] .pm-file-dropzone.pm-drag-active {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: #818CF8;
+}
+
+.pm-file-info-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.15rem;
+  border-radius: 12px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  margin-top: 0.75rem;
+}
+
+[data-theme="dark"] .pm-file-info-card {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+.pm-format-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pm-format-badge--pdf {
+  background: rgba(239, 68, 68, 0.15);
+  color: #EF4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.pm-format-badge--csv {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10B981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.pm-format-badge--xlsx {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3B82F6;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.pm-format-badge--txt {
+  background: rgba(245, 158, 11, 0.15);
+  color: #F59E0B;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}

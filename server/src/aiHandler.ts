@@ -852,3 +852,362 @@ export async function handleGenerateQuestions(req: Request, res: Response): Prom
     notice: `These came from the built-in question bank, not AI. Add GEMINI_API_KEY to server/.env to generate questions on any topic.`,
   });
 }
+
+// ─── File-Based Extraction & AI Auditing (PDF / CSV / Excel / TXT) ──────────────
+
+async function extractTextFromPdf(buffer: Buffer): Promise<string> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const pdf = require('pdf-parse');
+    if (typeof pdf === 'function') {
+      const data = await pdf(buffer);
+      if (data?.text?.trim()) return data.text.trim();
+    }
+    if (pdf?.PDFParse) {
+      const parser = new pdf.PDFParse({ data: buffer });
+      if (typeof parser.load === 'function') await parser.load();
+      if (typeof parser.getText === 'function') {
+        const textResult = await parser.getText();
+        if (typeof parser.destroy === 'function') await parser.destroy();
+        if (typeof textResult === 'string' && textResult.trim()) return textResult.trim();
+        if (textResult && typeof textResult === 'object') {
+          if (typeof textResult.text === 'string' && textResult.text.trim()) return textResult.text.trim();
+          if (Array.isArray(textResult.pages)) {
+            const pageTexts = textResult.pages.map((p: any) => p?.text || '').filter(Boolean).join('\n');
+            if (pageTexts.trim()) return pageTexts.trim();
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[pdf-extract] PDF parser library error, falling back to stream extraction:', err);
+  }
+
+  // Resilient stream extraction fallback
+  const raw = buffer.toString('utf-8');
+  const matches = raw.match(/\(([^()]+)\)T[jJ]/g) || [];
+  if (matches.length > 0) {
+    return matches.map((m) => m.replace(/^[\\(]/, '').replace(/[\\)]T[jJ]$/, '')).join(' ');
+  }
+  return '';
+}
+
+function extractTextFromSpreadsheet(buffer: Buffer): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const XLSX = require('xlsx');
+    const workbook = XLSX.read(buffer, { type: 'buffer' });
+    const sheetNames = workbook.SheetNames || [];
+    const textParts: string[] = [];
+    for (const name of sheetNames) {
+      const sheet = workbook.Sheets[name];
+      if (sheet) {
+        const csv = XLSX.utils.sheet_to_csv(sheet);
+        if (csv && csv.trim()) {
+          textParts.push(`--- Sheet: ${name} ---\n${csv.trim()}`);
+        }
+      }
+    }
+    return textParts.join('\n\n');
+  } catch (err) {
+    console.warn('[xlsx-extract] Error parsing workbook:', err);
+    return buffer.toString('utf-8');
+  }
+}
+
+function parseCsvFallback(content: string, timeLimitSeconds: number, limit: number): Question[] {
+  const lines = content.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length < 2) return [];
+
+  const questions: Question[] = [];
+  const startIndex = lines[0].toLowerCase().includes('question') || lines[0].toLowerCase().includes('option') ? 1 : 0;
+
+  for (let i = startIndex; i < lines.length && questions.length < limit; i++) {
+    const rawLine = lines[i];
+    // Simple CSV row parser handling quotes
+    const cells: string[] = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let c = 0; c < rawLine.length; c++) {
+      const ch = rawLine[c];
+      if (ch === '"') {
+        inQuotes = !inQuotes;
+      } else if (ch === ',' && !inQuotes) {
+        cells.push(cur.trim().replace(/^"|"$/g, ''));
+        cur = '';
+      } else {
+        cur += ch;
+      }
+    }
+    cells.push(cur.trim().replace(/^"|"$/g, ''));
+
+    if (cells.length >= 4) {
+      const qText = cells[0];
+      if (!qText || qText.length < 4) continue;
+
+      let options: string[] = [];
+      let correct = '';
+
+      if (cells.length >= 6) {
+        // [Question, OptA, OptB, OptC, OptD, Answer]
+        options = cells.slice(1, 5).map((o) => o.replace(/^[A-Da-d][).:-]\s*/, '').trim()).filter(Boolean);
+        const ansRaw = cells[5].trim();
+        // Check if answer is letter like 'A', 'B', etc.
+        const letterIdx = ['a', 'b', 'c', 'd'].indexOf(ansRaw.toLowerCase().replace(/[^a-d]/g, ''));
+        if (letterIdx >= 0 && options[letterIdx]) {
+          correct = options[letterIdx];
+        } else {
+          correct = options.find((o) => o.toLowerCase() === ansRaw.toLowerCase()) || options[0] || '';
+        }
+      } else {
+        // [Question, OptA, OptB, Answer]
+        options = cells.slice(1, cells.length - 1).map((o) => o.trim()).filter(Boolean);
+        correct = cells[cells.length - 1] || options[0] || '';
+      }
+
+      if (options.length >= 2 && correct) {
+        // Ensure 4 options by padding if necessary
+        while (options.length < 4) {
+          options.push(`Alternative ${options.length + 1}`);
+        }
+        questions.push({
+          id: uuidv4(),
+          type: 'mcq',
+          text: qText.slice(0, 140),
+          options: options.slice(0, 4).map((o) => o.slice(0, 65)),
+          correctAnswer: correct.slice(0, 65),
+          timeLimitSeconds,
+          covers: 'Imported Question',
+          why: 'Imported from spreadsheet file',
+        });
+      }
+    }
+  }
+
+  return questions;
+}
+
+function buildFileIngestPrompt(params: {
+  fileName: string;
+  fileType: string;
+  content: string;
+  count: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+  topic?: string;
+  focus?: string;
+}): string {
+  const isTabular = ['csv', 'tsv', 'xlsx', 'xls'].includes(params.fileType.toLowerCase());
+
+  const difficultyGuide = {
+    easy: 'Direct recall and fundamental definition level from the material.',
+    medium: 'Application, comprehension, and conceptual reasoning.',
+    hard: 'Multi-step analysis, spotting subtleties, and complex analytical scenarios.',
+  }[params.difficulty];
+
+  const focusInstruction = params.focus?.trim()
+    ? `\nSpecific Focus: Restrict questions solely to: "${params.focus.trim()}".\n`
+    : '';
+
+  const topicInstruction = params.topic?.trim()
+    ? `\nAcademic Subject / Context: "${params.topic.trim()}".\n`
+    : '';
+
+  if (isTabular) {
+    return `You are an elite Academic Assessment Quality Engineer and Assessment Ingestion System.
+A teacher has uploaded a spreadsheet / CSV file containing quiz questions or curriculum items.
+
+File name: "${params.fileName}" (${params.fileType.toUpperCase()})
+Difficulty target: ${params.difficulty} (${difficultyGuide})
+Target question count: ${params.count}${topicInstruction}${focusInstruction}
+
+Raw file content:
+"""
+${params.content.slice(0, 22000)}
+"""
+
+YOUR MISSION — SYSTEMATIC INGESTION & FACTUAL AUDITING:
+1. STRUCTURE & HEADER AUTO-DETECTION:
+   - Identify the questions, answer choices, and designated answer keys regardless of column headers (e.g., "Q", "Question", "Problem", "A", "Opt1", "Choice A", "Answer", "Key", etc.).
+2. FACTUAL VERIFICATION & ERROR CORRECTION (CRITICAL RULE):
+   - Thoroughly review every question and its marked answer key against undisputed academic facts.
+   - If the spreadsheet has marked a wrong answer, a typo, or mismatched option, YOU MUST CORRECT THE ANSWER to the true factual answer.
+   - In the "why" field, explain why the answer is correct. If you corrected an error from the teacher's spreadsheet, explicitly note: "Corrected from source sheet: [reason]".
+3. STANDARDIZATION TO EXACTLY 4 OPTIONS:
+   - Every MCQ MUST have exactly 4 choices.
+   - If a row only has 2 or 3 choices, invent realistic, plausible, high-quality academic distractors to complete 4 options.
+   - Clean away ugly prefixes like "A)", "1.", "(a)", "Option A: ", "- ".
+4. OPTION LENGTH PARITY & ANTI-BIAS:
+   - All 4 options must be roughly equal in length (±25%).
+   - NEVER make the correct answer significantly longer, more qualified, or more detailed than the distractors.
+   - Absolutely NO "All of the above", "None of the above", "Both A and B", or "Neither". Replace with conceptual alternatives.
+5. RANDOMIZE ANSWER POSITIONS:
+   - Distribute the correct answer across all 4 positions (do not place the correct answer as option 1 all the time).
+6. LENGTH & CLARITY:
+   - Question text under 150 characters (readable on class projector).
+   - Each option under 65 characters.
+   - "covers": 2 to 5 words identifying the specific subtopic.
+   - "why": one clear sentence (max 25 words) explaining why the key is correct.
+
+Return ONLY a valid JSON array matching the required schema.`;
+  }
+
+  // Unstructured Document (PDF, TXT, Syllabus Notes)
+  return `You are a Senior University Professor and Automated Curriculum Examination Author.
+A mentor has uploaded an educational document (${params.fileName}, ${params.fileType.toUpperCase()}).
+
+Target number of questions: ${params.count}
+Difficulty: ${params.difficulty} (${difficultyGuide})${topicInstruction}${focusInstruction}
+
+Document text excerpt:
+"""
+${params.content.slice(0, 22000)}
+"""
+
+EXAMINATION REQUIREMENTS:
+1. DEEP CONCEPTUAL EXTRACTION:
+   - Extract the highest-value concepts, definitions, operational mechanisms, and principles from the document.
+   - Spread questions evenly across the provided material — do NOT cluster all questions in the first paragraphs.
+2. RIGOROUS ACCURACY:
+   - Every question must be undeniably factually true according to standard academic science and the provided text.
+   - Exactly ONE option must be clearly, defensibly correct.
+3. ANTI-BIAS OPTION PARITY:
+   - All 4 options must be balanced in character length and grammatical structure.
+   - Distractors must be plausible, realistic, and representative of common student misconceptions.
+   - NO "All of the above" or "None of the above".
+4. CONCISE & AUDITORIUM READY:
+   - Question text under 150 characters (concise for mobile phones and classroom projector).
+   - Options under 65 characters each.
+   - "covers": 2 to 5 words subtopic tag.
+   - "why": 1 concise sentence (under 25 words) explaining why the key is indisputably correct.
+   - Randomize the position of the correct answer among the 4 choices.
+
+Return ONLY a valid JSON array matching the required schema.`;
+}
+
+export async function handleExtractFromFile(req: Request, res: Response): Promise<void> {
+  try {
+    const {
+      fileName = 'document',
+      fileType: rawFileType,
+      base64Data,
+      textContent,
+      count = 5,
+      difficulty = 'medium',
+      topic = '',
+      focus = '',
+      timeLimitSeconds = 30,
+    } = req.body || {};
+
+    const ext = (String(fileName).split('.').pop() || '').toLowerCase();
+    const fileType = (rawFileType || ext || 'txt').toLowerCase();
+
+    let extractedText = '';
+
+    if (fileType === 'pdf') {
+      if (!base64Data) {
+        res.status(400).json({ error: 'PDF file data is required (base64Data).' });
+        return;
+      }
+      const buffer = Buffer.from(base64Data, 'base64');
+      extractedText = await extractTextFromPdf(buffer);
+    } else if (fileType === 'xlsx' || fileType === 'xls') {
+      if (!base64Data) {
+        res.status(400).json({ error: 'Excel file data is required (base64Data).' });
+        return;
+      }
+      const buffer = Buffer.from(base64Data, 'base64');
+      extractedText = extractTextFromSpreadsheet(buffer);
+    } else {
+      extractedText = textContent || (base64Data ? Buffer.from(base64Data, 'base64').toString('utf-8') : '');
+    }
+
+    if (!extractedText || extractedText.trim().length < 15) {
+      res.status(400).json({
+        error: 'Could not extract readable text from this file. Please verify it contains text and is not an empty or scanned image file.',
+      });
+      return;
+    }
+
+    const targetCount = Math.min(25, Math.max(1, Number(count) || 5));
+    const targetTime = Math.min(120, Math.max(10, Number(timeLimitSeconds) || 30));
+    const targetDifficulty = ['easy', 'medium', 'hard'].includes(difficulty) ? difficulty : 'medium';
+
+    if (hasApiKey()) {
+      const prompt = buildFileIngestPrompt({
+        fileName: String(fileName),
+        fileType,
+        content: extractedText,
+        count: targetCount,
+        difficulty: targetDifficulty as 'easy' | 'medium' | 'hard',
+        topic: String(topic || ''),
+        focus: String(focus || ''),
+      });
+
+      let raw: unknown[] | null = null;
+      let usedModel = '';
+
+      const gemini = getGeminiKeys();
+      const groq = getGroqKeys();
+
+      if (gemini.length > 0) {
+        raw = await callGemini(GEMINI_MODEL, prompt);
+        usedModel = GEMINI_MODEL;
+        if (raw === null || raw.length === 0) {
+          raw = await callGemini(FALLBACK_MODEL, prompt);
+          usedModel = FALLBACK_MODEL;
+        }
+      }
+
+      if ((!raw || raw.length === 0) && groq.length > 0) {
+        raw = await callGroq(GROQ_MODEL, prompt);
+        usedModel = GROQ_MODEL;
+      }
+
+      if (raw && raw.length > 0) {
+        const questions = normalizeQuestions(raw, targetTime, targetCount);
+        if (questions.length > 0) {
+          res.json({
+            success: true,
+            questions,
+            source: 'ai',
+            model: usedModel,
+            summary: {
+              fileName,
+              fileType,
+              extractedLength: extractedText.length,
+              verifiedCount: questions.length,
+            },
+          });
+          return;
+        }
+      }
+    }
+
+    // Direct spreadsheet parsing fallback if offline or no keys
+    if (['csv', 'tsv', 'xlsx', 'xls'].includes(fileType)) {
+      const fallbackQuestions = parseCsvFallback(extractedText, targetTime, targetCount);
+      if (fallbackQuestions.length > 0) {
+        res.json({
+          success: true,
+          questions: fallbackQuestions,
+          source: 'direct-parse',
+          notice: 'Parsed directly from spreadsheet rows. Add GEMINI_API_KEY for automated factual auditing and distractor balancing.',
+          summary: {
+            fileName,
+            fileType,
+            extractedLength: extractedText.length,
+            verifiedCount: fallbackQuestions.length,
+          },
+        });
+        return;
+      }
+    }
+
+    res.status(503).json({
+      error: 'Could not generate questions from this document. Please check the content or configure GEMINI_API_KEY in server/.env.',
+    });
+  } catch (err: any) {
+    console.error('[ai-file-extract] Error:', err);
+    res.status(500).json({ error: err.message || 'File processing failed' });
+  }
+}
