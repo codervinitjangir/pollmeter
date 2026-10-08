@@ -628,6 +628,16 @@ export default function JoinPage() {
     };
   }, [joined, phase]);
 
+  // Deterministic per-device option shuffle (Anti-Cheating):
+  // Must be called at the TOP LEVEL before ANY early returns (React Rules of Hooks).
+  const displayOptions = useMemo(() => {
+    if (!question || question.type !== 'mcq' || !question.options || question.options.length === 0) {
+      return [];
+    }
+    const seed = `${identity.current?.participantId || identity.current?.name || socket.id || 'dev'}_${question.id}`;
+    return seededShuffle(question.options, seed);
+  }, [question?.id, question?.options]);
+
   function submitValue(value: string) {
     if (!question || !identity.current) return;
     if (!answersOpen || submitting) return;
@@ -1272,18 +1282,6 @@ export default function JoinPage() {
   const revealed = phase === 'results';
   const isMcq = question.type === 'mcq';
 
-  // Deterministic per-device option shuffle (Anti-Cheating):
-  // Each student sees a randomized order of options so they cannot copy letters A/B/C/D
-  // from their neighbors' screens. Evaluation remains 100% content-based (matching text),
-  // and the order is seeded so it remains rock-solid stable on this device.
-  const displayOptions = useMemo(() => {
-    if (!question || question.type !== 'mcq' || !question.options || question.options.length === 0) {
-      return [];
-    }
-    const seed = `${identity.current?.participantId || identity.current?.name || socket.id || 'dev'}_${question.id}`;
-    return seededShuffle(question.options, seed);
-  }, [question?.id, question?.options, identity.current?.participantId, identity.current?.name]);
-
   return (
     <div className="page">
       {topNav}
@@ -1344,7 +1342,7 @@ export default function JoinPage() {
                 {/* Answers */}
                 {isMcq && (
                   <div className="stack stack-3" role="group" aria-label="Answer options">
-                    {displayOptions.map((opt, idx) => {
+                    {((displayOptions && displayOptions.length > 0) ? displayOptions : (question.options ?? [])).map((opt, idx) => {
                       const mine = myAnswer === opt;
                       const isKey = revealed && correctAnswer === opt;
                       const color = OPTION_COLORS[idx % OPTION_COLORS.length];
