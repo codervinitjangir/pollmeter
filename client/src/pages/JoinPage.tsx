@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import confetti from 'canvas-confetti';
 import socket from '../socket';
 import {
@@ -61,6 +61,34 @@ function loadStored(): StoredSession | null {
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 const OPTION_COLORS = ['#3952D3', '#25B57F', '#FF7A45', '#7C3AED', '#F59E0B', '#EF4444'];
+
+/**
+ * Deterministically shuffles options per student device using a seed
+ * (participantId/rejoinToken + questionId).
+ * Anti-cheating: Prevents students sitting together from copying by option letter (A/B/C/D),
+ * while keeping options 100% stable across re-renders on the same device.
+ */
+function seededShuffle<T>(array: T[], seed: string): T[] {
+  if (!array || array.length <= 1) return array;
+  const copy = [...array];
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash << 5) - hash + seed.charCodeAt(i);
+    hash |= 0;
+  }
+  let s = Math.abs(hash) || 123456789;
+  function nextRand() {
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(nextRand() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
 
 export default function JoinPage() {
   // Join form
@@ -1244,6 +1272,18 @@ export default function JoinPage() {
   const revealed = phase === 'results';
   const isMcq = question.type === 'mcq';
 
+  // Deterministic per-device option shuffle (Anti-Cheating):
+  // Each student sees a randomized order of options so they cannot copy letters A/B/C/D
+  // from their neighbors' screens. Evaluation remains 100% content-based (matching text),
+  // and the order is seeded so it remains rock-solid stable on this device.
+  const displayOptions = useMemo(() => {
+    if (!question || question.type !== 'mcq' || !question.options || question.options.length === 0) {
+      return [];
+    }
+    const seed = `${identity.current?.participantId || identity.current?.name || socket.id || 'dev'}_${question.id}`;
+    return seededShuffle(question.options, seed);
+  }, [question?.id, question?.options, identity.current?.participantId, identity.current?.name]);
+
   return (
     <div className="page">
       {topNav}
@@ -1304,7 +1344,7 @@ export default function JoinPage() {
                 {/* Answers */}
                 {isMcq && (
                   <div className="stack stack-3" role="group" aria-label="Answer options">
-                    {(question.options ?? []).map((opt, idx) => {
+                    {displayOptions.map((opt, idx) => {
                       const mine = myAnswer === opt;
                       const isKey = revealed && correctAnswer === opt;
                       const color = OPTION_COLORS[idx % OPTION_COLORS.length];
