@@ -57,6 +57,7 @@ import {
   updateQuizDraft,
   deleteQuizDraft,
   touchQuizDraftLastUsed,
+  purgeDummyBatches,
 } from './db';
 import {
   getAllowedDomains,
@@ -1880,6 +1881,16 @@ app.patch('/api/admin/students/:email/batch', requireAdmin, async (req: Authenti
   } catch (err) {
     console.error('[admin] Failed to update student batch:', err);
     res.status(500).json({ error: 'Failed to update student batch.' });
+  }
+});
+
+app.post('/api/admin/clean-dummy-batches', requireAdmin, async (_req: AuthenticatedRequest, res: Response) => {
+  try {
+    const result = await purgeDummyBatches();
+    res.json({ success: true, deletedCount: result.deletedCount });
+  } catch (err) {
+    console.error('[admin] Failed to clean dummy batches:', err);
+    res.status(500).json({ error: 'Failed to clean dummy batches.' });
   }
 });
 

@@ -1,12 +1,30 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAdminData } from './AdminContext';
+import { adminCleanDummyBatches } from '../../auth';
 
 export default function AdminAuditLog() {
-  const { auditLogs, loadingAudit, refreshAuditLogs } = useAdminData();
+  const { auditLogs, loadingAudit, refreshAuditLogs, showToast } = useAdminData();
+  const [cleaning, setCleaning] = useState(false);
 
   useEffect(() => {
     refreshAuditLogs();
   }, [refreshAuditLogs]);
+
+  async function handleCleanBatches() {
+    if (!window.confirm('Are you sure you want to clean legacy/dummy test batches from database? Users and quizzes will remain 100% untouched.')) {
+      return;
+    }
+    setCleaning(true);
+    try {
+      const res = await adminCleanDummyBatches();
+      showToast(`Database cleaned! Removed ${res.deletedCount} legacy test batches.`);
+      refreshAuditLogs();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to clean test batches.');
+    } finally {
+      setCleaning(false);
+    }
+  }
 
   const renderMetadata = (meta: any) => {
     if (!meta) return <span style={{ color: 'var(--text-secondary)' }}>—</span>;
@@ -45,14 +63,27 @@ export default function AdminAuditLog() {
             Permanent institutional compliance log
           </p>
         </div>
-        <button
-          className="btn btn-secondary btn-sm"
-          onClick={() => refreshAuditLogs()}
-          disabled={loadingAudit}
-          style={{ borderRadius: '8px', fontSize: '0.8rem', padding: '0.35rem 0.8rem' }}
-        >
-          {loadingAudit ? 'Refreshing...' : '🔄 Refresh Logs'}
-        </button>
+        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={handleCleanBatches}
+            disabled={cleaning}
+            style={{ borderRadius: '8px', fontSize: '0.8rem', padding: '0.35rem 0.8rem' }}
+            title="Purge legacy dummy test batches from the database"
+          >
+            {cleaning ? 'Cleaning…' : '🧹 Clean Legacy Batches'}
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => refreshAuditLogs()}
+            disabled={loadingAudit}
+            style={{ borderRadius: '8px', fontSize: '0.8rem', padding: '0.35rem 0.8rem' }}
+          >
+            {loadingAudit ? 'Refreshing...' : '🔄 Refresh Logs'}
+          </button>
+        </div>
       </div>
 
       {loadingAudit ? (

@@ -584,6 +584,43 @@ export async function initDb(): Promise<void> {
           [`%@${FACULTY_DOMAIN_FOR_MIGRATION}`]
         );
 
+        // One-time data migration: cleanup dummy/legacy test batches
+        const cleanDummyBatchesKey = 'cleanup_dummy_batches_v1';
+        try {
+          const cleanBatchCheck = await client.query(
+            `SELECT 1 FROM schema_meta WHERE key = $1`,
+            [cleanDummyBatchesKey]
+          );
+          if (cleanBatchCheck.rowCount === 0) {
+            await client.query(`
+              UPDATE users 
+              SET batch_id = NULL 
+              WHERE batch_id IN (
+                SELECT id FROM batches 
+                WHERE display_name ILIKE 'CSE Legacy%' 
+                   OR display_name ILIKE 'CSE New%' 
+                   OR display_name ILIKE 'CSE Old%'
+                   OR display_name ILIKE 'Draft Year%'
+                   OR display_name ~ '\\b\\d{4}\\b'
+              )
+            `);
+
+            const deletedBatches = await client.query(`
+              DELETE FROM batches 
+              WHERE display_name ILIKE 'CSE Legacy%' 
+                 OR display_name ILIKE 'CSE New%' 
+                 OR display_name ILIKE 'CSE Old%'
+                 OR display_name ILIKE 'Draft Year%'
+                 OR display_name ~ '\\b\\d{4}\\b'
+            `);
+
+            await client.query(`INSERT INTO schema_meta (key) VALUES ($1)`, [cleanDummyBatchesKey]);
+            console.log(`[db] Cleaned ${deletedBatches.rowCount ?? 0} dummy test batches from database.`);
+          }
+        } catch (cleanErr) {
+          console.warn('[db] Cleanup dummy batches notice:', cleanErr);
+        }
+
         usePostgres = true;
         console.log('[db] Connected to PostgreSQL database successfully.');
       } finally {
@@ -2725,4 +2762,44 @@ export async function touchQuizDraftLastUsed(id: string): Promise<void> {
     localDb.quizzes[id].lastUsedAt = now;
     saveLocalDb();
   }
+}
+
+export async function purgeDummyBatches(): Promise<{ deletedCount: number }> {
+  if (usePostgres && pool) {
+    await pool.query(`
+      UPDATE users 
+      SET batch_id = NULL 
+      WHERE batch_id IN (
+        SELECT id FROM batches 
+        WHERE display_name ILIKE 'CSE Legacy%' 
+           OR display_name ILIKE 'CSE New%' 
+           OR display_name ILIKE 'CSE Old%'
+           OR display_name ILIKE 'Draft Year%'
+           OR display_name ~ '\\b\\d{4}\\b'
+      )
+    `);
+
+    const deletedBatches = await pool.query(`
+      DELETE FROM batches 
+      WHERE display_name ILIKE 'CSE Legacy%' 
+         OR display_name ILIKE 'CSE New%' 
+         OR display_name ILIKE 'CSE Old%'
+         OR display_name ILIKE 'Draft Year%'
+         OR display_name ~ '\\b\\d{4}\\b'
+    `);
+
+    return { deletedCount: deletedBatches.rowCount ?? 0 };
+  }
+
+  let count = 0;
+  if (localDb.batches) {
+    for (const [id, b] of Object.entries(localDb.batches)) {
+      if (/CSE Legacy|CSE New|CSE Old|Draft Year|\b\d{4}\b/i.test(b.displayName)) {
+        delete localDb.batches[id];
+        count++;
+      }
+    }
+    if (count > 0) saveLocalDb();
+  }
+  return { deletedCount: count };
 }

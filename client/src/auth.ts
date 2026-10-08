@@ -824,6 +824,20 @@ export async function adminMergeBatches(sourceId: string, targetId: string): Pro
   return data.success;
 }
 
+export async function adminCleanDummyBatches(): Promise<{ success: boolean; deletedCount: number }> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Administrator authentication required');
+
+  const res = await fetch(apiUrl('/api/admin/clean-dummy-batches'), {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to clean dummy batches');
+  return data;
+}
+
 export async function fetchAdminOverview(): Promise<UniversityOverview> {
   const token = getAuthToken();
   if (!token) throw new Error('Administrator authentication required');
