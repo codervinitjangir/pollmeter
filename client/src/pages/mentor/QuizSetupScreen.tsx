@@ -10,22 +10,19 @@ import {
   getAuthToken,
   clearStoredAuth,
   AuthUser,
-  fetchBatches,
-  fetchBatchObjects,
-  BatchObject,
-  createMentorBatch,
   refreshAuthUser,
   isFacultyEmail,
-  fetchSubjects,
   updateMentorProfile,
   createQuizDraft,
   updateQuizDraft,
+  SubjectObject,
+  fetchSubjectObjects,
+  createSubjectApi,
 } from '../../auth';
 import CollegeAuthModal from '../../components/CollegeAuthModal';
 import MentorPinModal from '../../components/MentorPinModal';
 import MentorQuizHistoryModal from '../../components/MentorQuizHistoryModal';
 import QuizLibrary from '../../components/QuizLibrary';
-import BatchPicker from '../../components/BatchPicker';
 import { getActiveTheme, toggleTheme, Theme } from '../../theme';
 import { setStoredHost } from './hostSession';
 
@@ -53,10 +50,9 @@ const AUTOSAVE_VERSION = 1;
 interface BuilderSnapshot {
   v: number;
   questions: Question[];
+  subjectId?: string;
   quizSubject?: string;
   aiInitialTopic?: string;
-  quizBatchId?: string;
-  quizBatch?: string;
   editingDraftId?: string | null;
   editingDraftTitle?: string | null;
   savedAt: number;
@@ -127,28 +123,13 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
   const [aiInitialTopic, setAiInitialTopic] = useState(() => boot?.aiInitialTopic ?? '');
   const [aiInitialMode, setAiInitialMode] = useState<'topic' | 'document' | 'syllabus'>('topic');
   const [quizSubject, setQuizSubject] = useState(() => boot?.quizSubject || getAuthUser()?.subject || '');
-  const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
-  const [showProfileSubjectPrompt, setShowProfileSubjectPrompt] = useState(() => {
-    try {
-      return sessionStorage.getItem('pollmeter_dismissed_subject_prompt') !== 'true';
-    } catch {
-      return true;
-    }
-  });
-  const [savingProfileSubject, setSavingProfileSubject] = useState(false);
-  const [profileSubjectError, setProfileSubjectError] = useState('');
-  const [showProfileNewSubjectInput, setShowProfileNewSubjectInput] = useState(false);
-  const [profileNewSubjectText, setProfileNewSubjectText] = useState('');
-  const [showBuilderNewSubject, setShowBuilderNewSubject] = useState(false);
-  const [builderNewSubjectName, setBuilderNewSubjectName] = useState('');
-  const [quizBatch, setQuizBatch] = useState(() => boot?.quizBatch ?? '');
-  const [quizBatchId, setQuizBatchId] = useState(() => boot?.quizBatchId ?? '');
-  const [availableBatches, setAvailableBatches] = useState<string[]>([]);
-  const [availableBatchObjects, setAvailableBatchObjects] = useState<BatchObject[]>([]);
-  const [showNewBatchInput, setShowNewBatchInput] = useState(false);
-  const [newBatchName, setNewBatchName] = useState('');
-  const [creatingBatch, setCreatingBatch] = useState(false);
-  const [batchError, setBatchError] = useState('');
+  const [activeSubjectObjects, setActiveSubjectObjects] = useState<SubjectObject[]>([]);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>(() => boot?.subjectId ?? '');
+  const [showAddSubjectModal, setShowAddSubjectModal] = useState(false);
+  const [newSubYear, setNewSubYear] = useState<number>(1);
+  const [newSubName, setNewSubName] = useState('');
+  const [creatingSubject, setCreatingSubject] = useState(false);
+  const [subjectError, setSubjectError] = useState('');
   const [activeNav, setActiveNav] = useState('home');
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -181,18 +162,15 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
    */
   const [recoveredAt, setRecoveredAt] = useState<number | null>(() => (boot ? boot.savedAt : null));
 
-  const [batchesLoading, setBatchesLoading] = useState(false);
-
   // ─── Autosave ─────────────────────────────────────────────────────────────
   // Writes on every builder change. `questions.length === 0` removes the key,
   // so emptying the builder or clicking "Clear all" needs no special handling.
   useEffect(() => {
     writeBuilderSnapshot(authUser?.email, {
       questions,
+      subjectId: selectedSubjectId,
       quizSubject,
       aiInitialTopic,
-      quizBatchId,
-      quizBatch,
       editingDraftId,
       editingDraftTitle,
     });
@@ -201,10 +179,9 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
     if (authUser?.email) clearBuilderSnapshot(null);
   }, [
     questions,
+    selectedSubjectId,
     quizSubject,
     aiInitialTopic,
-    quizBatchId,
-    quizBatch,
     editingDraftId,
     editingDraftTitle,
     authUser?.email,
@@ -220,26 +197,23 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
     const late = readBuilderSnapshot(authUser.email);
     if (!late) return;
     setQuestions(late.questions);
+    if (late.subjectId) setSelectedSubjectId(late.subjectId);
     if (late.quizSubject) setQuizSubject(late.quizSubject);
     if (late.aiInitialTopic) setAiInitialTopic(late.aiInitialTopic);
-    if (late.quizBatchId) setQuizBatchId(late.quizBatchId);
-    if (late.quizBatch) setQuizBatch(late.quizBatch);
     setEditingDraftId(late.editingDraftId ?? null);
     setEditingDraftTitle(late.editingDraftTitle ?? null);
     setRecoveredAt(late.savedAt);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authUser?.email]);
 
-  // A restored batch the mentor no longer holds — reassigned, or the batch was
-  // deactivated. Left selected it would render as a blank dropdown and then
-  // 403 on start, so drop it and make them re-pick.
+  // A restored subject that is no longer active: re-pick.
   useEffect(() => {
-    if (!quizBatchId || availableBatchObjects.length === 0) return;
-    if (!availableBatchObjects.some((b) => b.id === quizBatchId)) {
-      setQuizBatchId('');
-      setQuizBatch('');
+    if (!selectedSubjectId || activeSubjectObjects.length === 0) return;
+    if (!activeSubjectObjects.some((s) => s.id === selectedSubjectId)) {
+      setSelectedSubjectId('');
+      setQuizSubject('');
     }
-  }, [availableBatchObjects, quizBatchId]);
+  }, [activeSubjectObjects, selectedSubjectId]);
 
   function discardRecovered() {
     setQuestions([]);
@@ -262,124 +236,50 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
   }, [questions, searchQuery]);
 
   // Fetch college batches dynamically with role & assignment awareness (Gap 4)
-  const loadBatches = useCallback(() => {
-    setBatchesLoading(true);
-    fetchBatchObjects()
+  // Load campus subjects dynamically (grouped by year)
+  const loadSubjects = useCallback(() => {
+    fetchSubjectObjects()
       .then((objs) => {
-        setAvailableBatchObjects(objs || []);
-        setAvailableBatches((objs || []).map((o) => o.displayName));
-        if (objs && objs.length > 0) {
-          setShowNewBatchInput(false);
-          setQuizBatchId((prev) => (prev && objs.some((b) => b.id === prev) ? prev : objs[0].id));
-          setQuizBatch((prev) => (prev && objs.some((b) => b.displayName === prev) ? prev : objs[0].displayName));
-        } else {
-          setQuizBatchId('');
-          setQuizBatch('');
-          setShowNewBatchInput(false);
-        }
+        const sorted = (objs || []).sort((a, b) => a.year - b.year || a.name.localeCompare(b.name));
+        setActiveSubjectObjects(sorted);
+        setSelectedSubjectId((prev) => {
+          if (prev && sorted.some((s) => s.id === prev)) return prev;
+          if (sorted.length === 1) return sorted[0].id;
+          return '';
+        });
       })
       .catch(() => {
-        setAvailableBatchObjects([]);
-        setAvailableBatches([]);
-        setShowNewBatchInput(false);
-      })
-      .finally(() => {
-        setBatchesLoading(false);
+        setActiveSubjectObjects([]);
       });
-  }, []);
-
-  // Load campus subjects dynamically
-  const loadSubjects = useCallback(() => {
-    fetchSubjects()
-      .then((subs) => {
-        if (subs && subs.length > 0) setAvailableSubjects(subs);
-      })
-      .catch(() => {});
   }, []);
 
   useEffect(() => {
-    loadBatches();
     loadSubjects();
-  }, [authUser, loadBatches, loadSubjects]);
+  }, [authUser, loadSubjects]);
 
-  // Handler: save primary subject to mentor profile
-  const handleSaveProfileSubject = async (subj: string) => {
-    const trimmed = subj.trim();
-    if (!trimmed) {
-      setProfileSubjectError('Please select or enter a subject.');
+  // Handler: create a new subject inline
+  const handleCreateSubject = async () => {
+    const trimmed = newSubName.trim();
+    if (!trimmed || trimmed.length < 2) {
+      setSubjectError('Subject name must be at least 2 characters.');
       return;
     }
-    setSavingProfileSubject(true);
-    setProfileSubjectError('');
+    setCreatingSubject(true);
+    setSubjectError('');
     try {
-      const res = await updateMentorProfile({ subject: trimmed });
-      if (res?.user) setAuthUser(res.user);
-      setQuizSubject(trimmed);
-      setAvailableSubjects((prev) => {
-        if (!prev.some((s) => s.toLowerCase() === trimmed.toLowerCase())) {
-          return [trimmed, ...prev].sort((a, b) => a.localeCompare(b));
-        }
-        return prev;
+      const created = await createSubjectApi(newSubYear, trimmed);
+      setActiveSubjectObjects((prev) => {
+        const next = [...prev.filter((s) => s.id !== created.id), created];
+        return next.sort((a, b) => a.year - b.year || a.name.localeCompare(b.name));
       });
-      setShowProfileSubjectPrompt(false);
-      setShowProfileNewSubjectInput(false);
-      setProfileNewSubjectText('');
-      try { sessionStorage.removeItem('pollmeter_dismissed_subject_prompt'); } catch {}
+      setSelectedSubjectId(created.id);
+      setQuizSubject(created.name);
+      setShowAddSubjectModal(false);
+      setNewSubName('');
     } catch (err: any) {
-      setProfileSubjectError(err.message || 'Failed to update mentor profile subject.');
+      setSubjectError(err.message || 'Failed to create subject.');
     } finally {
-      setSavingProfileSubject(false);
-    }
-  };
-
-  // Handler: add a subject from within the quiz builder
-  const handleAddBuilderSubject = () => {
-    const trimmed = builderNewSubjectName.trim();
-    if (!trimmed) return;
-    setQuizSubject(trimmed);
-    setAvailableSubjects((prev) => {
-      if (!prev.some((s) => s.toLowerCase() === trimmed.toLowerCase())) {
-        return [trimmed, ...prev].sort((a, b) => a.localeCompare(b));
-      }
-      return prev;
-    });
-    // If mentor doesn't have a profile subject yet, set it automatically
-    if (authUser && !authUser.subject) {
-      updateMentorProfile({ subject: trimmed })
-        .then((res) => { if (res?.user) setAuthUser(res.user); })
-        .catch(() => {});
-    }
-    setShowBuilderNewSubject(false);
-    setBuilderNewSubjectName('');
-  };
-
-  // Handler: create a new batch inline
-  const handleCreateBatch = async () => {
-    const name = newBatchName.trim();
-    if (!name) { setBatchError('Please enter a batch name.'); return; }
-    if (name.length > 100) { setBatchError('Name must be 100 characters or fewer.'); return; }
-    setCreatingBatch(true);
-    setBatchError('');
-    try {
-      const created = await createMentorBatch(name);
-      setAvailableBatchObjects((prev) => {
-        const filtered = prev.filter((b) => b.id !== created.id && b.displayName !== created.displayName);
-        const updated = [...filtered, created];
-        return updated.sort((a, b) => a.displayName.localeCompare(b.displayName));
-      });
-      setAvailableBatches((prev) => {
-        const filtered = prev.filter((b) => b !== created.displayName);
-        const updated = [...filtered, created.displayName];
-        return updated.sort();
-      });
-      setQuizBatchId(created.id);
-      setQuizBatch(created.displayName);
-      setNewBatchName('');
-      setShowNewBatchInput(false);
-    } catch (err: any) {
-      setBatchError(err.message || 'Failed to create batch.');
-    } finally {
-      setCreatingBatch(false);
+      setCreatingSubject(false);
     }
   };
 
@@ -449,8 +349,8 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
       return;
     }
 
-    if (!quizBatchId) {
-      setError('Please select or create a batch before starting the session.');
+    if (!selectedSubjectId) {
+      setError('Please select an academic subject before starting the session.');
       return;
     }
 
@@ -467,8 +367,6 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
 
       // No `hostEmail` / `hostName` in the body: the server takes the host
       // identity from this token and ignores anything the client claims.
-      // Sending them anyway would suggest they still carry weight, and the
-      // whole point of per-mentor report isolation is that they must not.
       const res = await fetch(apiUrl('/api/sessions'), {
         method: 'POST',
         headers: {
@@ -478,8 +376,7 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
         body: JSON.stringify({
           questions,
           topic,
-          subject: quizSubject || 'General',
-          batchId: quizBatchId,
+          subjectId: selectedSubjectId,
         }),
       });
       const d = await res.json();
@@ -499,8 +396,7 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
                 body: JSON.stringify({
                   questions,
                   topic,
-                  subject: quizSubject || 'General',
-                  batchId: quizBatchId,
+                  subjectId: selectedSubjectId,
                 }),
               });
               if (retryRes.ok) {
@@ -551,16 +447,19 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
       setError('Add at least one question before saving as draft.');
       return;
     }
+    if (!selectedSubjectId) {
+      setError('Please select an academic subject before saving as draft.');
+      return;
+    }
 
     setSavingDraft(true);
     try {
       const title = aiInitialTopic.trim() || (questions[0]?.text ? `Quiz: ${questions[0].text.slice(0, 40)}...` : 'Classroom Quiz');
-      const subject = quizSubject || 'General';
 
       if (editingDraftId) {
         const updated = await updateQuizDraft(editingDraftId, {
           title,
-          subject,
+          subjectId: selectedSubjectId,
           questions,
         });
         setEditingDraftTitle(updated.title);
@@ -568,7 +467,7 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
       } else {
         const created = await createQuizDraft({
           title,
-          subject,
+          subjectId: selectedSubjectId,
           questions,
         });
         setEditingDraftId(created.id);
@@ -582,7 +481,7 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
     }
   };
 
-  const launchSessionFromDraft = async (draftId: string, batchId: string, batchName: string) => {
+  const launchSessionFromDraft = async (draftId: string, subjectId: string) => {
     setError('');
     setLoading(true);
     try {
@@ -600,7 +499,7 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
         },
         body: JSON.stringify({
           draftId,
-          batchId,
+          subjectId,
         }),
       });
 
@@ -660,7 +559,6 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
         onSuccess={(user) => {
           setAuthUser(user);
           setShowAuthModal(false);
-          loadBatches();
           loadSubjects();
           if (user.role !== 'mentor' && user.role !== 'admin') {
             setShowPinModal(true);
@@ -682,7 +580,6 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
         onSuccess={(updated) => {
           setAuthUser(updated);
           setShowPinModal(false);
-          loadBatches();
           loadSubjects();
         }}
         onCancel={() => {
@@ -1047,14 +944,15 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
             <MentorQuizHistoryModal
               embedded={true}
               onBack={() => setHostView('builder')}
-              availableBatches={availableBatchObjects}
               onLoadInBuilder={(quiz) => {
                 setEditingDraftId(quiz.sourceDraftId || null);
                 setEditingDraftTitle(quiz.title);
                 setQuestions(quiz.questions || []);
-                if (quiz.subject) setQuizSubject(quiz.subject);
-                if (quiz.batchId) setQuizBatchId(quiz.batchId);
-                if (quiz.batch) setQuizBatch(quiz.batch);
+                if (quiz.subject) {
+                  setQuizSubject(quiz.subject);
+                  const match = activeSubjectObjects.find((s) => s.name.toLowerCase() === quiz.subject?.toLowerCase());
+                  if (match) setSelectedSubjectId(match.id);
+                }
                 setAiInitialTopic(quiz.title);
                 setHostView('builder');
                 setDraftSavedToast({
@@ -1069,24 +967,20 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
           <main className="menti-content" style={{ maxWidth: '1240px', margin: '0 auto', padding: '1.5rem', width: '100%' }}>
             <QuizLibrary
               authUser={authUser}
-              availableBatches={availableBatchObjects}
-              onBatchCreated={(b) => {
-                setAvailableBatchObjects((prev) => {
-                  const filtered = prev.filter((o) => o.id !== b.id && o.displayName !== b.displayName);
-                  return [...filtered, b].sort((x, y) => x.displayName.localeCompare(y.displayName));
-                });
-                setAvailableBatches((prev) => {
-                  const filtered = prev.filter((x) => x !== b.displayName);
-                  return [...filtered, b.displayName].sort();
-                });
-              }}
-              onGoLive={async (draftId, batchId, batchName) => {
-                await launchSessionFromDraft(draftId, batchId, batchName);
+              activeSubjects={activeSubjectObjects}
+              onGoLive={async (draftId, subjectId) => {
+                await launchSessionFromDraft(draftId, subjectId);
               }}
               onEditDraft={(draft) => {
                 setEditingDraftId(draft.id);
                 setEditingDraftTitle(draft.title);
                 setQuestions(draft.questions || []);
+                if (draft.subjectId) {
+                  setSelectedSubjectId(draft.subjectId);
+                } else if (draft.subject) {
+                  const match = activeSubjectObjects.find((s) => s.name.toLowerCase() === draft.subject?.toLowerCase());
+                  if (match) setSelectedSubjectId(match.id);
+                }
                 if (draft.subject) setQuizSubject(draft.subject);
                 setAiInitialTopic(draft.title);
                 setHostView('builder');
@@ -1096,6 +990,12 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
                 setEditingDraftId(quiz.sourceDraftId || null);
                 setEditingDraftTitle(quiz.title);
                 setQuestions(quiz.questions || []);
+                if (quiz.subjectId) {
+                  setSelectedSubjectId(quiz.subjectId);
+                } else if (quiz.subject) {
+                  const match = activeSubjectObjects.find((s) => s.name.toLowerCase() === quiz.subject?.toLowerCase());
+                  if (match) setSelectedSubjectId(match.id);
+                }
                 if (quiz.subject) setQuizSubject(quiz.subject);
                 setAiInitialTopic(quiz.title);
                 setHostView('builder');
@@ -1287,170 +1187,7 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
 
 
 
-          {/* Mentor Profile Subject Setup Prompt */}
-          {authUser && !authUser.subject && (authUser.role === 'mentor' || authUser.role === 'admin') && showProfileSubjectPrompt && (
-            <div
-              style={{
-                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.12))',
-                border: '1px solid rgba(99, 102, 241, 0.35)',
-                borderRadius: '16px',
-                padding: '1.15rem 1.4rem',
-                marginBottom: '1.5rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.75rem',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                    <span style={{ fontSize: '1.25rem' }}>🎯</span>
-                    <strong style={{ fontSize: '0.98rem', color: 'var(--text-primary, #F2F2F2)' }}>
-                      Complete your Mentor Profile — Set Your Teaching Subject
-                    </strong>
-                    <span style={{ fontSize: '0.72rem', padding: '0.15rem 0.5rem', borderRadius: '12px', background: 'rgba(99, 102, 241, 0.25)', color: '#818CF8', fontWeight: 700 }}>
-                      Profile Setup
-                    </span>
-                  </div>
-                  <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary, #9CA3AF)', lineHeight: 1.4 }}>
-                    Welcome, {authUser.realName}! Select your primary academic subject so your quizzes default to your subject across university reports.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowProfileSubjectPrompt(false);
-                    try { sessionStorage.setItem('pollmeter_dismissed_subject_prompt', 'true'); } catch {}
-                  }}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-muted, #9CA3AF)',
-                    cursor: 'pointer',
-                    fontSize: '1.1rem',
-                    padding: '0.2rem',
-                  }}
-                  title="Dismiss for now"
-                >
-                  ✕
-                </button>
-              </div>
 
-              {profileSubjectError && (
-                <div style={{ color: '#EF4444', fontSize: '0.82rem', fontWeight: 600 }}>
-                  ⚠️ {profileSubjectError}
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                {!showProfileNewSubjectInput ? (
-                  <>
-                    <select
-                      className="input"
-                      style={{
-                        minWidth: '220px',
-                        fontSize: '0.85rem',
-                        padding: '0.45rem 0.75rem',
-                        borderRadius: '8px',
-                        background: 'var(--surface, #1B1B1F)',
-                        border: '1px solid var(--border, #2A2A2F)',
-                        color: 'var(--text-primary, #F2F2F2)',
-                        fontWeight: 600,
-                      }}
-                      value={quizSubject}
-                      onChange={(e) => {
-                        if (e.target.value === '__NEW__') {
-                          setShowProfileNewSubjectInput(true);
-                        } else {
-                          setQuizSubject(e.target.value);
-                        }
-                      }}
-                    >
-                      <option value="">Choose an existing subject…</option>
-                      {availableSubjects.map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                      <option value="__NEW__">＋ Add new subject…</option>
-                    </select>
-
-                    <button
-                      type="button"
-                      className="btn btn-primary btn--sm"
-                      disabled={!quizSubject || savingProfileSubject}
-                      onClick={() => handleSaveProfileSubject(quizSubject)}
-                      style={{ padding: '0.45rem 1rem', fontSize: '0.82rem', fontWeight: 700 }}
-                    >
-                      {savingProfileSubject ? 'Saving…' : 'Save to Profile'}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setShowProfileNewSubjectInput(true)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--accent, #818CF8)',
-                        fontSize: '0.82rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        padding: '0.3rem 0.5rem',
-                      }}
-                    >
-                      ＋ Add new subject
-                    </button>
-                  </>
-                ) : (
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', width: '100%', maxWidth: '480px' }}>
-                    <input
-                      type="text"
-                      className="input"
-                      placeholder="e.g. Distributed Computing, Mobile App Dev"
-                      value={profileNewSubjectText}
-                      onChange={(e) => { setProfileNewSubjectText(e.target.value); setProfileSubjectError(''); }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleSaveProfileSubject(profileNewSubjectText);
-                        if (e.key === 'Escape') setShowProfileNewSubjectInput(false);
-                      }}
-                      disabled={savingProfileSubject}
-                      style={{
-                        flex: 1,
-                        fontSize: '0.85rem',
-                        padding: '0.45rem 0.75rem',
-                        borderRadius: '8px',
-                        background: 'var(--surface, #1B1B1F)',
-                        border: '1px solid var(--border, #2A2A2F)',
-                        color: 'var(--text-primary, #F2F2F2)',
-                      }}
-                      autoFocus
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-primary btn--sm"
-                      onClick={() => handleSaveProfileSubject(profileNewSubjectText)}
-                      disabled={savingProfileSubject || !profileNewSubjectText.trim()}
-                      style={{ padding: '0.45rem 0.9rem', fontSize: '0.82rem', fontWeight: 700 }}
-                    >
-                      {savingProfileSubject ? 'Saving…' : 'Save Subject'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setShowProfileNewSubjectInput(false); setProfileNewSubjectText(''); }}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--text-muted, #9CA3AF)',
-                        fontSize: '0.82rem',
-                        cursor: 'pointer',
-                        padding: '0.3rem 0.5rem',
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           <section ref={builderRef} style={{ scrollMarginTop: '80px' }}>
             <div
@@ -1740,9 +1477,9 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
                       <div className="pm-host-course-title">
                         <span className="pm-host-course-icon">⚙️</span>
                         <div>
-                          <strong>Quiz Details &amp; Classroom Session</strong>
+                          <strong>Quiz Details &amp; Academic Subject</strong>
                           <span className="pm-host-course-sub">
-                            Set your quiz topic, subject category, and select the cohort taking this quiz
+                            Set your quiz topic and select the subject (grouped by academic year)
                           </span>
                         </div>
                       </div>
@@ -1762,106 +1499,106 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
                       />
                     </div>
 
-                    <div className="pm-host-course-grid">
-                      {/* Academic Subject */}
-                      <div className="pm-host-field-group">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
-                          <label className="pm-host-field-label" style={{ margin: 0 }}>
-                            📚 Academic Subject
-                          </label>
-                          {!showBuilderNewSubject && (
-                            <button
-                              type="button"
-                              className="pm-host-action-pill"
-                              onClick={() => { setShowBuilderNewSubject(true); setBuilderNewSubjectName(''); }}
-                              title="Add custom subject"
-                            >
-                              ＋ New Subject
-                            </button>
-                          )}
-                        </div>
-
-                        {!showBuilderNewSubject ? (
-                          <select
-                            className="input pm-host-select"
-                            value={quizSubject}
-                            onChange={(e) => {
-                              if (e.target.value === '__NEW__') {
-                                setShowBuilderNewSubject(true);
-                              } else {
-                                setQuizSubject(e.target.value);
-                              }
-                            }}
-                          >
-                            {!quizSubject && <option value="">Select a subject…</option>}
-                            {authUser?.subject && !availableSubjects.some((s) => s.toLowerCase() === authUser.subject?.toLowerCase()) && (
-                              <option value={authUser.subject}>{authUser.subject} (My Subject)</option>
-                            )}
-                            {availableSubjects.map((s) => (
-                              <option key={s} value={s}>
-                                {s}{authUser?.subject?.toLowerCase() === s.toLowerCase() ? ' (My Subject)' : ''}
-                              </option>
-                            ))}
-                            <option value="__NEW__">＋ Add custom subject…</option>
-                          </select>
-                        ) : (
-                          <div>
-                            <div className="pm-host-input-inline-wrap">
-                              <input
-                                type="text"
-                                className="input pm-host-input"
-                                placeholder="e.g. Distributed Systems"
-                                value={builderNewSubjectName}
-                                onChange={(e) => setBuilderNewSubjectName(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') handleAddBuilderSubject();
-                                  if (e.key === 'Escape') { setShowBuilderNewSubject(false); setBuilderNewSubjectName(''); }
-                                }}
-                                style={{ flex: '1 1 0%', minWidth: 0, width: '100%' }}
-                                autoFocus
-                              />
-                              <button
-                                type="button"
-                                className="btn btn-sm pm-host-inline-btn pm-host-inline-save"
-                                onClick={handleAddBuilderSubject}
-                                disabled={!builderNewSubjectName.trim()}
-                              >
-                                ✓ Save
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-sm pm-host-inline-btn pm-host-inline-cancel"
-                                onClick={() => { setShowBuilderNewSubject(false); setBuilderNewSubjectName(''); }}
-                                title="Cancel"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          </div>
-                        )}
+                    {/* Academic Subject Field Group */}
+                    <div className="pm-host-field-group" style={{ marginTop: '1rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
+                        <label className="pm-host-field-label" style={{ margin: 0 }}>
+                          📚 Academic Subject <span style={{ color: '#EF4444' }}>*</span>
+                        </label>
+                        <button
+                          type="button"
+                          className="pm-host-action-pill"
+                          onClick={() => {
+                            setShowAddSubjectModal(!showAddSubjectModal);
+                            setSubjectError('');
+                          }}
+                          id="toggle-add-subject-btn"
+                          title="Add a new academic subject"
+                        >
+                          {showAddSubjectModal ? '✕ Cancel' : '＋ Add Subject'}
+                        </button>
                       </div>
 
-                      {/* Target Batch / Class */}
-                      <BatchPicker
-                        batches={availableBatchObjects}
-                        selectedBatchId={quizBatchId}
-                        label="Target Batch / Class"
-                        onSelect={(id, name) => {
-                          setQuizBatchId(id);
-                          setQuizBatch(name);
-                        }}
-                        onBatchCreated={(b) => {
-                          setAvailableBatchObjects((prev) => {
-                            const filtered = prev.filter((x) => x.id !== b.id && x.displayName !== b.displayName);
-                            return [...filtered, b].sort((x, y) => x.displayName.localeCompare(y.displayName));
-                          });
-                          setAvailableBatches((prev) => {
-                            const filtered = prev.filter((x) => x !== b.displayName);
-                            return [...filtered, b.displayName].sort();
-                          });
-                        }}
-                        disabled={loading}
-                      />
+                      {showAddSubjectModal ? (
+                        <div
+                          style={{
+                            background: 'var(--surface-mid, rgba(255, 255, 255, 0.04))',
+                            border: '1px solid var(--border-focus, #6366F1)',
+                            borderRadius: '10px',
+                            padding: '0.85rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.6rem',
+                          }}
+                        >
+                          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            <select
+                              className="input pm-host-select"
+                              style={{ width: '130px', flexShrink: 0 }}
+                              value={newSubYear}
+                              onChange={(e) => setNewSubYear(parseInt(e.target.value, 10))}
+                            >
+                              <option value={1}>Year 1</option>
+                              <option value={2}>Year 2</option>
+                              <option value={3}>Year 3</option>
+                              <option value={4}>Year 4</option>
+                            </select>
+                            <input
+                              type="text"
+                              className="input pm-host-input"
+                              style={{ flex: 1, minWidth: '180px' }}
+                              placeholder="e.g. Distributed Systems"
+                              value={newSubName}
+                              onChange={(e) => setNewSubName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleCreateSubject();
+                                if (e.key === 'Escape') setShowAddSubjectModal(false);
+                              }}
+                              autoFocus
+                            />
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              onClick={handleCreateSubject}
+                              disabled={creatingSubject || !newSubName.trim()}
+                              style={{ fontWeight: 600, padding: '0 1rem' }}
+                            >
+                              {creatingSubject ? 'Adding…' : '✓ Add'}
+                            </button>
+                          </div>
+                          {subjectError && (
+                            <div style={{ color: '#EF4444', fontSize: '0.8rem' }}>
+                              ⚠ {subjectError}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <select
+                          id="quiz-subject-select"
+                          className="input pm-host-select"
+                          value={selectedSubjectId}
+                          onChange={(e) => {
+                            setSelectedSubjectId(e.target.value);
+                            const found = activeSubjectObjects.find((s) => s.id === e.target.value);
+                            if (found) setQuizSubject(found.name);
+                          }}
+                        >
+                          <option value="">Select a Subject (Grouped by Year)…</option>
+                          {[1, 2, 3, 4].map((year) => {
+                            const yearSubs = activeSubjectObjects.filter((s) => s.year === year);
+                            if (yearSubs.length === 0) return null;
+                            return (
+                              <optgroup key={year} label={`Year ${year}`}>
+                                {yearSubs.map((s) => (
+                                  <option key={s.id} value={s.id}>
+                                    {s.name}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            );
+                          })}
+                        </select>
+                      )}
                     </div>
                   </div>
 
@@ -1872,9 +1609,9 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
                       type="button"
                       className="btn pm-host-save-draft-btn"
                       onClick={handleSaveDraft}
-                      disabled={savingDraft || questions.length === 0}
+                      disabled={savingDraft || questions.length === 0 || !selectedSubjectId}
                       id="save-draft-btn"
-                      title="Save this quiz to your library without needing a batch selected"
+                      title={!selectedSubjectId ? 'Please select a subject above before saving' : 'Save this quiz to your library'}
                     >
                       {savingDraft ? (
                         <><span className="spinner spinner--sm" /> Saving…</>
@@ -1884,11 +1621,11 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
                     </button>
 
                     <button
-                      className={`btn pm-host-live-launch-btn ${quizBatchId ? 'pm-host-live-launch-active' : ''}`}
+                      className={`btn pm-host-live-launch-btn ${selectedSubjectId ? 'pm-host-live-launch-active' : ''}`}
                       onClick={createSession}
-                      disabled={loading || questions.length === 0 || !quizBatchId}
+                      disabled={loading || questions.length === 0 || !selectedSubjectId}
                       id="create-session-btn"
-                      title={!quizBatchId ? 'Please select a batch above to go live' : 'Launch live session now'}
+                      title={!selectedSubjectId ? 'Please select a subject above to go live' : 'Launch live session now'}
                     >
                       {loading ? (
                         <><span className="spinner spinner--sm" style={{ borderTopColor: '#fff' }} /> Creating Session…</>
@@ -1898,10 +1635,10 @@ export default function QuizSetupScreen(props: QuizSetupScreenProps) {
                     </button>
                   </div>
 
-                  {!quizBatchId && questions.length > 0 && (
+                  {!selectedSubjectId && questions.length > 0 && (
                     <div className="pm-host-batch-hint">
                       <span>💡</span>
-                      <span>Select a <strong>Target Batch</strong> above to enable launching the live session for your students.</span>
+                      <span>Select an <strong>Academic Subject</strong> above to enable saving or launching your live session.</span>
                     </div>
                   )}
                 </div>

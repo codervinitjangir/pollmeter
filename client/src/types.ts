@@ -228,6 +228,8 @@ export interface QuizDraft {
   mentorEmail: string;
   title: string;
   subject?: string;
+  subjectId?: string;
+  year?: number;
   questions: Question[];
   status: 'draft' | 'archived';
   createdAt: string;
@@ -240,6 +242,8 @@ export interface QuizDraftSummary {
   mentorEmail: string;
   title: string;
   subject?: string;
+  subjectId?: string;
+  year?: number;
   questionCount: number;
   status: 'draft' | 'archived';
   createdAt: string;

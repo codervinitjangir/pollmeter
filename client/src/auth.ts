@@ -1077,6 +1077,8 @@ export async function fetchQuizDraftById(id: string): Promise<QuizDraft> {
 export async function createQuizDraft(data: {
   title: string;
   subject?: string;
+  subjectId?: string;
+  year?: number;
   questions: Question[];
 }): Promise<QuizDraft> {
   const token = getAuthToken();
@@ -1104,6 +1106,8 @@ export async function updateQuizDraft(
   data: {
     title?: string;
     subject?: string;
+    subjectId?: string;
+    year?: number;
     questions?: Question[];
     status?: 'draft' | 'archived';
   }

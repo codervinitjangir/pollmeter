@@ -211,12 +211,12 @@ export default function AdminQuizzes() {
                   </td>
                   <td>
                     <span className="pm-subject-badge" style={{ fontSize: '0.75rem' }}>
-                      {q.subject || 'General'}
+                      {(q.year ? `Year ${q.year} • ` : '') + (q.subject || 'General')}
                     </span>
                   </td>
                   <td>
                     <span className="pm-batch-badge" style={{ fontSize: '0.72rem' }}>
-                      {q.batch || 'General'}
+                      {q.year ? `Year ${q.year}` : (q.batch || 'Campus')}
                     </span>
                   </td>
                   <td>

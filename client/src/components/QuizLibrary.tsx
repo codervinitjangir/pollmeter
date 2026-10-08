@@ -8,25 +8,26 @@ import {
   fetchMentorQuizzes,
   fetchQuizDetails,
   getAuthToken,
-  BatchObject,
   AuthUser,
+  SubjectObject,
+  fetchSubjectObjects,
 } from '../auth';
 import { apiUrl } from '../api';
 import { setStoredHost } from '../pages/mentor/hostSession';
 import { useNavigate } from 'react-router-dom';
-import BatchPicker from './BatchPicker';
 
 interface QuizLibraryProps {
   onEditDraft: (draft: QuizDraft) => void;
-  onGoLive: (draftId: string, batchId: string, batchName: string) => Promise<void>;
-  availableBatches: BatchObject[];
-  onBatchCreated?: (batch: BatchObject) => void;
+  onGoLive: (draftId: string, subjectId: string) => Promise<void>;
+  activeSubjects?: SubjectObject[];
   onNewQuiz: () => void;
   onOpenAi: () => void;
   authUser: AuthUser | null;
   onLoadPastQuiz?: (quiz: {
     title: string;
     subject?: string;
+    subjectId?: string;
+    year?: number;
     questions: Question[];
     sourceDraftId?: string;
   }) => void;
@@ -47,8 +48,7 @@ function parseQuestions(raw: any): Question[] {
 export default function QuizLibrary({
   onEditDraft,
   onGoLive,
-  availableBatches,
-  onBatchCreated,
+  activeSubjects,
   onNewQuiz,
   onOpenAi,
   authUser,
@@ -64,14 +64,22 @@ export default function QuizLibrary({
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'draft' | 'past' | 'archived'>('draft');
 
+  // Active subjects
+  const [internalSubjects, setInternalSubjects] = useState<SubjectObject[]>([]);
+  useEffect(() => {
+    if (!activeSubjects || activeSubjects.length === 0) {
+      fetchSubjectObjects().then(setInternalSubjects).catch(() => {});
+    }
+  }, [activeSubjects]);
+  const subjectsList = activeSubjects && activeSubjects.length > 0 ? activeSubjects : internalSubjects;
+
   // Admin filter by mentor
   const [adminMentorEmail, setAdminMentorEmail] = useState('');
 
   // Go live modal state
   const [goLiveModalDraft, setGoLiveModalDraft] = useState<QuizDraftSummary | null>(null);
   const [goLiveModalPastSession, setGoLiveModalPastSession] = useState<any | null>(null);
-  const [selectedBatchId, setSelectedBatchId] = useState('');
-  const [selectedBatchName, setSelectedBatchName] = useState('');
+  const [selectedSubjectId, setSelectedSubjectId] = useState('');
   const [startingSession, setStartingSession] = useState(false);
   const [goLiveError, setGoLiveError] = useState('');
 
@@ -235,8 +243,8 @@ export default function QuizLibrary({
 
   const handleStartPastSessionGoLive = async () => {
     if (!goLiveModalPastSession) return;
-    if (!selectedBatchId) {
-      setGoLiveError('Please select or create a batch before going live.');
+    if (!selectedSubjectId) {
+      setGoLiveError('Please select an academic subject before going live.');
       return;
     }
     setStartingSession(true);
@@ -261,8 +269,7 @@ export default function QuizLibrary({
         body: JSON.stringify({
           questions: qs,
           topic: goLiveModalPastSession.topic || 'Classroom Quiz',
-          subject: goLiveModalPastSession.subject || 'General',
-          batchId: selectedBatchId,
+          subjectId: selectedSubjectId,
         }),
       });
       const d = await res.json();
@@ -313,14 +320,14 @@ export default function QuizLibrary({
 
   const handleStartGoLive = async () => {
     if (!goLiveModalDraft) return;
-    if (!selectedBatchId) {
-      setGoLiveError('Please select or create a batch before going live.');
+    if (!selectedSubjectId) {
+      setGoLiveError('Please select an academic subject before going live.');
       return;
     }
     setStartingSession(true);
     setGoLiveError('');
     try {
-      await onGoLive(goLiveModalDraft.id, selectedBatchId, selectedBatchName);
+      await onGoLive(goLiveModalDraft.id, selectedSubjectId);
     } catch (err: any) {
       setGoLiveError(err.message || 'Failed to launch live session.');
       setStartingSession(false);
@@ -515,7 +522,7 @@ export default function QuizLibrary({
                           color: '#A5B4FC',
                         }}
                       >
-                        {session.subject || 'General'}
+                        {(session.year ? `Year ${session.year} • ` : '') + (session.subject || 'General')}
                       </span>
                       <span
                         style={{
@@ -551,7 +558,7 @@ export default function QuizLibrary({
                         flexWrap: 'wrap',
                       }}
                     >
-                      <span>🎓 {session.batch || 'General'}</span>
+                      <span>🎓 {session.year ? `Year ${session.year}` : (session.batch || 'Campus')}</span>
                       <span>•</span>
                       <span>#{session.code}</span>
                       <span>•</span>
@@ -578,8 +585,12 @@ export default function QuizLibrary({
                       className="btn btn-primary btn-sm"
                       onClick={() => {
                         setGoLiveModalPastSession(session);
-                        setSelectedBatchId(session.batchId || '');
-                        setSelectedBatchName(session.batch || '');
+                        let subId = session.subjectId || '';
+                        if (!subId && session.subject) {
+                          const match = subjectsList.find((s) => s.name.toLowerCase() === session.subject?.toLowerCase());
+                          if (match) subId = match.id;
+                        }
+                        setSelectedSubjectId(subId);
                         setGoLiveError('');
                       }}
                       disabled={isActing}
@@ -694,7 +705,7 @@ export default function QuizLibrary({
                         color: '#A5B4FC',
                       }}
                     >
-                      {draft.subject || 'General'}
+                      {(draft.year ? `Year ${draft.year} • ` : '') + (draft.subject || 'General')}
                     </span>
                     <span
                       style={{
@@ -733,7 +744,7 @@ export default function QuizLibrary({
                     <span>🕒</span>
                     {usage ? (
                       <span>
-                        Last used in <strong>{usage.batch}</strong> on {new Date(usage.date).toLocaleDateString()}
+                        Last used on {new Date(usage.date).toLocaleDateString()}
                       </span>
                     ) : (
                       <span style={{ color: '#10B981' }}>Ready to launch • Not used yet</span>
@@ -758,8 +769,12 @@ export default function QuizLibrary({
                     className="btn btn-primary btn-sm"
                     onClick={() => {
                       setGoLiveModalDraft(draft);
-                      setSelectedBatchId('');
-                      setSelectedBatchName('');
+                      let subId = draft.subjectId || '';
+                      if (!subId && draft.subject) {
+                        const match = subjectsList.find((s) => s.name.toLowerCase() === draft.subject?.toLowerCase());
+                        if (match) subId = match.id;
+                      }
+                      setSelectedSubjectId(subId);
                       setGoLiveError('');
                     }}
                     disabled={isActing}
@@ -857,20 +872,34 @@ export default function QuizLibrary({
               </div>
             </div>
 
-            {/* Reusable BatchPicker Component */}
-            <BatchPicker
-              batches={availableBatches}
-              selectedBatchId={selectedBatchId}
-              onSelect={(batchId, displayName) => {
-                setSelectedBatchId(batchId);
-                setSelectedBatchName(displayName);
-                setGoLiveError('');
-              }}
-              onBatchCreated={(b) => {
-                if (onBatchCreated) onBatchCreated(b);
-              }}
-              disabled={startingSession}
-            />
+            {/* Academic Subject Selector */}
+            <div style={{ marginTop: '0.85rem' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.4rem', color: 'var(--text-primary)' }}>
+                📚 Academic Subject &amp; Year <span style={{ color: '#EF4444' }}>*</span>
+              </label>
+              <select
+                className="input pm-host-select"
+                value={selectedSubjectId}
+                onChange={(e) => setSelectedSubjectId(e.target.value)}
+                style={{ width: '100%' }}
+                disabled={startingSession}
+              >
+                <option value="">Select a Subject (Grouped by Year)…</option>
+                {[1, 2, 3, 4].map((year) => {
+                  const yearSubs = subjectsList.filter((s) => s.year === year);
+                  if (yearSubs.length === 0) return null;
+                  return (
+                    <optgroup key={year} label={`Year ${year}`}>
+                      {yearSubs.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  );
+                })}
+              </select>
+            </div>
 
             {goLiveError && (
               <div className="alert alert-error" style={{ padding: '0.5rem 0.75rem', fontSize: '0.82rem' }}>
@@ -891,7 +920,7 @@ export default function QuizLibrary({
                 type="button"
                 className="btn btn-primary"
                 onClick={handleStartGoLive}
-                disabled={startingSession || !selectedBatchId}
+                disabled={startingSession || !selectedSubjectId}
                 id="modal-start-live-btn"
               >
                 {startingSession ? (
@@ -916,7 +945,7 @@ export default function QuizLibrary({
           <div
             className="modal stack stack-4"
             role="dialog"
-            aria-label="Host Quiz Again Batch Picker"
+            aria-label="Host Quiz Again Subject Picker"
             style={{ maxWidth: '480px', width: '92%' }}
           >
             <div className="modal-header">
@@ -925,7 +954,7 @@ export default function QuizLibrary({
                   🚀 Host Quiz Again
                 </p>
                 <p className="t-body-sm text-secondary" style={{ margin: 0 }}>
-                  Choose which class/cohort will join this session
+                  Confirm academic subject and year for this session
                 </p>
               </div>
               <button
@@ -953,20 +982,34 @@ export default function QuizLibrary({
               </div>
             </div>
 
-            {/* Reusable BatchPicker Component */}
-            <BatchPicker
-              batches={availableBatches}
-              selectedBatchId={selectedBatchId}
-              onSelect={(batchId, displayName) => {
-                setSelectedBatchId(batchId);
-                setSelectedBatchName(displayName);
-                setGoLiveError('');
-              }}
-              onBatchCreated={(b) => {
-                if (onBatchCreated) onBatchCreated(b);
-              }}
-              disabled={startingSession}
-            />
+            {/* Academic Subject Selector */}
+            <div style={{ marginTop: '0.85rem' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.4rem', color: 'var(--text-primary)' }}>
+                📚 Academic Subject &amp; Year <span style={{ color: '#EF4444' }}>*</span>
+              </label>
+              <select
+                className="input pm-host-select"
+                value={selectedSubjectId}
+                onChange={(e) => setSelectedSubjectId(e.target.value)}
+                style={{ width: '100%' }}
+                disabled={startingSession}
+              >
+                <option value="">Select a Subject (Grouped by Year)…</option>
+                {[1, 2, 3, 4].map((year) => {
+                  const yearSubs = subjectsList.filter((s) => s.year === year);
+                  if (yearSubs.length === 0) return null;
+                  return (
+                    <optgroup key={year} label={`Year ${year}`}>
+                      {yearSubs.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  );
+                })}
+              </select>
+            </div>
 
             {goLiveError && (
               <div className="alert alert-error" style={{ padding: '0.5rem 0.75rem', fontSize: '0.82rem' }}>
@@ -987,7 +1030,7 @@ export default function QuizLibrary({
                 type="button"
                 className="btn btn-primary"
                 onClick={handleStartPastSessionGoLive}
-                disabled={startingSession || !selectedBatchId}
+                disabled={startingSession || !selectedSubjectId}
                 id="modal-start-past-live-btn"
                 style={{
                   background: 'linear-gradient(135deg, #10B981, #059669)',

@@ -46,6 +46,8 @@ export function createSession(
   meta: {
     topic?: string;
     subject?: string;
+    subjectId?: string;
+    year?: number;
     batch?: string;
     batchId?: string;
     sourceDraftId?: string;
@@ -60,6 +62,8 @@ export function createSession(
     hostId: uuidv4(),
     topic: meta?.topic,
     subject: meta?.subject,
+    subjectId: meta?.subjectId,
+    year: meta?.year,
     batch: meta?.batch,
     batchId: meta?.batchId,
     sourceDraftId: meta?.sourceDraftId,

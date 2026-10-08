@@ -102,6 +102,8 @@ export interface Session {
   hostId: string;
   topic?: string;
   subject?: string;
+  subjectId?: string;
+  year?: number;
   batch?: string;
   batchId?: string;
   sourceDraftId?: string;

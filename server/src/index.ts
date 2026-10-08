@@ -304,13 +304,16 @@ app.post('/api/sessions', sessionCreationLimiter, requireMentor, async (req: Aut
   const body = req.body as {
     questions?: unknown;
     topic?: string;
+    subjectId?: string;
     subject?: string;
     batchId?: string;
     draftId?: string;
   };
 
   let questionsToUse: Question[];
+  let draftSubjectId: string | undefined;
   let draftSubject: string | undefined;
+  let draftYear: number | undefined;
   let sourceDraftId: string | undefined;
 
   if (body?.draftId) {
@@ -330,7 +333,9 @@ app.post('/api/sessions', sessionCreationLimiter, requireMentor, async (req: Aut
       return;
     }
     questionsToUse = valResult.questions;
+    draftSubjectId = draft.subjectId;
     draftSubject = draft.subject;
+    draftYear = draft.year;
     sourceDraftId = draft.id;
   } else {
     const result = validateQuestions(body?.questions);
@@ -341,48 +346,30 @@ app.post('/api/sessions', sessionCreationLimiter, requireMentor, async (req: Aut
     questionsToUse = result.questions;
   }
 
-  if (!body?.batchId || typeof body.batchId !== 'string' || !body.batchId.trim()) {
-    res.status(400).json({ error: 'batchId is required to create a quiz session.' });
+  const targetSubjectId = (typeof body?.subjectId === 'string' && body.subjectId.trim()) ? body.subjectId.trim() : draftSubjectId;
+  if (!targetSubjectId) {
+    res.status(400).json({ error: 'subjectId is required to create a quiz session.' });
     return;
   }
 
-  const batchId = body.batchId.trim();
-  const batchRecord = await getBatchById(batchId);
-  if (!batchRecord || batchRecord.status !== 'active') {
-    res.status(404).json({ error: 'Batch not found or is inactive.' });
+  const subjectRecord = await getSubjectById(targetSubjectId);
+  if (!subjectRecord || subjectRecord.status !== 'active') {
+    res.status(404).json({ error: 'Subject not found or is inactive.' });
     return;
-  }
-
-  const liveUser = await getUserByEmail(req.user!.email);
-  if (req.user?.role !== 'admin') {
-    const assigned = liveUser?.batches ?? [];
-    const isAssigned =
-      assigned.includes(batchRecord.id) ||
-      assigned.includes(batchRecord.displayName) ||
-      assigned.some(
-        (b) =>
-          b.toLowerCase() === batchRecord.displayName.toLowerCase() ||
-          b.toLowerCase() === batchRecord.id.toLowerCase()
-      );
-
-    if (!isAssigned) {
-      res.status(403).json({ error: 'Access denied: You are not assigned to this batch.' });
-      return;
-    }
   }
 
   const hostEmail = req.user!.email.toLowerCase();
   const hostName = req.user!.realName || 'Faculty Mentor';
 
   const topic = body?.topic?.trim() || (questionsToUse[0]?.text ? `Quiz: ${questionsToUse[0].text.slice(0, 40)}...` : 'Classroom Quiz');
-  const subject = body?.subject?.trim() || draftSubject || liveUser?.subject || 'General';
-  const batch = batchRecord.displayName;
+  const subjectName = subjectRecord.name;
+  const year = subjectRecord.year;
 
   const session = createSession(questionsToUse, {
     topic,
-    subject,
-    batch,
-    batchId: batchRecord.id,
+    subject: subjectName,
+    subjectId: subjectRecord.id,
+    year,
     sourceDraftId,
     hostEmail,
     hostName,
@@ -393,9 +380,9 @@ app.post('/api/sessions', sessionCreationLimiter, requireMentor, async (req: Aut
       id: session.code,
       code: session.code,
       topic,
-      subject,
-      batch,
-      batchId: batchRecord.id,
+      subject: subjectName,
+      subjectId: subjectRecord.id,
+      year,
       sourceDraftId,
       hostEmail: session.hostEmail,
       hostName: session.hostName,
@@ -413,21 +400,21 @@ app.post('/api/sessions', sessionCreationLimiter, requireMentor, async (req: Aut
       session.hostEmail,
       'SESSION_CREATED',
       session.code,
-      { topic, subject, batch, batchId: batchRecord.id, sourceDraftId, questionCount: session.questions.length }
+      { topic, subject: subjectName, subjectId: subjectRecord.id, year, sourceDraftId, questionCount: session.questions.length }
     );
   } catch (err) {
     console.error('[db] Error pre-saving session to DB:', err);
   }
 
-  console.log(`[session] created ${session.code} with ${questionsToUse.length} question(s) [${topic}] [${subject}] [${batch}] (${batchRecord.id}) by ${hostEmail}`);
+  console.log(`[session] created ${session.code} with ${questionsToUse.length} question(s) [${topic}] [${subjectName} - Year ${year}] (${subjectRecord.id}) by ${hostEmail}`);
   res.status(201).json({
     code: session.code,
     hostId: session.hostId,
     questions: session.questions,
     topic,
-    subject,
-    batch,
-    batchId: batchRecord.id,
+    subject: subjectName,
+    subjectId: subjectRecord.id,
+    year,
     sourceDraftId,
   });
 });
@@ -648,9 +635,11 @@ app.post('/api/admin/bootstrap', bootstrapLimiter, requireAuth, async (req: Auth
  */
 app.post('/api/mentor/quizzes/draft', requireMentor, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { title, subject, questions } = req.body as {
+    const { title, subject, subjectId, year, questions } = req.body as {
       title?: string;
       subject?: string;
+      subjectId?: string;
+      year?: number;
       questions?: unknown;
     };
 
@@ -669,6 +658,8 @@ app.post('/api/mentor/quizzes/draft', requireMentor, async (req: AuthenticatedRe
     const draft = await createQuizDraft({
       title: title.trim(),
       subject: typeof subject === 'string' ? subject.trim() : undefined,
+      subjectId: typeof subjectId === 'string' ? subjectId.trim() : undefined,
+      year: typeof year === 'number' ? year : undefined,
       questions: valResult.questions,
       mentorEmail,
     });
@@ -750,6 +741,8 @@ app.patch('/api/mentor/quizzes/draft/:id', requireMentor, async (req: Authentica
     const body = req.body as {
       title?: string;
       subject?: string;
+      subjectId?: string;
+      year?: number;
       questions?: unknown;
       status?: 'draft' | 'archived';
     };
@@ -757,6 +750,8 @@ app.patch('/api/mentor/quizzes/draft/:id', requireMentor, async (req: Authentica
     const updates: {
       title?: string;
       subject?: string;
+      subjectId?: string;
+      year?: number;
       questions?: unknown[];
       status?: 'draft' | 'archived';
     } = {};
@@ -771,6 +766,14 @@ app.patch('/api/mentor/quizzes/draft/:id', requireMentor, async (req: Authentica
 
     if (body.subject !== undefined) {
       updates.subject = typeof body.subject === 'string' ? body.subject.trim().slice(0, 120) : '';
+    }
+
+    if (body.subjectId !== undefined) {
+      updates.subjectId = typeof body.subjectId === 'string' ? body.subjectId.trim() : undefined;
+    }
+
+    if (body.year !== undefined) {
+      updates.year = typeof body.year === 'number' ? body.year : undefined;
     }
 
     if (body.status !== undefined) {

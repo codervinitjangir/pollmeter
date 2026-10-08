@@ -354,6 +354,8 @@ async function persistEndedSession(session: Session, leaderboard: LeaderboardEnt
       code: session.code,
       topic: session.topic || (session.questions[0]?.text ? `Quiz: ${session.questions[0].text.slice(0, 40)}...` : 'Classroom Quiz'),
       subject: session.subject || 'General',
+      subjectId: session.subjectId,
+      year: session.year,
       batch: session.batch || 'General',
       batchId: session.batchId,
       hostEmail: session.hostEmail,
@@ -659,19 +661,10 @@ export function registerSocketHandlers(io: Server, socket: Socket): void {
     }
 
     // ── Sign-in requirement ─────────────────────────────────────────────────
-    // The batch a session carries is the mentor's *allocation* — it labels the
-    // class for attendance and reporting. It deliberately does NOT restrict who
-    // may join: a student who scans the QR and signs in with their college
-    // email gets in, full stop. Gating the join on the student's own batch_id
-    // was removed on the mentor's instruction, because it stalled the one
-    // moment that has to be frictionless — a hall of phones all joining at once.
-    //
-    // What stays is identity. The realName+email branch above is self-asserted,
-    // so a client that simply omits its authToken could otherwise join under
-    // any address it cared to claim and score as that person. Requiring a
-    // verified token costs nothing here (the join screen already signs students
-    // in before it emits) and keeps the attendance sheet trustworthy.
-    if (session.batchId && !authUser?.userId) {
+    // Sign-in is REQUIRED for every session unconditionally.
+    // Anonymous joins or unverified realName+email claims without an authToken
+    // are rejected immediately.
+    if (!authUser?.userId) {
       socket.emit('error', {
         message: 'Please sign in with your college account to join this quiz.',
         fatal: true,

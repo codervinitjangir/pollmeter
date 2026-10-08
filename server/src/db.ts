@@ -796,12 +796,14 @@ export async function countAdmins(): Promise<number> {
 export async function saveQuizSession(session: QuizSessionRecord): Promise<void> {
   if (usePostgres && pool) {
     await pool.query(
-      `INSERT INTO quiz_sessions (id, code, topic, subject, batch, batch_id, source_draft_id, host_email, host_name, question_count, participant_count, questions, created_at, ended_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      `INSERT INTO quiz_sessions (id, code, topic, subject, subject_id, year, batch, batch_id, source_draft_id, host_email, host_name, question_count, participant_count, questions, created_at, ended_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        ON CONFLICT (id) DO UPDATE
        SET participant_count = EXCLUDED.participant_count,
            ended_at = EXCLUDED.ended_at,
            subject = COALESCE(EXCLUDED.subject, quiz_sessions.subject),
+           subject_id = COALESCE(EXCLUDED.subject_id, quiz_sessions.subject_id),
+           year = COALESCE(EXCLUDED.year, quiz_sessions.year),
            batch = COALESCE(EXCLUDED.batch, quiz_sessions.batch),
            batch_id = COALESCE(EXCLUDED.batch_id, quiz_sessions.batch_id),
            source_draft_id = COALESCE(EXCLUDED.source_draft_id, quiz_sessions.source_draft_id)`,
@@ -810,6 +812,8 @@ export async function saveQuizSession(session: QuizSessionRecord): Promise<void>
         session.code,
         session.topic,
         session.subject || 'General',
+        session.subjectId ?? null,
+        session.year ?? null,
         session.batch || 'General',
         session.batchId ?? null,
         session.sourceDraftId ?? null,
@@ -2488,6 +2492,8 @@ export interface QuizDraftSummary {
   mentorEmail: string;
   title: string;
   subject?: string;
+  subjectId?: string;
+  year?: number;
   questionCount: number;
   status: 'draft' | 'archived';
   createdAt: string;
@@ -2498,6 +2504,8 @@ export interface QuizDraftSummary {
 export async function createQuizDraft(draft: {
   title: string;
   subject?: string;
+  subjectId?: string;
+  year?: number;
   questions: unknown[];
   mentorEmail: string;
 }): Promise<QuizRecord> {
@@ -2505,15 +2513,25 @@ export async function createQuizDraft(draft: {
   const now = new Date().toISOString();
   const cleanEmail = draft.mentorEmail.toLowerCase().trim();
   const title = draft.title.trim().slice(0, 200);
-  const subject = draft.subject?.trim().slice(0, 120) || 'General';
+  let subject = draft.subject?.trim().slice(0, 120) || 'General';
+  let subjectId = draft.subjectId;
+  let year = draft.year;
+
+  if (subjectId) {
+    const sObj = await getSubjectById(subjectId);
+    if (sObj) {
+      subject = sObj.name;
+      year = sObj.year;
+    }
+  }
 
   if (usePostgres && pool) {
     const res = await pool.query(
-      `INSERT INTO quizzes (id, mentor_email, title, subject, questions, status, created_at, updated_at, last_used_at)
-       VALUES ($1, $2, $3, $4, $5, 'draft', $6, $6, NULL)
-       RETURNING id, mentor_email as "mentorEmail", title, subject, questions, status,
+      `INSERT INTO quizzes (id, mentor_email, title, subject, subject_id, year, questions, status, created_at, updated_at, last_used_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'draft', $8, $8, NULL)
+       RETURNING id, mentor_email as "mentorEmail", title, subject, subject_id as "subjectId", year, questions, status,
                  created_at as "createdAt", updated_at as "updatedAt", last_used_at as "lastUsedAt"`,
-      [id, cleanEmail, title, subject, JSON.stringify(draft.questions), now]
+      [id, cleanEmail, title, subject, subjectId ?? null, year ?? null, JSON.stringify(draft.questions), now]
     );
     return res.rows[0];
   }
@@ -2527,6 +2545,8 @@ export async function createQuizDraft(draft: {
     mentorEmail: cleanEmail,
     title,
     subject,
+    subjectId,
+    year,
     questions: draft.questions,
     status: 'draft',
     createdAt: now,
@@ -2544,7 +2564,7 @@ export async function getQuizDrafts(mentorEmail?: string, status: string = 'draf
 
   if (usePostgres && pool) {
     let query = `
-      SELECT id, mentor_email as "mentorEmail", title, subject,
+      SELECT id, mentor_email as "mentorEmail", title, subject, subject_id as "subjectId", year,
              COALESCE(jsonb_array_length(CASE WHEN jsonb_typeof(questions) = 'array' THEN questions ELSE '[]'::jsonb END), 0) as "questionCount",
              status, created_at as "createdAt", updated_at as "updatedAt", last_used_at as "lastUsedAt"
       FROM quizzes
@@ -2576,6 +2596,8 @@ export async function getQuizDrafts(mentorEmail?: string, status: string = 'draf
       mentorEmail: q.mentorEmail,
       title: q.title,
       subject: q.subject,
+      subjectId: q.subjectId,
+      year: q.year,
       questionCount: Array.isArray(q.questions) ? q.questions.length : 0,
       status: q.status,
       createdAt: q.createdAt,
@@ -2588,7 +2610,7 @@ export async function getQuizDrafts(mentorEmail?: string, status: string = 'draf
 export async function getQuizDraftById(id: string): Promise<QuizRecord | null> {
   if (usePostgres && pool) {
     const res = await pool.query(
-      `SELECT id, mentor_email as "mentorEmail", title, subject, questions, status,
+      `SELECT id, mentor_email as "mentorEmail", title, subject, subject_id as "subjectId", year, questions, status,
               created_at as "createdAt", updated_at as "updatedAt", last_used_at as "lastUsedAt"
        FROM quizzes
        WHERE id = $1`,
@@ -2607,11 +2629,23 @@ export async function updateQuizDraft(
   updates: {
     title?: string;
     subject?: string;
+    subjectId?: string;
+    year?: number;
     questions?: unknown[];
     status?: 'draft' | 'archived';
   }
 ): Promise<QuizRecord | null> {
   const now = new Date().toISOString();
+
+  let subjectName = updates.subject?.trim().slice(0, 120);
+  let yearNum = updates.year;
+  if (updates.subjectId) {
+    const sObj = await getSubjectById(updates.subjectId);
+    if (sObj) {
+      subjectName = sObj.name;
+      yearNum = sObj.year;
+    }
+  }
 
   if (usePostgres && pool) {
     const fields: string[] = ['updated_at = $2'];
@@ -2621,9 +2655,17 @@ export async function updateQuizDraft(
       params.push(updates.title.trim().slice(0, 200));
       fields.push(`title = $${params.length}`);
     }
-    if (updates.subject !== undefined) {
-      params.push(updates.subject.trim().slice(0, 120));
+    if (subjectName !== undefined) {
+      params.push(subjectName);
       fields.push(`subject = $${params.length}`);
+    }
+    if (updates.subjectId !== undefined) {
+      params.push(updates.subjectId);
+      fields.push(`subject_id = $${params.length}`);
+    }
+    if (yearNum !== undefined) {
+      params.push(yearNum);
+      fields.push(`year = $${params.length}`);
     }
     if (updates.questions !== undefined) {
       params.push(JSON.stringify(updates.questions));
@@ -2638,7 +2680,7 @@ export async function updateQuizDraft(
       UPDATE quizzes
       SET ${fields.join(', ')}
       WHERE id = $1
-      RETURNING id, mentor_email as "mentorEmail", title, subject, questions, status,
+      RETURNING id, mentor_email as "mentorEmail", title, subject, subject_id as "subjectId", year, questions, status,
                 created_at as "createdAt", updated_at as "updatedAt", last_used_at as "lastUsedAt"
     `;
     const res = await pool.query(query, params);
@@ -2649,9 +2691,11 @@ export async function updateQuizDraft(
   if (!localDb.quizzes || !localDb.quizzes[id]) return null;
   const current = localDb.quizzes[id];
   if (updates.title !== undefined) current.title = updates.title.trim().slice(0, 200);
-  if (updates.subject !== undefined) current.subject = updates.subject.trim().slice(0, 120);
+  if (subjectName !== undefined) current.subject = subjectName;
+  if (updates.subjectId !== undefined) current.subjectId = updates.subjectId;
+  if (yearNum !== undefined) current.year = yearNum;
   if (updates.questions !== undefined) current.questions = updates.questions;
-  if (updates.status !== undefined) current.status = updates.status === 'archived' ? 'archived' : 'draft';
+  if (updates.status !== undefined) current.status = updates.status;
   current.updatedAt = now;
   saveLocalDb();
   return current;
