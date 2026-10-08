@@ -44,6 +44,11 @@ import {
   closePool,
   isUsingPostgres,
   getAllSubjects,
+  getAllActiveSubjects,
+  getAllSubjectsForAdmin,
+  getSubjectById,
+  createSubject,
+  updateSubject,
   updateUserProfile,
   setUserBatch,
   createQuizDraft,
@@ -172,6 +177,7 @@ function rateLimit(windowMs: number, maxRequests: number, keyFn?: (req: Request)
 
 const sessionCreationLimiter = rateLimit(60_000, 30);
 const aiGenerationLimiter = rateLimit(60_000, 10);
+const subjectCreationLimiter = rateLimit(60_000, 20);
 
 // Both of these hand out or check a credential, so they are brute-force
 // targets in a way the rest of the API is not.
@@ -1436,16 +1442,110 @@ app.post('/api/mentor/batches', requireMentor, async (req: AuthenticatedRequest,
 });
 
 /**
- * Lists all distinct subjects in active use across the college (users + quiz sessions)
- * merged with standard catalog subjects.
+ * Lists all active subjects with Year (1..4).
  */
 app.get('/api/subjects', requireAuth, async (_req: AuthenticatedRequest, res: Response) => {
   try {
-    const subjects = await getAllSubjects();
+    const subjects = await getAllActiveSubjects();
     res.json({ subjects });
   } catch (err) {
     console.error('[subjects] Failed to list subjects:', err);
     res.status(500).json({ error: 'Failed to list subjects.' });
+  }
+});
+
+/**
+ * Mentor / Admin: Create a subject for a given Year (1..4).
+ * Deduplicates case-insensitively on (year, lower(name)) and returns existing row if present.
+ */
+app.post('/api/subjects', requireMentor, subjectCreationLimiter, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { year, name } = req.body || {};
+    const y = parseInt(String(year), 10);
+    const n = String(name || '').trim();
+
+    if (!y || isNaN(y) || y < 1 || y > 4) {
+      res.status(400).json({ error: 'Year must be a number between 1 and 4.' });
+      return;
+    }
+    if (!n || n.length < 2 || n.length > 120) {
+      res.status(400).json({ error: 'Subject name must be between 2 and 120 characters.' });
+      return;
+    }
+
+    const result = await createSubject(y, n, req.user?.email, req.user?.role);
+    await recordAuditLog(
+      req.user?.email || 'unknown',
+      'SUBJECT_CREATED',
+      result.subject.id,
+      { year: y, name: n, created: result.created }
+    );
+    res.status(result.created ? 201 : 200).json({ subject: result.subject });
+  } catch (err) {
+    console.error('[subjects] Failed to create subject:', err);
+    res.status(500).json({ error: 'Failed to create subject.' });
+  }
+});
+
+/**
+ * Admin: List all subjects (active + inactive) grouped by year.
+ */
+app.get('/api/admin/subjects', requireAdmin, async (_req: AuthenticatedRequest, res: Response) => {
+  try {
+    const subjects = await getAllSubjectsForAdmin();
+    res.json({ subjects });
+  } catch (err) {
+    console.error('[admin] Failed to list admin subjects:', err);
+    res.status(500).json({ error: 'Failed to list subjects.' });
+  }
+});
+
+/**
+ * Admin: Rename, change year, or activate/deactivate a subject.
+ * Returns 409 on name collision within the target year.
+ */
+app.patch('/api/admin/subjects/:id', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, year, status } = req.body || {};
+
+    const y = year !== undefined ? parseInt(String(year), 10) : undefined;
+    if (y !== undefined && (isNaN(y) || y < 1 || y > 4)) {
+      res.status(400).json({ error: 'Year must be between 1 and 4.' });
+      return;
+    }
+
+    const n = name !== undefined ? String(name).trim() : undefined;
+    if (n !== undefined && (n.length < 2 || n.length > 120)) {
+      res.status(400).json({ error: 'Subject name must be between 2 and 120 characters.' });
+      return;
+    }
+
+    if (status !== undefined && status !== 'active' && status !== 'inactive') {
+      res.status(400).json({ error: "status must be 'active' or 'inactive'." });
+      return;
+    }
+
+    const result = await updateSubject(id, { name: n, year: y, status });
+    if (result.notFound) {
+      res.status(404).json({ error: 'Subject not found.' });
+      return;
+    }
+    if (result.conflict) {
+      res.status(409).json({ error: `A subject with the name '${n}' already exists for that year.` });
+      return;
+    }
+
+    await recordAuditLog(
+      req.user?.email || 'admin',
+      'SUBJECT_UPDATED',
+      id,
+      { name: n, year: y, status }
+    );
+    res.json({ subject: result.subject });
+  } catch (err) {
+    console.error('[admin] Failed to update subject:', err);
+    res.status(500).json({ error: 'Failed to update subject.' });
   }
 });
 

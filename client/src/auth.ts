@@ -435,10 +435,20 @@ export async function fetchMentorReports(options?: {
   return await res.json();
 }
 
+export interface SubjectObject {
+  id: string;
+  year: number;
+  name: string;
+  status: 'active' | 'inactive';
+  createdBy?: string;
+  createdByRole?: string;
+  createdAt?: string;
+}
+
 /**
- * Lists all active subjects in use across the university.
+ * Lists all active subjects in use across the university with Year.
  */
-export async function fetchSubjects(): Promise<string[]> {
+export async function fetchSubjectObjects(): Promise<SubjectObject[]> {
   const token = getAuthToken();
   if (!token) return [];
   try {
@@ -447,11 +457,84 @@ export async function fetchSubjects(): Promise<string[]> {
     });
     if (!res.ok) return [];
     const data = await res.json();
-    return data.subjects || [];
+    if (Array.isArray(data.subjects)) {
+      return data.subjects.map((s: any) =>
+        typeof s === 'string' ? { id: s, year: 1, name: s, status: 'active' as const } : s
+      );
+    }
+    return [];
   } catch (err) {
     console.error('[auth] Failed to fetch subjects:', err);
     return [];
   }
+}
+
+/**
+ * Legacy compatibility wrapper: returns string[] of subject names.
+ */
+export async function fetchSubjects(): Promise<string[]> {
+  const objs = await fetchSubjectObjects();
+  return objs.map((s) => s.name);
+}
+
+/**
+ * Creates or gets an existing subject for a given Year (1..4).
+ */
+export async function createSubjectApi(year: number, name: string): Promise<SubjectObject> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Authentication required.');
+  const res = await fetch(apiUrl('/api/subjects'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ year, name }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to create subject.');
+  return data.subject;
+}
+
+/**
+ * Admin: list all subjects (active + inactive).
+ */
+export async function fetchAdminSubjects(): Promise<SubjectObject[]> {
+  const token = getAuthToken();
+  if (!token) return [];
+  try {
+    const res = await fetch(apiUrl('/api/admin/subjects'), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.subjects) ? data.subjects : [];
+  } catch (err) {
+    console.error('[admin] Failed to fetch admin subjects:', err);
+    return [];
+  }
+}
+
+/**
+ * Admin: rename, change year, or deactivate/activate a subject.
+ */
+export async function updateSubjectApi(
+  id: string,
+  updates: { name?: string; year?: number; status?: 'active' | 'inactive' }
+): Promise<SubjectObject> {
+  const token = getAuthToken();
+  if (!token) throw new Error('Authentication required.');
+  const res = await fetch(apiUrl(`/api/admin/subjects/${encodeURIComponent(id)}`), {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(updates),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to update subject.');
+  return data.subject;
 }
 
 /**

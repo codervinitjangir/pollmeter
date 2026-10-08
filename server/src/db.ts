@@ -45,11 +45,23 @@ export interface Batch {
   createdAt: string;
 }
 
+export interface Subject {
+  id: string;
+  year: number; // 1..4
+  name: string;
+  status: 'active' | 'inactive';
+  createdBy?: string;
+  createdByRole?: string;
+  createdAt: string;
+}
+
 export interface QuizSessionRecord {
   id: string;
   code: string;
   topic: string;
   subject?: string;
+  subjectId?: string;
+  year?: number;
   batch?: string;
   batchId?: string;
   sourceDraftId?: string;
@@ -67,6 +79,8 @@ export interface QuizRecord {
   mentorEmail: string;
   title: string;
   subject?: string;
+  subjectId?: string;
+  year?: number;
   questions: unknown[];
   status: 'draft' | 'archived';
   createdAt: string;
@@ -122,6 +136,7 @@ interface LocalSchema {
   auditLogs?: AuditLogRecord[];
   batches?: Record<string, Batch>;
   quizzes?: Record<string, QuizRecord>;
+  subjects?: Record<string, Subject>;
 }
 
 let pool: Pool | null = null;
@@ -176,13 +191,87 @@ function loadLocalDb() {
       const raw = fs.readFileSync(LOCAL_DB_FILE, 'utf-8');
       localDb = JSON.parse(raw);
       backfillApprovals();
+      backfillSubjectsLocal();
     } else {
+      backfillSubjectsLocal();
       saveLocalDb();
     }
   } catch (err) {
     console.warn('[db] Failed to load local file db, initializing fresh:', (err as Error).message);
-    localDb = { users: {}, sessions: {}, participants: [], responses: [] };
+    localDb = { users: {}, sessions: {}, participants: [], responses: [], subjects: {} };
+    backfillSubjectsLocal();
   }
+}
+
+/**
+ * Local JSON counterpart of subjects_seed_v1 migration:
+ * populates localDb.subjects and links legacy sessions/quizzes.
+ */
+function backfillSubjectsLocal(): void {
+  if (!localDb.subjects) {
+    localDb.subjects = {};
+  }
+  if (Object.keys(localDb.subjects).length > 0) return;
+
+  const distinctNames = new Set<string>();
+  for (const s of STANDARD_SUBJECTS) {
+    distinctNames.add(s.trim());
+  }
+  for (const u of Object.values(localDb.users || {})) {
+    if (u.subject?.trim()) distinctNames.add(u.subject.trim());
+  }
+  for (const s of Object.values(localDb.sessions || {})) {
+    if (s.subject?.trim() && s.subject !== 'General') distinctNames.add(s.subject.trim());
+  }
+  for (const q of Object.values(localDb.quizzes || {})) {
+    if (q.subject?.trim()) distinctNames.add(q.subject.trim());
+  }
+
+  for (const name of distinctNames) {
+    let inferredYear = 1;
+    for (const s of Object.values(localDb.sessions || {})) {
+      if (s.subject?.toLowerCase() === name.toLowerCase() && s.batch) {
+        const bText = s.batch.toLowerCase();
+        if (/4th|year\s*4/i.test(bText)) inferredYear = 4;
+        else if (/3rd|year\s*3/i.test(bText)) inferredYear = 3;
+        else if (/2nd|year\s*2/i.test(bText)) inferredYear = 2;
+        else if (/1st|year\s*1/i.test(bText)) inferredYear = 1;
+        break;
+      }
+    }
+    const id = uuidv4();
+    localDb.subjects[id] = {
+      id,
+      year: inferredYear,
+      name,
+      status: 'active',
+      createdBy: 'system',
+      createdByRole: 'admin',
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  for (const s of Object.values(localDb.sessions || {})) {
+    if (!s.subjectId && s.subject) {
+      const match = Object.values(localDb.subjects).find((sub) => sub.name.toLowerCase() === s.subject!.toLowerCase());
+      if (match) {
+        s.subjectId = match.id;
+        s.year = match.year;
+      }
+    }
+  }
+
+  for (const q of Object.values(localDb.quizzes || {})) {
+    if (!q.subjectId && q.subject) {
+      const match = Object.values(localDb.subjects).find((sub) => sub.name.toLowerCase() === q.subject!.toLowerCase());
+      if (match) {
+        q.subjectId = match.id;
+        q.year = match.year;
+      }
+    }
+  }
+
+  saveLocalDb();
 }
 
 /**
@@ -347,6 +436,24 @@ export async function initDb(): Promise<void> {
             updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             last_used_at TIMESTAMP WITH TIME ZONE
           );
+
+          CREATE TABLE IF NOT EXISTS subjects (
+            id UUID PRIMARY KEY,
+            year SMALLINT NOT NULL,
+            name VARCHAR(120) NOT NULL,
+            status VARCHAR(20) DEFAULT 'active',
+            created_by VARCHAR(160),
+            created_by_role VARCHAR(20),
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          );
+
+          CREATE UNIQUE INDEX IF NOT EXISTS uq_subjects_year_lower_name ON subjects (year, LOWER(name));
+
+          ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS subject_id UUID;
+          ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS year SMALLINT;
+
+          ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS subject_id UUID;
+          ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS year SMALLINT;
         `);
 
         // One-time data migration, recorded in schema_meta so a later
@@ -389,6 +496,83 @@ export async function initDb(): Promise<void> {
           }
           await client.query(`INSERT INTO schema_meta (key) VALUES ('batches_seed_v1')`);
           console.log('[db] Seeded standard batches into batches table.');
+        }
+
+        // One-time seed: populate subjects table and backfill legacy sessions/quizzes
+        const subjectSeed = await client.query(
+          `SELECT 1 FROM schema_meta WHERE key = 'subjects_seed_v1'`
+        );
+        if (subjectSeed.rowCount === 0) {
+          const legacySubjsRes = await client.query(`
+            SELECT DISTINCT TRIM(subject) as name FROM (
+              SELECT subject FROM users WHERE subject IS NOT NULL AND TRIM(subject) <> ''
+              UNION
+              SELECT subject FROM quiz_sessions WHERE subject IS NOT NULL AND TRIM(subject) <> '' AND subject <> 'General'
+              UNION
+              SELECT subject FROM quizzes WHERE subject IS NOT NULL AND TRIM(subject) <> ''
+            ) s
+          `);
+
+          const distinctNames = new Set<string>();
+          for (const s of STANDARD_SUBJECTS) {
+            distinctNames.add(s.trim());
+          }
+          for (const row of legacySubjsRes.rows) {
+            if (row.name && row.name.trim()) {
+              distinctNames.add(row.name.trim());
+            }
+          }
+
+          for (const name of distinctNames) {
+            let inferredYear = 1;
+            try {
+              const sessionRes = await client.query(
+                `SELECT batch FROM quiz_sessions WHERE LOWER(subject) = LOWER($1) AND batch IS NOT NULL ORDER BY created_at DESC LIMIT 1`,
+                [name]
+              );
+              if (sessionRes.rowCount && sessionRes.rowCount > 0 && sessionRes.rows[0].batch) {
+                const bText = String(sessionRes.rows[0].batch).toLowerCase();
+                if (/4th|year\s*4/i.test(bText)) inferredYear = 4;
+                else if (/3rd|year\s*3/i.test(bText)) inferredYear = 3;
+                else if (/2nd|year\s*2/i.test(bText)) inferredYear = 2;
+                else if (/1st|year\s*1/i.test(bText)) inferredYear = 1;
+              }
+            } catch {}
+
+            try {
+              await client.query(
+                `INSERT INTO subjects (id, year, name, status, created_by, created_by_role)
+                 VALUES ($1, $2, $3, 'active', 'system', 'admin')
+                 ON CONFLICT (year, lower(name)) DO NOTHING`,
+                [uuidv4(), inferredYear, name]
+              );
+            } catch {}
+          }
+
+          try {
+            await client.query(`
+              UPDATE quiz_sessions qs
+              SET subject_id = s.id, year = s.year
+              FROM subjects s
+              WHERE LOWER(TRIM(qs.subject)) = LOWER(s.name) AND qs.subject_id IS NULL
+            `);
+          } catch (e) {
+            console.warn('[db] Backfill quiz_sessions subject_id failed:', e);
+          }
+
+          try {
+            await client.query(`
+              UPDATE quizzes q
+              SET subject_id = s.id, year = s.year
+              FROM subjects s
+              WHERE LOWER(TRIM(q.subject)) = LOWER(s.name) AND q.subject_id IS NULL
+            `);
+          } catch (e) {
+            console.warn('[db] Backfill quizzes subject_id failed:', e);
+          }
+
+          await client.query(`INSERT INTO schema_meta (key) VALUES ('subjects_seed_v1')`);
+          console.log('[db] Seeded subjects table and backfilled historical sessions/quizzes.');
         }
 
         // Ensure all polariscampus.com accounts are active faculty/mentor (or admin)
@@ -2054,6 +2238,211 @@ export async function getAllSubjects(): Promise<string[]> {
   }
 
   return Array.from(subjectMap.values()).sort((a, b) => a.localeCompare(b));
+}
+
+/**
+ * Returns all active subjects grouped/sorted by year ASC, name ASC.
+ */
+export async function getAllActiveSubjects(): Promise<Subject[]> {
+  if (usePostgres && pool) {
+    const res = await pool.query(
+      `SELECT id, year, name, status,
+              created_by as "createdBy", created_by_role as "createdByRole",
+              created_at as "createdAt"
+       FROM subjects
+       WHERE status = 'active'
+       ORDER BY year ASC, LOWER(name) ASC`
+    );
+    return res.rows;
+  }
+  if (!localDb.subjects || Object.keys(localDb.subjects).length === 0) {
+    backfillSubjectsLocal();
+  }
+  return Object.values(localDb.subjects || {})
+    .filter((s) => s.status === 'active')
+    .sort((a, b) => a.year - b.year || a.name.localeCompare(b.name));
+}
+
+/**
+ * Admin: Returns all subjects (active + inactive) sorted by year ASC, name ASC.
+ */
+export async function getAllSubjectsForAdmin(): Promise<Subject[]> {
+  if (usePostgres && pool) {
+    const res = await pool.query(
+      `SELECT id, year, name, status,
+              created_by as "createdBy", created_by_role as "createdByRole",
+              created_at as "createdAt"
+       FROM subjects
+       ORDER BY year ASC, LOWER(name) ASC`
+    );
+    return res.rows;
+  }
+  if (!localDb.subjects || Object.keys(localDb.subjects).length === 0) {
+    backfillSubjectsLocal();
+  }
+  return Object.values(localDb.subjects || {})
+    .sort((a, b) => a.year - b.year || a.name.localeCompare(b.name));
+}
+
+/**
+ * Look up a single subject by ID.
+ */
+export async function getSubjectById(id: string): Promise<Subject | null> {
+  if (usePostgres && pool) {
+    const res = await pool.query(
+      `SELECT id, year, name, status,
+              created_by as "createdBy", created_by_role as "createdByRole",
+              created_at as "createdAt"
+       FROM subjects
+       WHERE id = $1`,
+      [id]
+    );
+    return res.rows[0] || null;
+  }
+  if (!localDb.subjects || Object.keys(localDb.subjects).length === 0) {
+    backfillSubjectsLocal();
+  }
+  return localDb.subjects?.[id] || null;
+}
+
+/**
+ * Creates a subject for a given Year (1..4) with case-insensitive deduplication.
+ * If a subject with the same (year, lower(name)) exists, it returns the existing row.
+ */
+export async function createSubject(
+  year: number,
+  name: string,
+  createdBy?: string,
+  createdByRole?: string
+): Promise<{ subject: Subject; created: boolean }> {
+  const cleanName = name.trim();
+  const cleanYear = Math.max(1, Math.min(4, Math.floor(year)));
+
+  if (usePostgres && pool) {
+    const existingRes = await pool.query(
+      `SELECT id, year, name, status,
+              created_by as "createdBy", created_by_role as "createdByRole",
+              created_at as "createdAt"
+       FROM subjects
+       WHERE year = $1 AND LOWER(name) = LOWER($2)`,
+      [cleanYear, cleanName]
+    );
+    if (existingRes.rowCount && existingRes.rowCount > 0) {
+      return { subject: existingRes.rows[0], created: false };
+    }
+
+    const newId = uuidv4();
+    const insertRes = await pool.query(
+      `INSERT INTO subjects (id, year, name, status, created_by, created_by_role)
+       VALUES ($1, $2, $3, 'active', $4, $5)
+       ON CONFLICT (year, lower(name)) DO UPDATE SET status = 'active'
+       RETURNING id, year, name, status,
+                 created_by as "createdBy", created_by_role as "createdByRole",
+                 created_at as "createdAt"`,
+      [newId, cleanYear, cleanName, createdBy || 'unknown', createdByRole || 'mentor']
+    );
+    return { subject: insertRes.rows[0], created: true };
+  }
+
+  // Local JSON fallback
+  if (!localDb.subjects || Object.keys(localDb.subjects).length === 0) {
+    backfillSubjectsLocal();
+  }
+  if (!localDb.subjects) {
+    localDb.subjects = {};
+  }
+  const existing = Object.values(localDb.subjects).find(
+    (s) => s.year === cleanYear && s.name.toLowerCase() === cleanName.toLowerCase()
+  );
+  if (existing) {
+    return { subject: existing, created: false };
+  }
+
+  const id = uuidv4();
+  const newSub: Subject = {
+    id,
+    year: cleanYear,
+    name: cleanName,
+    status: 'active',
+    createdBy: createdBy || 'unknown',
+    createdByRole: createdByRole || 'mentor',
+    createdAt: new Date().toISOString(),
+  };
+  localDb.subjects[id] = newSub;
+  saveLocalDb();
+  return { subject: newSub, created: true };
+}
+
+/**
+ * Admin: Rename, change year, or activate/deactivate a subject.
+ * Returns { conflict: true } if (year, lower(name)) already exists for another subject.
+ */
+export async function updateSubject(
+  id: string,
+  updates: { name?: string; year?: number; status?: 'active' | 'inactive' }
+): Promise<{ subject?: Subject; conflict?: boolean; notFound?: boolean }> {
+  const cleanName = updates.name ? updates.name.trim() : undefined;
+  const cleanYear = updates.year !== undefined ? Math.max(1, Math.min(4, Math.floor(updates.year))) : undefined;
+
+  if (usePostgres && pool) {
+    const existingRes = await pool.query(
+      `SELECT id, year, name, status FROM subjects WHERE id = $1`,
+      [id]
+    );
+    if (existingRes.rowCount === 0) {
+      return { notFound: true };
+    }
+    const current = existingRes.rows[0];
+    const targetYear = cleanYear !== undefined ? cleanYear : current.year;
+    const targetName = cleanName !== undefined ? cleanName : current.name;
+
+    const conflictRes = await pool.query(
+      `SELECT id FROM subjects WHERE year = $1 AND LOWER(name) = LOWER($2) AND id <> $3`,
+      [targetYear, targetName, id]
+    );
+    if ((conflictRes.rowCount ?? 0) > 0) {
+      return { conflict: true };
+    }
+
+    const res = await pool.query(
+      `UPDATE subjects
+       SET name = COALESCE($1, name),
+           year = COALESCE($2, year),
+           status = COALESCE($3, status)
+       WHERE id = $4
+       RETURNING id, year, name, status,
+                 created_by as "createdBy", created_by_role as "createdByRole",
+                 created_at as "createdAt"`,
+      [cleanName ?? null, cleanYear ?? null, updates.status ?? null, id]
+    );
+    return { subject: res.rows[0] };
+  }
+
+  // Local JSON fallback
+  if (!localDb.subjects || Object.keys(localDb.subjects).length === 0) {
+    backfillSubjectsLocal();
+  }
+  const current = localDb.subjects?.[id];
+  if (!current) {
+    return { notFound: true };
+  }
+
+  const targetYear = cleanYear !== undefined ? cleanYear : current.year;
+  const targetName = cleanName !== undefined ? cleanName : current.name;
+
+  const collision = Object.values(localDb.subjects || {}).find(
+    (s) => s.id !== id && s.year === targetYear && s.name.toLowerCase() === targetName.toLowerCase()
+  );
+  if (collision) {
+    return { conflict: true };
+  }
+
+  if (cleanName !== undefined) current.name = cleanName;
+  if (cleanYear !== undefined) current.year = cleanYear;
+  if (updates.status !== undefined) current.status = updates.status;
+
+  saveLocalDb();
+  return { subject: current };
 }
 
 /**
