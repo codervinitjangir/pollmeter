@@ -1132,6 +1132,27 @@ export async function handleExtractFromFile(req: Request, res: Response): Promis
     const targetTime = Math.min(120, Math.max(10, Number(timeLimitSeconds) || 30));
     const targetDifficulty = ['easy', 'medium', 'hard'].includes(difficulty) ? difficulty : 'medium';
 
+    // 1. Direct spreadsheet parsing first for structured question sheets (instant, faithful, zero LLM hallucination)
+    if (['csv', 'tsv', 'xlsx', 'xls'].includes(fileType)) {
+      const directQuestions = parseCsvFallback(extractedText, targetTime, 100);
+      if (directQuestions.length > 0) {
+        res.json({
+          success: true,
+          questions: directQuestions,
+          source: 'direct-parse',
+          notice: `Imported ${directQuestions.length} question${directQuestions.length === 1 ? '' : 's'} directly from spreadsheet.`,
+          summary: {
+            fileName,
+            fileType,
+            extractedLength: extractedText.length,
+            verifiedCount: directQuestions.length,
+          },
+        });
+        return;
+      }
+    }
+
+    // 2. Unstructured documents (PDFs, text notes, etc.) synthesize via AI
     if (hasApiKey()) {
       const prompt = buildFileIngestPrompt({
         fileName: String(fileName),
@@ -1183,28 +1204,8 @@ export async function handleExtractFromFile(req: Request, res: Response): Promis
       }
     }
 
-    // Direct spreadsheet parsing fallback if offline or no keys
-    if (['csv', 'tsv', 'xlsx', 'xls'].includes(fileType)) {
-      const fallbackQuestions = parseCsvFallback(extractedText, targetTime, targetCount);
-      if (fallbackQuestions.length > 0) {
-        res.json({
-          success: true,
-          questions: fallbackQuestions,
-          source: 'direct-parse',
-          notice: 'Parsed directly from spreadsheet rows. Add GEMINI_API_KEY for automated factual auditing and distractor balancing.',
-          summary: {
-            fileName,
-            fileType,
-            extractedLength: extractedText.length,
-            verifiedCount: fallbackQuestions.length,
-          },
-        });
-        return;
-      }
-    }
-
     res.status(503).json({
-      error: 'Could not generate questions from this document. Please check the content or configure GEMINI_API_KEY in server/.env.',
+      error: 'Could not extract questions from this document. Please verify the content format and try again.',
     });
   } catch (err: any) {
     console.error('[ai-file-extract] Error:', err);

@@ -2281,6 +2281,8 @@ fieldset.field {
 }
 .ai-source--ai   { background: var(--menti-green-light); color: #166534; }
 .ai-source--bank { background: #FEF3C7; color: #92400E; }
+.ai-source--direct { background: rgba(99, 102, 241, 0.12); color: #4F46E5; border: 1px solid rgba(99, 102, 241, 0.25); }
+[data-theme="dark"] .ai-source--direct { background: rgba(99, 102, 241, 0.2); color: #A5B4FC; border-color: rgba(99, 102, 241, 0.4); }
 .ai-syllabus { font-family: var(--font); min-height: 96px; resize: vertical; }
 
 /*

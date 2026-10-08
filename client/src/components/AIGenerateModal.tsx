@@ -144,6 +144,8 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '', 
     setError('');
   }
 
+  const isSpreadsheet = mode === 'document' && Boolean(selectedFile && /\.(csv|tsv|xlsx|xls)$/i.test(selectedFile.name));
+
   // Sync preview snapshot into localStorage so reloads or accidental drops preserve work
   useEffect(() => {
     if (preview && preview.length > 0) {
@@ -536,7 +538,7 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '', 
                       {selectedFile.name}
                     </div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                      {(selectedFile.size / 1024).toFixed(1)} KB · Ready for AI Extraction & Factual Auditing
+                      {(selectedFile.size / 1024).toFixed(1)} KB · {isSpreadsheet ? 'Ready for Direct Question Import' : 'Ready for AI Extraction & Factual Auditing'}
                     </div>
                   </div>
                 </div>
@@ -575,22 +577,47 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '', 
               </span>
             </div>
 
-            <div className="field" style={{ marginTop: '0.35rem' }}>
-              <div className="row row-2" style={{ justifyContent: 'space-between' }}>
-                <label className="field-label" htmlFor="ai-doc-focus">
-                  Focus / Unit Filter <span className="text-muted">(optional)</span>
-                </label>
-                <span className="t-body-sm text-muted">e.g. "Chapter 3 only" or "Deadlocks"</span>
+            {isSpreadsheet ? (
+              <div
+                style={{
+                  background: 'linear-gradient(135deg, rgba(37, 181, 127, 0.08), rgba(99, 102, 241, 0.08))',
+                  border: '1px solid rgba(37, 181, 127, 0.35)',
+                  borderRadius: '12px',
+                  padding: '0.85rem 1rem',
+                  marginTop: '0.6rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                }}
+              >
+                <span style={{ fontSize: '1.4rem' }}>📊</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-primary)' }}>
+                    Direct Spreadsheet Import Mode
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.15rem', lineHeight: 1.4 }}>
+                    Questions, choices, and answer keys will be imported directly from your spreadsheet without changing their text.
+                  </div>
+                </div>
               </div>
-              <input
-                id="ai-doc-focus"
-                type="text"
-                value={focus}
-                maxLength={MAX_FOCUS}
-                onChange={(e) => setFocus(e.target.value)}
-                placeholder='e.g. "Focus on Chapter 4" or "Extract from Unit 2"'
-              />
-            </div>
+            ) : (
+              <div className="field" style={{ marginTop: '0.35rem' }}>
+                <div className="row row-2" style={{ justifyContent: 'space-between' }}>
+                  <label className="field-label" htmlFor="ai-doc-focus">
+                    Focus / Unit Filter <span className="text-muted">(optional)</span>
+                  </label>
+                  <span className="t-body-sm text-muted">e.g. "Chapter 3 only" or "Deadlocks"</span>
+                </div>
+                <input
+                  id="ai-doc-focus"
+                  type="text"
+                  value={focus}
+                  maxLength={MAX_FOCUS}
+                  onChange={(e) => setFocus(e.target.value)}
+                  placeholder='e.g. "Focus on Chapter 4" or "Extract from Unit 2"'
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -679,53 +706,52 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '', 
           </div>
         )}
 
-        <div className="field">
-          <label className="field-label" htmlFor="ai-audience">Who is the class? <span className="text-muted">(optional)</span></label>
-          <input
-            id="ai-audience"
-            type="text"
-            value={audience}
-            maxLength={120}
-            onChange={(e) => setAudience(e.target.value)}
-            placeholder='e.g. "Class 10 CBSE", "2nd year B.Tech, first week"'
-          />
-        </div>
+        {!isSpreadsheet && (
+          <div className="field">
+            <label className="field-label" htmlFor="ai-audience">Who is the class? <span className="text-muted">(optional)</span></label>
+            <input
+              id="ai-audience"
+              type="text"
+              value={audience}
+              maxLength={120}
+              onChange={(e) => setAudience(e.target.value)}
+              placeholder='e.g. "Class 10 CBSE", "2nd year B.Tech, first week"'
+            />
+          </div>
+        )}
 
         <div className="row row-3 row-wrap">
-          <div className="field" style={{ flex: '1 1 80px' }}>
-            <label className="field-label" htmlFor="ai-count">Questions</label>
-            <select id="ai-count" value={count} onChange={(e) => setCount(Number(e.target.value))}>
-              {[3, 5, 7, 10, 12, 15, MAX_COUNT].map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
+          {!isSpreadsheet && (
+            <>
+              <div className="field" style={{ flex: '1 1 80px' }}>
+                <label className="field-label" htmlFor="ai-count">Questions</label>
+                <select id="ai-count" value={count} onChange={(e) => setCount(Number(e.target.value))}>
+                  {[3, 5, 7, 10, 12, 15, MAX_COUNT].map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+              </div>
 
-          <div className="field" style={{ flex: '1 1 100px' }}>
-            <label className="field-label" htmlFor="ai-diff">Difficulty</label>
-            <select id="ai-diff" value={difficulty} onChange={(e) => setDifficulty(e.target.value as Difficulty)}>
-              <option value="easy">Easy</option>
-              <option value="medium">Medium</option>
-              <option value="hard">Hard</option>
-            </select>
-          </div>
+              <div className="field" style={{ flex: '1 1 100px' }}>
+                <label className="field-label" htmlFor="ai-diff">Difficulty</label>
+                <select id="ai-diff" value={difficulty} onChange={(e) => setDifficulty(e.target.value as Difficulty)}>
+                  <option value="easy">Easy</option>
+                  <option value="medium">Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+              </div>
 
-          {/*
-            This was a <select> holding a single option, which reads as a broken
-            control — a mentor clicks it expecting choices and nothing opens.
-            Generation is deliberately MCQ-only (open text carries no answer key,
-            so it cannot score and would silently flatten the leaderboard), so
-            state that as a fact instead of dressing it up as a choice.
-          */}
-          <div className="field" style={{ flex: '1 1 100px' }}>
-            <span className="field-label">Format</span>
-            <div className="ai-static-field" title="Generated questions are always multiple choice so they can be scored">
-              MCQ · scored
-            </div>
-          </div>
+              <div className="field" style={{ flex: '1 1 100px' }}>
+                <span className="field-label">Format</span>
+                <div className="ai-static-field" title="Generated questions are always multiple choice so they can be scored">
+                  MCQ · scored
+                </div>
+              </div>
+            </>
+          )}
 
-          <div className="field" style={{ flex: '1 1 80px' }}>
-            <label className="field-label" htmlFor="ai-time">Time each</label>
+          <div className="field" style={{ flex: isSpreadsheet ? '1 1 160px' : '1 1 80px' }}>
+            <label className="field-label" htmlFor="ai-time">{isSpreadsheet ? 'Default Time per Question' : 'Time each'}</label>
             <select id="ai-time" value={timeLimit} onChange={(e) => setTimeLimit(Number(e.target.value))}>
               <option value={15}>15s</option>
               <option value={20}>20s</option>
@@ -750,9 +776,11 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '', 
         )}
 
         {preview && source && (
-          <div className={`ai-source ${source.source === 'ai' ? 'ai-source--ai' : 'ai-source--bank'}`}>
+          <div className={`ai-source ${source.source === 'ai' ? 'ai-source--ai' : source.source === 'direct-parse' ? 'ai-source--direct' : 'ai-source--bank'}`}>
             {source.source === 'ai' ? (
               <span>✨ Generated by {source.model || 'AI'} — check them before you project them.</span>
+            ) : source.source === 'direct-parse' ? (
+              <span>📊 {source.notice ?? 'Imported directly from spreadsheet rows.'}</span>
             ) : (
               <span>📚 {source.notice ?? 'These came from the built-in question bank, not AI.'}</span>
             )}
@@ -888,8 +916,8 @@ export default function AIGenerateModal({ onInsert, onClose, initialTopic = '', 
           ) : (
             <button className="btn btn-ai" onClick={generate} disabled={loading} id="ai-generate-btn">
               {loading ? (
-                <><span className="spinner spinner--sm" style={{ borderTopColor: '#fff' }} /> {mode === 'document' ? 'Auditing & Extracting…' : 'Generating…'}</>
-              ) : mode === 'document' ? '📁 Extract & Audit with AI' : '✨ Generate'}
+                <><span className="spinner spinner--sm" style={{ borderTopColor: '#fff' }} /> {isSpreadsheet ? 'Importing Questions…' : mode === 'document' ? 'Auditing & Extracting…' : 'Generating…'}</>
+              ) : isSpreadsheet ? '📥 Import Questions from Sheet' : mode === 'document' ? '📁 Extract & Audit with AI' : '✨ Generate'}
             </button>
           )}
         </div>
